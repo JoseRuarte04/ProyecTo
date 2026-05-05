@@ -25,6 +25,7 @@ import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { exportPlanPdf } from "@/components/plans/PlanPdfExport";
 import { AnalEvalList } from "@/components/evaluations/AnalyticalEvalForm";
+import { EDEMA_POINTS, isNewEdemaFormat, normalizeEdemaValue } from "@/components/clinical/EdemaCircometryTable";
 import { QUICKDASH_QUESTIONS, FIM_MOTOR, FIM_COGNITIVE } from "@/components/evaluations/FunctionalScales";
 
 const ALLOWED_CLINICAL_FILE_TYPES = [
