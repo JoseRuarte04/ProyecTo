@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Loader2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
+import { EdemaCircometryTable, buildEdemaPayload, normalizeEdemaValue, isNewEdemaFormat, EDEMA_POINTS, type EdemaSide } from "@/components/clinical/EdemaCircometryTable";
 
 // --- Constants ---
 
@@ -66,10 +67,8 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
   const [gonio, setGonio] = useState<{ MSD: Record<string, string>; MSI: Record<string, string> }>({ MSD: {}, MSI: {} });
   const [tests, setTests] = useState<Record<string, TestResult>>({});
   // Circometría
-  const [circRef, setCircRef] = useState("");
-  const [circSide, setCircSide] = useState<"D" | "I">("D");
-  const [circValueCm, setCircValueCm] = useState("");
-  const [circManoGlobal, setCircManoGlobal] = useState(false);
+  const [edemaSano, setEdemaSano] = useState<EdemaSide>({});
+  const [edemaAfectado, setEdemaAfectado] = useState<EdemaSide>({});
   // Dinamometría 3 mediciones
   const [dynMsdVals, setDynMsdVals] = useState<[string, string, string]>(["", "", ""]);
   const [dynMsiVals, setDynMsiVals] = useState<[string, string, string]>(["", "", ""]);
@@ -104,9 +103,7 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
     const gonioHasValues = Object.values(gonio.MSD).some(v => v !== "") || Object.values(gonio.MSI).some(v => v !== "");
     const testsHasValues = Object.values(tests).some(v => v !== null);
 
-    const edemaCirc = (circRef.trim() || circValueCm.trim())
-      ? { reference: circRef.trim(), side: circSide, value_cm: circValueCm.trim() ? Number(circValueCm) : null, mano_global: circManoGlobal }
-      : null;
+    const edemaCirc = buildEdemaPayload(edemaSano, edemaAfectado);
 
     const insertData: any = {
       patient_id: patientId, professional_id: userId,
@@ -180,24 +177,12 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
               <div className="space-y-1"><Label className="text-xs">Observación</Label><Textarea value={form.edema} onChange={e => u("edema", e.target.value)} rows={2} /></div>
               <div className="space-y-2">
                 <Label className="text-xs font-semibold">Circometría</Label>
-                <Input value={circRef} onChange={e => setCircRef(e.target.value)} placeholder="Reparo anatómico de referencia (ej: MCF, tercio distal antebrazo)" />
-                <div className="grid grid-cols-2 gap-3 items-end">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Lado</Label>
-                    <RadioGroup value={circSide} onValueChange={(v) => setCircSide(v as "D" | "I")} className="flex gap-4 pt-1">
-                      <div className="flex items-center gap-1.5"><RadioGroupItem value="D" id="ae-cd" /><Label htmlFor="ae-cd" className="text-xs font-normal">Derecho</Label></div>
-                      <div className="flex items-center gap-1.5"><RadioGroupItem value="I" id="ae-ci" /><Label htmlFor="ae-ci" className="text-xs font-normal">Izquierdo</Label></div>
-                    </RadioGroup>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Valor (cm)</Label>
-                    <Input type="number" step="0.1" value={circValueCm} onChange={e => setCircValueCm(e.target.value)} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={circManoGlobal} onCheckedChange={setCircManoGlobal} id="ae-cglobal" />
-                  <Label htmlFor="ae-cglobal" className="text-xs font-normal">Mano global</Label>
-                </div>
+                <EdemaCircometryTable
+                  mode="admission"
+                  sano={edemaSano}
+                  afectado={edemaAfectado}
+                  onChange={({ sano, afectado }) => { setEdemaSano(sano); setEdemaAfectado(afectado); }}
+                />
               </div>
               <div className="space-y-1"><Label className="text-xs">Test de Godet</Label>
                 <Select value={form.godet_test} onValueChange={v => u("godet_test", v)}>
@@ -439,11 +424,45 @@ export function AnalEvalDetailDialog({ evaluation, onClose }: { evaluation: any;
 
           <AccordionItem value="edema">
             <AccordionTrigger className="text-sm font-semibold">Edema</AccordionTrigger>
-            <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <AccordionContent className="space-y-3 pt-2">
               <Row label="Observación" value={e.edema} />
               {(() => {
-                const c = e.edema_circummetry;
+                const c: any = e.edema_circummetry;
                 if (!c) return null;
+                if (isNewEdemaFormat(c)) {
+                  const norm = normalizeEdemaValue(c);
+                  const sanoEntries = EDEMA_POINTS.filter(p => norm.sano[p.key] != null && norm.sano[p.key] !== "");
+                  const afEntries = EDEMA_POINTS.filter(p => norm.afectado[p.key] != null && norm.afectado[p.key] !== "");
+                  if (sanoEntries.length === 0 && afEntries.length === 0) return null;
+                  const showSano = sanoEntries.length > 0;
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">Punto</th>
+                            {showSano && <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">MS Sano{norm.sano.fecha ? ` (${norm.sano.fecha})` : ""}</th>}
+                            <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">MS Afectado{norm.afectado.fecha ? ` (${norm.afectado.fecha})` : ""}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {EDEMA_POINTS.map(p => {
+                            const s = norm.sano[p.key], a = norm.afectado[p.key];
+                            const has = (s != null && s !== "") || (a != null && a !== "");
+                            if (!has) return null;
+                            return (
+                              <tr key={p.key} className="border-b border-border/50">
+                                <td className="py-1 px-2">{p.label}</td>
+                                {showSano && <td className="py-1 px-2">{s != null && s !== "" ? `${s} cm` : "—"}</td>}
+                                <td className="py-1 px-2">{a != null && a !== "" ? `${a} cm` : "—"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                }
                 if (typeof c === "object") {
                   if (!c.reference && c.value_cm == null) return null;
                   const txt = `${c.reference || ""}${c.side ? ` (${c.side})` : ""}${c.value_cm != null ? ` — ${c.value_cm} cm` : ""}${c.mano_global ? " · Mano global" : ""}`.trim();

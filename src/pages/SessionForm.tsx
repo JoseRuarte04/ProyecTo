@@ -43,6 +43,7 @@ import {
   calcFimTotal,
   calcBarthelTotal,
 } from "@/components/evaluations/FunctionalScales";
+import { EdemaCircometryTable, buildEdemaPayload, normalizeEdemaValue, isNewEdemaFormat, type EdemaSide } from "@/components/clinical/EdemaCircometryTable";
 
 // ── Goniometry config by body part ──
 const GONIO_PARTS = {
@@ -433,11 +434,10 @@ export default function SessionForm() {
   const [edema_obs, setEdemaObs] = useState("");
   const [godet_test, setGodetTest] = useState("");
 
-  // Circometría (nuevo formato JSONB)
-  const [circ_reference, setCircReference] = useState("");
-  const [circ_side, setCircSide] = useState<"D" | "I">("D");
-  const [circ_value_cm, setCircValueCm] = useState("");
-  const [circ_mano_global, setCircManoGlobal] = useState(false);
+  // Circometría (tabla MS Sano / MS Afectado)
+  const [edema_circ_sano, setEdemaCircSano] = useState<EdemaSide>({});
+  const [edema_circ_afectado, setEdemaCircAfectado] = useState<EdemaSide>({});
+  const [edema_baseline_sano, setEdemaBaselineSano] = useState<EdemaSide | null>(null);
 
   // Goniometry PRE/POST — por lado MSD/MSI, nested by part
   type GonioBySide = Record<"MSD" | "MSI", Record<GonioPartKey, Record<string, string>>>;
@@ -580,11 +580,10 @@ export default function SessionForm() {
           setGodetTest(ae.godet_test || "");
           setShowEdema(!!(ae.edema || ae.godet_test || ae.edema_circummetry));
           const circ: any = ae.edema_circummetry;
-          if (circ && typeof circ === "object" && !Array.isArray(circ)) {
-            setCircReference(circ.reference || "");
-            setCircSide(circ.side === "I" ? "I" : "D");
-            setCircValueCm(circ.value_cm != null ? String(circ.value_cm) : "");
-            setCircManoGlobal(!!circ.mano_global);
+          if (isNewEdemaFormat(circ)) {
+            const norm = normalizeEdemaValue(circ);
+            setEdemaCircSano(norm.sano);
+            setEdemaCircAfectado(norm.afectado);
           }
           setShowMobility(!!(ae.goniometry || ae.arom || ae.prom || ae.kapandji));
           if (ae.goniometry && typeof ae.goniometry === "object") {
@@ -721,6 +720,23 @@ export default function SessionForm() {
         setOccSleepRest(occRow.sleep_rest || "");
         setOccHealthManagement(occRow.health_management || "");
       }
+
+      // Cargar baseline MS Sano (de la sesión de admisión del episodio) para follow_up/discharge
+      if (!isAdmission && patientId) {
+        const q: any = (supabase as any).from("sessions").select("id").eq("patient_id", patientId).eq("session_type", "admission");
+        const { data: admSession } = epId
+          ? await q.eq("episode_id", epId).maybeSingle()
+          : await q.maybeSingle();
+        if (admSession?.id) {
+          const { data: admEval } = await supabase
+            .from("analytical_evaluations")
+            .select("edema_circummetry")
+            .eq("session_id", String(admSession.id))
+            .maybeSingle();
+          const c: any = admEval?.edema_circummetry;
+          if (isNewEdemaFormat(c) && c.sano) setEdemaBaselineSano(c.sano);
+        }
+      }
     })();
   }, [patientId, activeEpisodeId]);
 
@@ -816,14 +832,9 @@ export default function SessionForm() {
         : null
       : null;
 
-    // ── Edema circometría (gated) — JSONB ──
-    const edemaCirc = showEdema && (circ_reference.trim() || circ_value_cm.trim())
-      ? {
-          reference: circ_reference.trim(),
-          side: circ_side,
-          value_cm: circ_value_cm.trim() ? Number(circ_value_cm) : null,
-          mano_global: circ_mano_global,
-        }
+    // ── Edema circometría (gated) — JSONB tabla ──
+    const edemaCirc = showEdema
+      ? buildEdemaPayload(edema_circ_sano, edema_circ_afectado)
       : null;
 
     // ── Mobility (gated) — por lado MSD/MSI ──
@@ -1572,38 +1583,13 @@ export default function SessionForm() {
             </div>
             <div>
               <h4 className="text-xs font-medium text-muted-foreground mb-2">Circometría</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <Label>Reparo anatómico de referencia</Label>
-                  <Input
-                    value={circ_reference}
-                    onChange={(e) => setCircReference(e.target.value)}
-                    placeholder="ej: articulación MCF, tercio distal antebrazo"
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <Label>Lado</Label>
-                  <RadioGroup value={circ_side} onValueChange={(v) => setCircSide(v as "D" | "I")} className="flex gap-6 pt-2">
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="D" id="circ-d-sf" />
-                      <Label htmlFor="circ-d-sf" className="font-normal cursor-pointer text-sm">Derecho</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="I" id="circ-i-sf" />
-                      <Label htmlFor="circ-i-sf" className="font-normal cursor-pointer text-sm">Izquierdo</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <div>
-                  <Label>Valor (cm)</Label>
-                  <Input type="number" step="0.1" value={circ_value_cm} onChange={(e) => setCircValueCm(e.target.value)} className={inputClass} />
-                </div>
-                <div className="sm:col-span-2 flex items-center gap-3">
-                  <Switch checked={circ_mano_global} onCheckedChange={setCircManoGlobal} id="circ-global-sf" />
-                  <Label htmlFor="circ-global-sf" className="font-normal cursor-pointer text-sm">Mano global</Label>
-                </div>
-              </div>
+              <EdemaCircometryTable
+                mode={isAdmission ? "admission" : "follow_up"}
+                baselineSano={edema_baseline_sano}
+                sano={edema_circ_sano}
+                afectado={edema_circ_afectado}
+                onChange={({ sano, afectado }) => { setEdemaCircSano(sano); setEdemaCircAfectado(afectado); }}
+              />
             </div>
           </SubSection>
 
