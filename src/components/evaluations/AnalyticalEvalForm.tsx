@@ -177,24 +177,12 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
               <div className="space-y-1"><Label className="text-xs">Observación</Label><Textarea value={form.edema} onChange={e => u("edema", e.target.value)} rows={2} /></div>
               <div className="space-y-2">
                 <Label className="text-xs font-semibold">Circometría</Label>
-                <Input value={circRef} onChange={e => setCircRef(e.target.value)} placeholder="Reparo anatómico de referencia (ej: MCF, tercio distal antebrazo)" />
-                <div className="grid grid-cols-2 gap-3 items-end">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Lado</Label>
-                    <RadioGroup value={circSide} onValueChange={(v) => setCircSide(v as "D" | "I")} className="flex gap-4 pt-1">
-                      <div className="flex items-center gap-1.5"><RadioGroupItem value="D" id="ae-cd" /><Label htmlFor="ae-cd" className="text-xs font-normal">Derecho</Label></div>
-                      <div className="flex items-center gap-1.5"><RadioGroupItem value="I" id="ae-ci" /><Label htmlFor="ae-ci" className="text-xs font-normal">Izquierdo</Label></div>
-                    </RadioGroup>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Valor (cm)</Label>
-                    <Input type="number" step="0.1" value={circValueCm} onChange={e => setCircValueCm(e.target.value)} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={circManoGlobal} onCheckedChange={setCircManoGlobal} id="ae-cglobal" />
-                  <Label htmlFor="ae-cglobal" className="text-xs font-normal">Mano global</Label>
-                </div>
+                <EdemaCircometryTable
+                  mode="admission"
+                  sano={edemaSano}
+                  afectado={edemaAfectado}
+                  onChange={({ sano, afectado }) => { setEdemaSano(sano); setEdemaAfectado(afectado); }}
+                />
               </div>
               <div className="space-y-1"><Label className="text-xs">Test de Godet</Label>
                 <Select value={form.godet_test} onValueChange={v => u("godet_test", v)}>
