@@ -67,10 +67,8 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
   const [gonio, setGonio] = useState<{ MSD: Record<string, string>; MSI: Record<string, string> }>({ MSD: {}, MSI: {} });
   const [tests, setTests] = useState<Record<string, TestResult>>({});
   // Circometría
-  const [circRef, setCircRef] = useState("");
-  const [circSide, setCircSide] = useState<"D" | "I">("D");
-  const [circValueCm, setCircValueCm] = useState("");
-  const [circManoGlobal, setCircManoGlobal] = useState(false);
+  const [edemaSano, setEdemaSano] = useState<EdemaSide>({});
+  const [edemaAfectado, setEdemaAfectado] = useState<EdemaSide>({});
   // Dinamometría 3 mediciones
   const [dynMsdVals, setDynMsdVals] = useState<[string, string, string]>(["", "", ""]);
   const [dynMsiVals, setDynMsiVals] = useState<[string, string, string]>(["", "", ""]);
