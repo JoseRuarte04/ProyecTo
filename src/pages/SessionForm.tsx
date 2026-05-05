@@ -815,14 +815,9 @@ export default function SessionForm() {
         : null
       : null;
 
-    // ── Edema circometría (gated) — JSONB ──
-    const edemaCirc = showEdema && (circ_reference.trim() || circ_value_cm.trim())
-      ? {
-          reference: circ_reference.trim(),
-          side: circ_side,
-          value_cm: circ_value_cm.trim() ? Number(circ_value_cm) : null,
-          mano_global: circ_mano_global,
-        }
+    // ── Edema circometría (gated) — JSONB tabla ──
+    const edemaCirc = showEdema
+      ? buildEdemaPayload(edema_circ_sano, edema_circ_afectado)
       : null;
 
     // ── Mobility (gated) — por lado MSD/MSI ──
