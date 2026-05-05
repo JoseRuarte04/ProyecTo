@@ -941,9 +941,11 @@ export default function SessionForm() {
         studies: cli_studies.trim() || null,
       };
       if (editingClinicalId) {
-        await supabase.from("patient_clinical_records").update(cliPayload).eq("id", editingClinicalId);
+        const { error: cliErr } = await supabase.from("patient_clinical_records").update(cliPayload).eq("id", editingClinicalId);
+        if (cliErr) { setSaving(false); toast.error("Error al guardar ficha clínica: " + cliErr.message); return; }
       } else {
-        const { data: newCli } = await supabase.from("patient_clinical_records").insert(cliPayload).select("id").single();
+        const { data: newCli, error: cliErr } = await supabase.from("patient_clinical_records").insert(cliPayload).select("id").single();
+        if (cliErr) { setSaving(false); toast.error("Error al guardar ficha clínica: " + cliErr.message); return; }
         if (newCli) setEditingClinicalId(newCli.id);
       }
 
@@ -961,9 +963,11 @@ export default function SessionForm() {
         aivd: func_aivd || null,
       };
       if (editingOccId) {
-        await supabase.from("patient_occupational_profiles").update(occPayload).eq("id", editingOccId);
+        const { error: occErr } = await supabase.from("patient_occupational_profiles").update(occPayload).eq("id", editingOccId);
+        if (occErr) { setSaving(false); toast.error("Error al guardar perfil ocupacional: " + occErr.message); return; }
       } else {
-        const { data: newOcc } = await supabase.from("patient_occupational_profiles").insert(occPayload).select("id").single();
+        const { data: newOcc, error: occErr } = await supabase.from("patient_occupational_profiles").insert(occPayload).select("id").single();
+        if (occErr) { setSaving(false); toast.error("Error al guardar perfil ocupacional: " + occErr.message); return; }
         if (newOcc) setEditingOccId(newOcc.id);
       }
     }
