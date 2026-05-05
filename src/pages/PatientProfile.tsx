@@ -267,11 +267,17 @@ export default function PatientProfile() {
           {/* Actions */}
           <div className="space-y-2">
             <Button 
-              onClick={() => navigate(`/patients/${id}/sessions/new${activeEpisodeId ? `?episode=${activeEpisodeId}` : ''}`)} 
+              onClick={() => {
+                const isFirst = sessions.length === 0;
+                const params = new URLSearchParams();
+                if (activeEpisodeId) params.set("episode", activeEpisodeId);
+                if (isFirst) params.set("type", "admission");
+                navigate(`/patients/${id}/sessions/new${params.toString() ? `?${params.toString()}` : ''}`);
+              }}
               size="sm"
               className="w-full"
             >
-              <Plus className="h-4 w-4 mr-2" /> Nueva sesión
+              <Plus className="h-4 w-4 mr-2" /> {sessions.length === 0 ? "Registrar admisión" : "Nueva sesión"}
             </Button>
             <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setShowNewAppt(true)}>
               <Calendar className="h-4 w-4 mr-2" /> Nuevo turno
