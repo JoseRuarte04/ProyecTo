@@ -1339,6 +1339,79 @@ export default function SessionForm() {
           )}
         </SectionCard>
 
+        {/* Ficha clínica (admission only) */}
+        {isAdmission && (
+          <SectionCard icon={Stethoscope} title="Ficha clínica">
+            <div className="space-y-4">
+              <div>
+                <FieldLabel>Diagnóstico (CIE-10)</FieldLabel>
+                <Cie10Autocomplete value={cli_diagnosis} onChange={setCliDiagnosis} placeholder="Buscar por código o descripción…" className={inputClass} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div><FieldLabel>Médico derivante</FieldLabel><Input value={cli_doctor_name} onChange={(e) => setCliDoctorName(e.target.value)} className={inputClass} /></div>
+                <div>
+                  <FieldLabel>Tipo de tratamiento</FieldLabel>
+                  <Select value={cli_treatment_type} onValueChange={setCliTreatmentType}>
+                    <SelectTrigger className={inputClass}><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectItem value="conservador">Conservador</SelectItem>
+                      <SelectItem value="quirurgico">Quirúrgico</SelectItem>
+                      <SelectItem value="mixto">Mixto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><FieldLabel>Fecha de lesión</FieldLabel><Input type="date" value={cli_injury_date} onChange={(e) => setCliInjuryDate(e.target.value)} className={inputClass} /></div>
+                <div><FieldLabel>Fecha de cirugía</FieldLabel><Input type="date" value={cli_surgery_date} onChange={(e) => setCliSurgeryDate(e.target.value)} className={inputClass} /></div>
+              </div>
+              <div>
+                <FieldLabel>Mecanismo de lesión</FieldLabel>
+                <Textarea rows={2} value={cli_injury_mechanism} onChange={(e) => setCliInjuryMechanism(e.target.value)} className={textareaClass} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div><FieldLabel>Sem. post-lesión</FieldLabel><Input type="number" min={0} value={cli_weeks_post_injury} onChange={(e) => setCliWeeksPostInjury(e.target.value)} className={inputClass} /></div>
+                <div><FieldLabel>Días post-lesión</FieldLabel><Input type="number" min={0} value={cli_days_post_injury} onChange={(e) => setCliDaysPostInjury(e.target.value)} className={inputClass} /></div>
+                <div><FieldLabel>Sem. post-cirugía</FieldLabel><Input type="number" min={0} value={cli_weeks_post_surgery} onChange={(e) => setCliWeeksPostSurgery(e.target.value)} className={inputClass} /></div>
+                <div><FieldLabel>Días post-cirugía</FieldLabel><Input type="number" min={0} value={cli_days_post_surgery} onChange={(e) => setCliDaysPostSurgery(e.target.value)} className={inputClass} /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div><FieldLabel>Sem. inmovilización</FieldLabel><Input type="number" min={0} value={cli_immob_weeks} onChange={(e) => setCliImmobWeeks(e.target.value)} className={inputClass} /></div>
+                <div><FieldLabel>Días inmovilización</FieldLabel><Input type="number" min={0} value={cli_immob_days} onChange={(e) => setCliImmobDays(e.target.value)} className={inputClass} /></div>
+                <div><FieldLabel>Tipo de inmovilización</FieldLabel><Input value={cli_immob_type} onChange={(e) => setCliImmobType(e.target.value)} className={inputClass} /></div>
+              </div>
+              <div><FieldLabel>Antecedentes médicos</FieldLabel><Textarea rows={2} value={cli_medical_history} onChange={(e) => setCliMedicalHistory(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Tratamiento farmacológico</FieldLabel><Textarea rows={2} value={cli_pharma} onChange={(e) => setCliPharma(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Estudios realizados</FieldLabel><Textarea rows={2} value={cli_studies} onChange={(e) => setCliStudies(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Próximo turno OYT</FieldLabel><Input type="date" value={cli_next_oyt} onChange={(e) => setCliNextOyt(e.target.value)} className={inputClass} /></div>
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Perfil ocupacional (admission only, sin AVD/AIVD) */}
+        {isAdmission && (
+          <SectionCard icon={Briefcase} title="Perfil ocupacional">
+            <div className="space-y-4">
+              <div>
+                <FieldLabel>Dominancia</FieldLabel>
+                <Select value={occ_dominance} onValueChange={setOccDominance}>
+                  <SelectTrigger className={inputClass}><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                  <SelectContent position="popper">
+                    <SelectItem value="right">Diestro/a</SelectItem>
+                    <SelectItem value="left">Zurdo/a</SelectItem>
+                    <SelectItem value="ambidextrous">Ambidiestro/a</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><FieldLabel>Red de apoyo</FieldLabel><Textarea rows={2} value={occ_support_network} onChange={(e) => setOccSupportNetwork(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Educación</FieldLabel><Textarea rows={2} value={occ_education} onChange={(e) => setOccEducation(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Trabajo / ocupación</FieldLabel><Textarea rows={2} value={occ_job} onChange={(e) => setOccJob(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Ocio y tiempo libre</FieldLabel><Textarea rows={2} value={occ_leisure} onChange={(e) => setOccLeisure(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Actividad física</FieldLabel><Textarea rows={2} value={occ_physical_activity} onChange={(e) => setOccPhysicalActivity(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Sueño y descanso</FieldLabel><Textarea rows={2} value={occ_sleep_rest} onChange={(e) => setOccSleepRest(e.target.value)} className={textareaClass} /></div>
+              <div><FieldLabel>Gestión de la salud</FieldLabel><Textarea rows={2} value={occ_health_management} onChange={(e) => setOccHealthManagement(e.target.value)} className={textareaClass} /></div>
+            </div>
+          </SectionCard>
+        )}
+
         {/* Functional eval */}
         <SectionCard
           icon={ClipboardList}
@@ -1346,19 +1419,7 @@ export default function SessionForm() {
           toggle={{ checked: showFunctional, onChange: setShowFunctional }}
         >
           <div className="space-y-5">
-            <div>
-              <Label>Lateralidad</Label>
-              <Select value={func_dominance} onValueChange={setFuncDominance}>
-                <SelectTrigger className="mt-1.5"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="right">Diestro/a</SelectItem>
-                  <SelectItem value="left">Zurdo/a</SelectItem>
-                  <SelectItem value="ambidextrous">Ambidiestro/a</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <QuickDashSection items={qd_items} onChange={setQdItems} />
-            <FimSection items={fim_items} onChange={setFimItems} />
             <BarthelSection items={barthel_items} onChange={setBarthelItems} />
             <div className="space-y-2">
               <Label>AVD — Actividades de la vida diaria</Label>
@@ -1368,14 +1429,7 @@ export default function SessionForm() {
               <Label>AIVD — Actividades instrumentales</Label>
               <Textarea rows={3} value={func_aivd} onChange={(e) => setFuncAivd(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Sueño y descanso</Label>
-              <Textarea rows={2} value={func_sleep} onChange={(e) => setFuncSleep(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Gestión de la salud</Label>
-              <Textarea rows={2} value={func_health} onChange={(e) => setFuncHealth(e.target.value)} />
-            </div>
+            <FimSection items={fim_items} onChange={setFimItems} />
           </div>
         </SectionCard>
 
