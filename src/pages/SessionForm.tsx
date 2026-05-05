@@ -931,7 +931,57 @@ export default function SessionForm() {
       return;
     }
 
-    // Functional eval for admission
+    // ── Ficha clínica + perfil ocupacional (solo admisión) ──
+    if (isAdmission) {
+      const cliPayload: any = {
+        patient_id: patientId!,
+        episode_id: activeEpisodeId,
+        diagnosis: cli_diagnosis.trim() || null,
+        doctor_name: cli_doctor_name.trim() || null,
+        injury_date: cli_injury_date || null,
+        surgery_date: cli_surgery_date || null,
+        injury_mechanism: cli_injury_mechanism.trim() || null,
+        treatment_type: cli_treatment_type || null,
+        weeks_post_injury: cli_weeks_post_injury ? parseInt(cli_weeks_post_injury) : null,
+        days_post_injury: cli_days_post_injury ? parseInt(cli_days_post_injury) : null,
+        weeks_post_surgery: cli_weeks_post_surgery ? parseInt(cli_weeks_post_surgery) : null,
+        days_post_surgery: cli_days_post_surgery ? parseInt(cli_days_post_surgery) : null,
+        immobilization_weeks: cli_immob_weeks ? parseInt(cli_immob_weeks) : null,
+        immobilization_days: cli_immob_days ? parseInt(cli_immob_days) : null,
+        immobilization_type: cli_immob_type.trim() || null,
+        medical_history: cli_medical_history.trim() || null,
+        pharmacological_treatment: cli_pharma.trim() || null,
+        studies: cli_studies.trim() || null,
+        next_oyt_appointment: cli_next_oyt || null,
+      };
+      if (editingClinicalId) {
+        await supabase.from("patient_clinical_records").update(cliPayload).eq("id", editingClinicalId);
+      } else {
+        const { data: newCli } = await supabase.from("patient_clinical_records").insert(cliPayload).select("id").single();
+        if (newCli) setEditingClinicalId(newCli.id);
+      }
+
+      const occPayload: any = {
+        patient_id: patientId!,
+        dominance: occ_dominance || null,
+        support_network: occ_support_network.trim() || null,
+        education: occ_education.trim() || null,
+        job: occ_job.trim() || null,
+        leisure: occ_leisure.trim() || null,
+        physical_activity: occ_physical_activity.trim() || null,
+        sleep_rest: occ_sleep_rest.trim() || null,
+        health_management: occ_health_management.trim() || null,
+        avd: func_avd || null,
+        aivd: func_aivd || null,
+      };
+      if (editingOccId) {
+        await supabase.from("patient_occupational_profiles").update(occPayload).eq("id", editingOccId);
+      } else {
+        const { data: newOcc } = await supabase.from("patient_occupational_profiles").insert(occPayload).select("id").single();
+        if (newOcc) setEditingOccId(newOcc.id);
+      }
+    }
+
     const qd_answered = qd_items.some((v) => v !== null);
     const fim_answered = Object.values(fim_items).some((v) => v !== null);
     const barthel_answered = Object.values(barthel_items).some((v) => v !== null);
