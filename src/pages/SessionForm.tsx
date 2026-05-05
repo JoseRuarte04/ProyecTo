@@ -382,10 +382,6 @@ export default function SessionForm() {
   const [cli_surgery_date, setCliSurgeryDate] = useState("");
   const [cli_injury_mechanism, setCliInjuryMechanism] = useState("");
   const [cli_treatment_type, setCliTreatmentType] = useState("");
-  const [cli_weeks_post_injury, setCliWeeksPostInjury] = useState("");
-  const [cli_days_post_injury, setCliDaysPostInjury] = useState("");
-  const [cli_weeks_post_surgery, setCliWeeksPostSurgery] = useState("");
-  const [cli_days_post_surgery, setCliDaysPostSurgery] = useState("");
   const [cli_immob_weeks, setCliImmobWeeks] = useState("");
   const [cli_immob_days, setCliImmobDays] = useState("");
   const [cli_immob_type, setCliImmobType] = useState("");
