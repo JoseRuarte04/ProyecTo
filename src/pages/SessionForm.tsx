@@ -688,6 +688,51 @@ export default function SessionForm() {
     load();
   }, [patientId, sessionId]);
 
+  // Load existing clinical record + occupational profile for admission editing/upsert
+  useEffect(() => {
+    if (!patientId) return;
+    (async () => {
+      const epId = activeEpisodeId;
+      const cliQuery = supabase.from("patient_clinical_records").select("*").eq("patient_id", patientId);
+      const { data: cliRow } = epId
+        ? await cliQuery.eq("episode_id", epId).maybeSingle()
+        : await cliQuery.maybeSingle();
+      if (cliRow) {
+        setEditingClinicalId(cliRow.id);
+        setCliDiagnosis(cliRow.diagnosis || "");
+        setCliDoctorName(cliRow.doctor_name || "");
+        setCliInjuryDate(cliRow.injury_date || "");
+        setCliSurgeryDate(cliRow.surgery_date || "");
+        setCliInjuryMechanism(cliRow.injury_mechanism || "");
+        setCliTreatmentType(cliRow.treatment_type || "");
+        setCliWeeksPostInjury(cliRow.weeks_post_injury != null ? String(cliRow.weeks_post_injury) : "");
+        setCliDaysPostInjury(cliRow.days_post_injury != null ? String(cliRow.days_post_injury) : "");
+        setCliWeeksPostSurgery(cliRow.weeks_post_surgery != null ? String(cliRow.weeks_post_surgery) : "");
+        setCliDaysPostSurgery(cliRow.days_post_surgery != null ? String(cliRow.days_post_surgery) : "");
+        setCliImmobWeeks(cliRow.immobilization_weeks != null ? String(cliRow.immobilization_weeks) : "");
+        setCliImmobDays(cliRow.immobilization_days != null ? String(cliRow.immobilization_days) : "");
+        setCliImmobType(cliRow.immobilization_type || "");
+        setCliMedicalHistory(cliRow.medical_history || "");
+        setCliPharma(cliRow.pharmacological_treatment || "");
+        setCliStudies(cliRow.studies || "");
+        setCliNextOyt(cliRow.next_oyt_appointment || "");
+      }
+      const { data: occRow } = await supabase
+        .from("patient_occupational_profiles").select("*").eq("patient_id", patientId).maybeSingle();
+      if (occRow) {
+        setEditingOccId(occRow.id);
+        setOccDominance(occRow.dominance || "");
+        setOccSupportNetwork(occRow.support_network || "");
+        setOccEducation(occRow.education || "");
+        setOccJob(occRow.job || "");
+        setOccLeisure(occRow.leisure || "");
+        setOccPhysicalActivity(occRow.physical_activity || "");
+        setOccSleepRest(occRow.sleep_rest || "");
+        setOccHealthManagement(occRow.health_management || "");
+      }
+    })();
+  }, [patientId, activeEpisodeId]);
+
   // Auto-calculate weeks at session from injury date (or symptom start as fallback)
   const weekCalcSource: "injury" | "symptom" | null = clinical?.injury_date
     ? "injury"
