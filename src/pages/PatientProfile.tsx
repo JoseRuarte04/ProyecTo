@@ -24,7 +24,7 @@ import { DialogDescription } from "@/components/ui/dialog";
 import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { exportPlanPdf } from "@/components/plans/PlanPdfExport";
-import { NewAnalEvalDialog as NewAnalEvalDialogFull, AnalEvalList } from "@/components/evaluations/AnalyticalEvalForm";
+import { AnalEvalList } from "@/components/evaluations/AnalyticalEvalForm";
 import { QUICKDASH_QUESTIONS, FIM_MOTOR, FIM_COGNITIVE } from "@/components/evaluations/FunctionalScales";
 
 const ALLOWED_CLINICAL_FILE_TYPES = [
@@ -65,7 +65,7 @@ export default function PatientProfile() {
   // Dialog states
   
   const [showNewFuncEval, setShowNewFuncEval] = useState(false);
-  const [showNewAnalEval, setShowNewAnalEval] = useState(false);
+  
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [showNewPlan, setShowNewPlan] = useState(false);
   const [showPlanDetail, setShowPlanDetail] = useState<any>(null);
@@ -655,7 +655,7 @@ export default function PatientProfile() {
       }} />
       <EditFichaDialog open={showEditFicha} onClose={() => setShowEditFicha(false)} patient={patient} clinical={clinical} occupational={occupational} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
       <NewFuncEvalDialog open={showNewFuncEval} onClose={() => setShowNewFuncEval(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
-      <NewAnalEvalDialogFull open={showNewAnalEval} onClose={() => setShowNewAnalEval(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
+      
       <NewPatientApptDialog open={showNewAppt} onClose={() => setShowNewAppt(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
       <NewPlanDialog open={showNewPlan} onClose={() => setShowNewPlan(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
       <PlanDetailDialog plan={showPlanDetail} onClose={() => setShowPlanDetail(null)} />
