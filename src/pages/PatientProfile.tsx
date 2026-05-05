@@ -1126,8 +1126,42 @@ function MeasurementsBlock({ e }: { e: any }) {
         <SubSection label="Edema">
           <FieldLine label="Observación" value={e.edema} />
           {(() => {
-            const c = e.edema_circummetry;
+            const c: any = e.edema_circummetry;
             if (!nn(c)) return null;
+            if (isNewEdemaFormat(c)) {
+              const norm = normalizeEdemaValue(c);
+              const sanoEntries = EDEMA_POINTS.filter(p => norm.sano[p.key] != null && norm.sano[p.key] !== "");
+              const afEntries = EDEMA_POINTS.filter(p => norm.afectado[p.key] != null && norm.afectado[p.key] !== "");
+              if (sanoEntries.length === 0 && afEntries.length === 0) return null;
+              const showSano = sanoEntries.length > 0;
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-1 px-2 font-medium text-muted-foreground">Punto</th>
+                        {showSano && <th className="text-left py-1 px-2 font-medium text-muted-foreground">MS Sano{norm.sano.fecha ? ` (${norm.sano.fecha})` : ""}</th>}
+                        <th className="text-left py-1 px-2 font-medium text-muted-foreground">MS Afectado{norm.afectado.fecha ? ` (${norm.afectado.fecha})` : ""}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {EDEMA_POINTS.map(p => {
+                        const s = norm.sano[p.key], a = norm.afectado[p.key];
+                        const has = (s != null && s !== "") || (a != null && a !== "");
+                        if (!has) return null;
+                        return (
+                          <tr key={p.key} className="border-b border-border/40">
+                            <td className="py-0.5 px-2">{p.label}</td>
+                            {showSano && <td className="py-0.5 px-2">{s != null && s !== "" ? `${s} cm` : "—"}</td>}
+                            <td className="py-0.5 px-2">{a != null && a !== "" ? `${a} cm` : "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }
             if (typeof c === "object") {
               if (!nn(c.reference) && !nn(c.value_cm)) return null;
               const txt = `${c.reference || ""}${c.side ? ` (${c.side})` : ""}${nn(c.value_cm) ? ` — ${c.value_cm} cm` : ""}${c.mano_global ? " · Mano global" : ""}`.trim();
