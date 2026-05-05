@@ -723,14 +723,15 @@ export default function SessionForm() {
 
       // Cargar baseline MS Sano (de la sesión de admisión del episodio) para follow_up/discharge
       if (!isAdmission && patientId) {
-        let admSessionQ = supabase.from("sessions").select("id").eq("patient_id", patientId).eq("session_type", "admission");
-        if (epId) admSessionQ = admSessionQ.eq("episode_id", epId);
-        const { data: admSession } = await admSessionQ.maybeSingle();
+        const baseQ = supabase.from("sessions").select("id").eq("patient_id", patientId).eq("session_type", "admission");
+        const { data: admSession } = epId
+          ? await baseQ.eq("episode_id", epId).maybeSingle()
+          : await baseQ.maybeSingle();
         if (admSession?.id) {
           const { data: admEval } = await supabase
             .from("analytical_evaluations")
             .select("edema_circummetry")
-            .eq("session_id", admSession.id)
+            .eq("session_id", String(admSession.id))
             .maybeSingle();
           const c: any = admEval?.edema_circummetry;
           if (isNewEdemaFormat(c) && c.sano) setEdemaBaselineSano(c.sano);
