@@ -1426,7 +1426,8 @@ export default function SessionForm() {
           </div>
         </SectionCard>
 
-        {/* Card 2: Evolución */}
+        {/* Card 2: Evolución (no en admisión) */}
+        {!isAdmission && (
         <SectionCard icon={FileText} title="Evolución">
           <div className="space-y-4">
             <div>
@@ -1459,6 +1460,7 @@ export default function SessionForm() {
             </div>
           </div>
         </SectionCard>
+        )}
 
         {/* Card 3: Evaluación analítica */}
         <SectionCard
