@@ -103,9 +103,7 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
     const gonioHasValues = Object.values(gonio.MSD).some(v => v !== "") || Object.values(gonio.MSI).some(v => v !== "");
     const testsHasValues = Object.values(tests).some(v => v !== null);
 
-    const edemaCirc = (circRef.trim() || circValueCm.trim())
-      ? { reference: circRef.trim(), side: circSide, value_cm: circValueCm.trim() ? Number(circValueCm) : null, mano_global: circManoGlobal }
-      : null;
+    const edemaCirc = buildEdemaPayload(edemaSano, edemaAfectado);
 
     const insertData: any = {
       patient_id: patientId, professional_id: userId,
