@@ -1034,14 +1034,10 @@ export function NewPatientForm() {
           <div key={f.key} className="space-y-1">
             <Label className="text-xs">{f.label} °</Label>
             <Input
-              key={`${partKey}-${f.key}-${values[f.key] || ""}`}
               type="number"
               placeholder={f.norm}
-              defaultValue={values[f.key] || ""}
-              onBlur={e => {
-                const v = e.target.value;
-                if (v !== (values[f.key] || "")) setValues({ ...values, [f.key]: v });
-              }}
+              value={values[f.key] || ""}
+              onChange={e => setValues({ ...values, [f.key]: e.target.value })}
             />
           </div>
         ))}
@@ -1479,11 +1475,11 @@ export function NewPatientForm() {
                 const vals = side === "MSD" ? dynMsdVals : dynMsiVals;
                 const setVals = side === "MSD" ? setDynMsdVals : setDynMsiVals;
                 const nums = vals.map(v => v.trim()).filter(Boolean).map(Number).filter(n => !isNaN(n));
-                const avg = nums.length > 0 ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : null;
+                const avg = nums.length > 0 ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : "";
                 return (
                   <div key={side} className="space-y-2">
                     <Label>Dinamómetro {side} (kgf)</Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                       {[0, 1, 2].map((i) => (
                         <Input
                           key={i}
@@ -1498,8 +1494,15 @@ export function NewPatientForm() {
                           }}
                         />
                       ))}
+                      <Input
+                        type="text"
+                        readOnly
+                        tabIndex={-1}
+                        placeholder="Promedio"
+                        value={avg ? `${avg} kgf` : ""}
+                        className="bg-muted text-muted-foreground cursor-not-allowed"
+                      />
                     </div>
-                    {avg && <p className="text-xs text-muted-foreground">Promedio: {avg} kgf</p>}
                   </div>
                 );
               })}

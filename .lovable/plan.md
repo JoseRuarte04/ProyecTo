@@ -1,56 +1,60 @@
-## Diagnóstico
+## Cambios a aplicar en los tres formularios
 
-El error al borrar la sesión no es del botón, sino de permisos RLS de Supabase:
+Archivos:
+- `src/pages/SessionForm.tsx`
+- `src/components/patients/NewPatientForm.tsx`
+- `src/components/evaluations/AnalyticalEvalForm.tsx`
 
-```text
-new row violates row-level security policy for table "therapy_sessions"
+---
+
+### 1) Bug goniometría — pérdida de datos al cambiar MSD/MSI
+
+**Diagnóstico**
+
+El estado ya es por lado (`{ MSD: {...}, MSI: {...} }`) en los tres formularios, así que la estructura es correcta. El bug está en cómo el input lee/escribe:
+
+- `SessionForm` y `NewPatientForm` usan un componente `GonioGrid` que renderiza inputs con `defaultValue + onBlur` (no controlados), con un `key` que incluye el valor. Cuando el usuario tipea un valor en MSD y cambia de tab a MSI **sin desenfocar el input**, el `onBlur` nunca se dispara → el valor escrito jamás se guarda en estado y se pierde al cambiar de lado.
+- `AnalyticalEvalForm` ya usa inputs controlados (`value` + `onChange`) → no tiene el bug, solo aplica el cambio #2.
+
+**Fix**
+
+En `GonioGrid` (ambos archivos `SessionForm.tsx` línea 962 y `NewPatientForm.tsx` línea 1029):
+- Quitar el truco `key={...}` y `defaultValue` + `onBlur`.
+- Convertir a input controlado: `value={values[f.key] || ""}` + `onChange={e => setValues({ ...values, [f.key]: e.target.value })}`.
+
+Esto hace que cada keystroke se guarde inmediatamente en `gonioState[lado][parte][movimiento]`, y como el cambio de tab solo modifica `gonio_side` (no toca el estado de gonio), todos los datos del lado anterior quedan intactos.
+
+La compatibilidad de lectura (formato nuevo `{MSD,MSI}` vs viejo `{pre,post}`) ya existe en SessionForm (líneas 472–483) y NewPatientForm; no requiere cambios. El guardado en jsonb por ambos lados también ya está implementado.
+
+---
+
+### 2) Dinamómetro — campo "Promedio" inline en grilla de 4 columnas
+
+En los tres formularios, en la sección Fuerza muscular / Dinamómetro MSD y MSI:
+
+- Cambiar el contenedor de las 3 mediciones de `grid-cols-3` a `grid-cols-4`.
+- Agregar como 4ª celda un `<Input readOnly>` con:
+  - `value` = promedio calculado en tiempo real con 1 decimal (cadena vacía si no hay valores numéricos).
+  - `placeholder="Promedio"` y label encima `Promedio (kgf)` o sufijo visible "kgf".
+  - Clases para diferenciarlo visualmente: `bg-muted text-muted-foreground cursor-not-allowed`.
+- Eliminar la línea actual `<p>Promedio: X.X kgf</p>` que aparecía debajo (ya no es necesaria, vive inline).
+
+Cálculo (idéntico al actual):
+```
+const nums = vals.map(v => v.trim()).filter(Boolean).map(Number).filter(n => !isNaN(n));
+const avg = nums.length ? (nums.reduce((a,b)=>a+b,0) / nums.length).toFixed(1) : "";
 ```
 
-La app borra sesiones con soft delete:
+Persistencia sin cambios: se sigue guardando `{ values: [a,b,c], average: X.X }` en `dynamometer_msd` / `dynamometer_msi` (helper `buildDyn` ya existente).
 
-```ts
-update({ is_deleted: true })
-```
+---
 
-Pero la política actual de `therapy_sessions` exige también en el `WITH CHECK`:
+### Resumen de archivos tocados
 
-```sql
-is_my_patient(patient_id)
-```
+| Archivo | Cambio gonio | Cambio dinamómetro |
+|---|---|---|
+| `SessionForm.tsx` | Sí (controlar `GonioGrid`) | Sí (grid-cols-4 + readonly avg) |
+| `NewPatientForm.tsx` | Sí (controlar `GonioGrid`) | Sí (grid-cols-4 + readonly avg) |
+| `AnalyticalEvalForm.tsx` | No (ya controlado) | Sí (grid-cols-4 + readonly avg) |
 
-y `is_my_patient` solo considera pacientes/sesiones visibles si `is_deleted = false`. Al cambiar la sesión a `is_deleted = true`, la fila nueva deja de cumplir la política y Supabase rechaza el PATCH con 403.
-
-Además, si se elimina una sesión de tipo `discharge` (alta), hay que recalcular el estado del paciente para que vuelva a `active` si ya no queda ninguna otra alta activa.
-
-## Plan de cambio
-
-1. **Ajustar la política RLS de actualización de `therapy_sessions`**
-   - Crear una migración que reemplace la policy `therapy_sessions: editar`.
-   - Mantener la seguridad por profesional: solo el profesional dueño puede editar sesiones de sus pacientes.
-   - Permitir específicamente el soft delete (`is_deleted: true`) sin romper RLS.
-   - Evitar abrir acceso a otros profesionales o a pacientes eliminados.
-
-2. **Completar la lógica del botón “Eliminar sesión”**
-   - En `PatientProfile.tsx`, después de marcar una sesión como eliminada:
-     - Si la sesión eliminada era de alta (`session_type === "discharge"`), consultar si queda otra alta no eliminada para ese paciente/episodio.
-     - Si no queda otra alta, actualizar:
-       - `patients.status` a `active`
-       - `treatment_episodes.status` a `active`
-       - `treatment_episodes.discharge_date` a `null`
-   - Mantener bloqueado el borrado de la sesión de admisión.
-
-3. **Mejorar el mensaje de error**
-   - Si Supabase devuelve error al eliminar, mostrar un toast más claro y registrar el detalle en consola para depuración.
-
-## Archivos/DB a tocar
-
-- `supabase/migrations/...sql`
-  - Actualización de RLS para `therapy_sessions`.
-- `src/pages/PatientProfile.tsx`
-  - Sincronización del estado del paciente/episodio al borrar sesiones de alta.
-
-## Resultado esperado
-
-- El botón de eliminar sesión dejará de devolver 403.
-- Las sesiones no se borrarán físicamente: quedarán ocultas mediante `is_deleted = true`, como ya estaba diseñado.
-- Si eliminás una sesión de alta y no queda otra alta activa, el paciente volverá a aparecer como `Activo`.
+Sin cambios en base de datos ni en RLS.

@@ -975,14 +975,10 @@ export default function SessionForm() {
           <div key={f.key}>
             <FieldLabel>{f.label} °</FieldLabel>
             <Input
-              key={`${partKey}-${f.key}-${values[f.key] || ""}`}
               type="number"
               placeholder={f.norm}
-              defaultValue={values[f.key] || ""}
-              onBlur={(e) => {
-                const v = e.target.value;
-                if (v !== (values[f.key] || "")) setValues({ ...values, [f.key]: v });
-              }}
+              value={values[f.key] || ""}
+              onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
               className={inputClass}
             />
           </div>
@@ -1423,11 +1419,11 @@ export default function SessionForm() {
               const vals = side === "MSD" ? dyn_msd_vals : dyn_msi_vals;
               const setVals = side === "MSD" ? setDynMsdVals : setDynMsiVals;
               const nums = vals.map((v) => v.trim()).filter(Boolean).map(Number).filter((n) => !isNaN(n));
-              const avg = nums.length > 0 ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : null;
+              const avg = nums.length > 0 ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : "";
               return (
                 <div key={side}>
                   <Label>Dinamómetro {side} (kgf)</Label>
-                  <div className="grid grid-cols-3 gap-2 mt-1">
+                  <div className="grid grid-cols-4 gap-2 mt-1">
                     {[0, 1, 2].map((i) => (
                       <Input
                         key={i}
@@ -1443,8 +1439,15 @@ export default function SessionForm() {
                         className={inputClass}
                       />
                     ))}
+                    <Input
+                      type="text"
+                      readOnly
+                      tabIndex={-1}
+                      placeholder="Promedio"
+                      value={avg ? `${avg} kgf` : ""}
+                      className={`${inputClass} bg-muted text-muted-foreground cursor-not-allowed`}
+                    />
                   </div>
-                  {avg && <p className="text-xs text-muted-foreground mt-1">Promedio: {avg} kgf</p>}
                 </div>
               );
             })}

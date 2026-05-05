@@ -267,7 +267,7 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
                 return (
                   <div key={side} className="space-y-1">
                     <Label className="text-xs">Dinamómetro {side} (kgf)</Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                       {[0, 1, 2].map(i => (
                         <Input
                           key={i}
@@ -282,8 +282,15 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
                           }}
                         />
                       ))}
+                      <Input
+                        type="text"
+                        readOnly
+                        tabIndex={-1}
+                        placeholder="Promedio"
+                        value={avg ? `${avg} kgf` : ""}
+                        className="bg-muted text-muted-foreground cursor-not-allowed"
+                      />
                     </div>
-                    {avg && <p className="text-[11px] text-muted-foreground">Promedio: {avg} kgf</p>}
                   </div>
                 );
               })}
