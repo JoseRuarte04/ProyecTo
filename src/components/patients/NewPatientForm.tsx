@@ -6,22 +6,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, User } from "lucide-react";
-
-// ── Section card wrapper ──
-function SectionCard({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
-  return (
-    <Card className="rounded-xl border-border bg-card mb-6 overflow-hidden">
-      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        <h2 className="font-serif text-[15px] font-semibold tracking-tight text-foreground">{title}</h2>
-      </div>
-      <CardContent className="p-5">{children}</CardContent>
-    </Card>
-  );
-}
+import { Loader2, ArrowLeft, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -79,25 +68,20 @@ function ObrasSocialesAutocomplete({ value, onChange, placeholder, className }: 
       updateRect();
       setOpen(true);
       setLoading(false);
-    }, 250);
+    }, 200);
     return () => { cancelled = true; clearTimeout(t); setLoading(false); };
   }, [value]);
 
   useEffect(() => {
-    if (!open) return;
     updateRect();
-    const onResize = () => updateRect();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("scroll", onResize, true);
-    return () => { window.removeEventListener("resize", onResize); window.removeEventListener("scroll", onResize, true); };
-  }, [open]);
+    window.addEventListener("resize", updateRect);
+    window.addEventListener("scroll", updateRect, true);
+    return () => { window.removeEventListener("resize", updateRect); window.removeEventListener("scroll", updateRect, true); };
+  }, []);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (wrapperRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      setOpen(false);
+      if (!wrapperRef.current?.contains(e.target as Node) && !panelRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onClick);
@@ -109,8 +93,8 @@ function ObrasSocialesAutocomplete({ value, onChange, placeholder, className }: 
     <div ref={wrapperRef} className="relative">
       <Input
         value={value}
-        onChange={(e) => { lastSelectedRef.current = ""; onChange(e.target.value); }}
-        onFocus={() => { if (results.length > 0) { updateRect(); setOpen(true); } }}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={updateRect}
         placeholder={placeholder}
         className={className}
         autoComplete="off"
@@ -122,27 +106,32 @@ function ObrasSocialesAutocomplete({ value, onChange, placeholder, className }: 
           style={{ position: "fixed", top: rect.top + rect.height + 4, left: rect.left, width: rect.width, zIndex: 60 }}
           className="max-h-64 overflow-auto rounded-md border bg-popover shadow-md"
         >
-          {results.map((r, index) => {
-            const previous = results[index - 1];
-            const showLabel = showTypeGroups && (!previous || previous.type !== r.type);
-            return (
-              <div key={`${r.name}-${r.type || "x"}`}>
-                {showLabel && (
-                  <div className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {typeLabel(r.type)}
+          {showTypeGroups
+            ? visibleTypes.map((type) => {
+                const group = results.filter((r) => r.type === type);
+                return (
+                  <div key={type}>
+                    <p className="px-3 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/50">{typeLabel(type)}</p>
+                    {group.map((r) => (
+                      <button key={r.name} type="button" onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { onChange(r.name); lastSelectedRef.current = r.name; setOpen(false); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                        {r.name}
+                      </button>
+                    ))}
                   </div>
-                )}
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => { lastSelectedRef.current = r.name; onChange(r.name); setOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                >
-                  {r.name}
-                </button>
-              </div>
-            );
-          })}
+                );
+              })
+            : results.map((r) => (
+                <div key={r.name}>
+                  <button type="button" onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { onChange(r.name); lastSelectedRef.current = r.name; setOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+                    {r.name}
+                  </button>
+                </div>
+              ))
+          }
         </div>,
         document.body
       )}
@@ -150,43 +139,109 @@ function ObrasSocialesAutocomplete({ value, onChange, placeholder, className }: 
   );
 }
 
-export function NewPatientForm() {
+// ── Step indicator ──
+function StepIndicator({ current, total, labels }: { current: number; total: number; labels: string[] }) {
+  return (
+    <div className="flex items-center gap-0">
+      {labels.map((label, i) => {
+        const step = i + 1;
+        const done = step < current;
+        const active = step === current;
+        return (
+          <div key={step} className="flex items-center">
+            <div className="flex flex-col items-center gap-1.5">
+              <div className={cn(
+                "w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors",
+                done ? "bg-primary text-primary-foreground" :
+                active ? "bg-primary/15 text-primary border-2 border-primary" :
+                "bg-muted text-muted-foreground"
+              )}>
+                {done ? <Check className="h-3.5 w-3.5 stroke-[2.5]" /> : step}
+              </div>
+              <span className={cn("text-[10px] font-medium whitespace-nowrap", active ? "text-foreground" : "text-muted-foreground")}>
+                {label}
+              </span>
+            </div>
+            {i < total - 1 && (
+              <div className={cn("h-[2px] w-12 sm:w-20 mx-1 mb-5 rounded-full transition-colors", done ? "bg-primary" : "bg-border")} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Summary field ──
+function SummaryRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div className="flex gap-3">
+      <span className="field-label w-32 shrink-0 pt-0.5">{label}</span>
+      <span className="text-sm text-foreground">{value}</span>
+    </div>
+  );
+}
+
+export default function NewPatientForm() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
+  // Step 1 — Datos personales
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [dni, setDni] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [phone, setPhone] = useState("");
-  const [insurance, setInsurance] = useState("");
-  const [insuranceNumber, setInsuranceNumber] = useState("");
-  const [address, setAddress] = useState("");
+  const [gender, setGender] = useState("");
   const [nationality, setNationality] = useState("");
   const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().split("T")[0]);
 
-  const or = (v: string) => v.trim() || null;
-  const fieldClass = (k: string) => errors[k] ? "border-destructive ring-1 ring-destructive" : "";
+  // Step 2 — Información clínica
+  const [insurance, setInsurance] = useState("");
+  const [insuranceNumber, setInsuranceNumber] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
+  const [doctorName, setDoctorName] = useState("");
+  const [referralReason, setReferralReason] = useState("");
 
-  const validate = () => {
+  // Step 3 — Contacto
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [emergencyName, setEmergencyName] = useState("");
+  const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [emergencyRelation, setEmergencyRelation] = useState("");
+
+  const or = (v: string) => v.trim() || null;
+
+  const validateStep1 = () => {
     const errs: Record<string, boolean> = {};
     if (!lastName.trim()) errs.lastName = true;
     if (!firstName.trim()) errs.firstName = true;
     if (!dni.trim()) errs.dni = true;
     if (!birthDate) errs.birthDate = true;
-    if (!phone.trim()) errs.phone = true;
     if (!admissionDate) errs.admissionDate = true;
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const handleSave = async () => {
-    if (!validate()) {
+  const handleNext = () => {
+    if (step === 1 && !validateStep1()) {
       toast.error("Completá los campos obligatorios");
       return;
     }
+    setErrors({});
+    setStep(s => s + 1);
+  };
+
+  const handleBack = () => {
+    setErrors({});
+    setStep(s => s - 1);
+  };
+
+  const handleSave = async () => {
     setSaving(true);
     try {
       const { data: patient, error: patErr } = await supabase
@@ -196,12 +251,17 @@ export function NewPatientForm() {
           last_name: lastName.trim(),
           dni: dni.trim(),
           birth_date: or(birthDate),
-          phone: or(phone),
-          insurance: or(insurance),
-          insurance_number: or(insuranceNumber),
-          address: or(address),
+          gender: or(gender),
           nationality: or(nationality),
           admission_date: admissionDate,
+          phone: or(phone),
+          email: or(email),
+          address: or(address),
+          insurance: or(insurance),
+          insurance_number: or(insuranceNumber),
+          emergency_contact_name: or(emergencyName),
+          emergency_contact_phone: or(emergencyPhone),
+          emergency_contact_relation: or(emergencyRelation),
           professional_id: user!.id,
         })
         .select("id")
@@ -209,14 +269,25 @@ export function NewPatientForm() {
       if (patErr) throw patErr;
       const pid = patient.id;
 
-      const { error: epErr } = await supabase.from("treatment_episodes").insert({
+      const { error: epErr, data: episode } = await supabase.from("treatment_episodes").insert({
         patient_id: pid,
         professional_id: user!.id,
         episode_number: 1,
         admission_date: admissionDate,
         status: "active",
-      });
+      }).select("id").single();
       if (epErr) throw epErr;
+
+      // Save clinical record if any clinical fields filled
+      if (diagnosis || doctorName || referralReason) {
+        await supabase.from("patient_clinical_records").insert({
+          patient_id: pid,
+          episode_id: episode.id,
+          diagnosis: or(diagnosis),
+          doctor_name: or(doctorName),
+          notes: or(referralReason),
+        });
+      }
 
       toast.success("Paciente registrado correctamente");
       navigate(`/patients/${pid}`);
@@ -227,89 +298,216 @@ export function NewPatientForm() {
     }
   };
 
+  const fieldCls = (k: string) => errors[k] ? "border-destructive ring-1 ring-destructive" : "";
   const ErrMsg = ({ field }: { field: string }) =>
-    errors[field] ? <p className="text-xs text-destructive mt-1" data-field-error>Campo obligatorio</p> : null;
+    errors[field] ? <p className="text-xs text-destructive mt-1">Campo obligatorio</p> : null;
 
-  const display = `${firstName} ${lastName}`.trim() || "Nuevo paciente";
+  const STEP_LABELS = ["Datos personales", "Info clínica", "Contacto"];
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="sticky top-0 z-50 bg-card border-b border-border h-14">
-        <div className="max-w-2xl mx-auto h-full px-6 flex items-center justify-between gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/patients")} className="text-foreground hover:bg-muted">
+    <div className="min-h-screen bg-background">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-50 bg-card border-b border-border h-14 shrink-0">
+        <div className="max-w-xl mx-auto h-full px-6 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/patients")} className="text-foreground hover:bg-muted shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="flex-1 text-center text-sm font-semibold text-foreground truncate">{display}</h1>
-          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/85 rounded-lg">
-            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Guardar
-          </Button>
+          <h1 className="flex-1 text-sm font-semibold text-foreground truncate">
+            {firstName || lastName ? `${lastName}${firstName ? ", " + firstName : ""}` : "Nuevo paciente"}
+          </h1>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-6">
-        <SectionCard icon={User} title="Datos del paciente">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="max-w-xl mx-auto px-6 py-8">
+        {/* Step indicator */}
+        <div className="flex justify-center mb-10">
+          <StepIndicator current={step} total={3} labels={STEP_LABELS} />
+        </div>
+
+        {/* ── Step 1: Datos personales ── */}
+        {step === 1 && (
+          <div className="space-y-5">
             <div>
-              <FieldLabel required>Apellido</FieldLabel>
-              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className={`${inputClass} ${fieldClass("lastName")}`} />
-              <ErrMsg field="lastName" />
+              <h2 className="font-serif text-xl font-semibold text-foreground mb-1">Datos personales</h2>
+              <p className="text-sm text-muted-foreground">Información básica del paciente.</p>
             </div>
-            <div>
-              <FieldLabel required>Nombre</FieldLabel>
-              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={`${inputClass} ${fieldClass("firstName")}`} />
-              <ErrMsg field="firstName" />
-            </div>
-            <div>
-              <FieldLabel required>DNI</FieldLabel>
-              <Input value={dni} onChange={(e) => setDni(e.target.value)} className={`${inputClass} ${fieldClass("dni")}`} />
-              <ErrMsg field="dni" />
-            </div>
-            <div>
-              <FieldLabel required>Fecha de nacimiento</FieldLabel>
-              <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={`${inputClass} ${fieldClass("birthDate")}`} />
-              <ErrMsg field="birthDate" />
-            </div>
-            <div>
-              <FieldLabel required>Teléfono</FieldLabel>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} className={`${inputClass} ${fieldClass("phone")}`} />
-              <ErrMsg field="phone" />
-            </div>
-            <div>
-              <FieldLabel>Nacionalidad</FieldLabel>
-              <Input value={nationality} onChange={(e) => setNationality(e.target.value)} className={inputClass} />
-            </div>
-            <div>
-              <FieldLabel>Obra social</FieldLabel>
-              <ObrasSocialesAutocomplete value={insurance} onChange={setInsurance} placeholder="Buscar obra social…" className={inputClass} />
-            </div>
-            <div>
-              <FieldLabel>N° de afiliado</FieldLabel>
-              <Input value={insuranceNumber} onChange={(e) => setInsuranceNumber(e.target.value)} className={inputClass} />
-            </div>
-            <div className="sm:col-span-2">
-              <FieldLabel>Domicilio</FieldLabel>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />
-            </div>
-            <div>
-              <FieldLabel required>Fecha de ingreso</FieldLabel>
-              <Input type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} className={`${inputClass} ${fieldClass("admissionDate")}`} />
-              <ErrMsg field="admissionDate" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <FieldLabel required>Apellido</FieldLabel>
+                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className={cn(inputClass, fieldCls("lastName"))} />
+                <ErrMsg field="lastName" />
+              </div>
+              <div>
+                <FieldLabel required>Nombre</FieldLabel>
+                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={cn(inputClass, fieldCls("firstName"))} />
+                <ErrMsg field="firstName" />
+              </div>
+              <div>
+                <FieldLabel required>DNI</FieldLabel>
+                <Input value={dni} onChange={(e) => setDni(e.target.value)} className={cn(inputClass, fieldCls("dni"))} />
+                <ErrMsg field="dni" />
+              </div>
+              <div>
+                <FieldLabel required>Fecha de nacimiento</FieldLabel>
+                <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={cn(inputClass, fieldCls("birthDate"))} />
+                <ErrMsg field="birthDate" />
+              </div>
+              <div>
+                <FieldLabel>Género</FieldLabel>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger className={inputClass}>
+                    <SelectValue placeholder="Seleccionar…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="female">Femenino</SelectItem>
+                    <SelectItem value="male">Masculino</SelectItem>
+                    <SelectItem value="other">Otro</SelectItem>
+                    <SelectItem value="no_data">Prefiero no decir</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <FieldLabel>Nacionalidad</FieldLabel>
+                <Input value={nationality} onChange={(e) => setNationality(e.target.value)} className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel required>Fecha de ingreso</FieldLabel>
+                <Input type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} className={cn(inputClass, fieldCls("admissionDate"))} />
+                <ErrMsg field="admissionDate" />
+              </div>
             </div>
           </div>
-        </SectionCard>
-      </div>
+        )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border p-4">
-        <div className="max-w-2xl mx-auto flex justify-end">
-          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/85">
-            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Guardar paciente
-          </Button>
+        {/* ── Step 2: Info clínica ── */}
+        {step === 2 && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="font-serif text-xl font-semibold text-foreground mb-1">Información clínica</h2>
+              <p className="text-sm text-muted-foreground">Todos los campos son opcionales y se pueden completar más tarde.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <FieldLabel>Obra social</FieldLabel>
+                <ObrasSocialesAutocomplete value={insurance} onChange={setInsurance} placeholder="Buscar obra social…" className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel>N° de afiliado</FieldLabel>
+                <Input value={insuranceNumber} onChange={(e) => setInsuranceNumber(e.target.value)} className={inputClass} />
+              </div>
+              <div>
+                <FieldLabel>Médico derivante</FieldLabel>
+                <Input value={doctorName} onChange={(e) => setDoctorName(e.target.value)} className={inputClass} />
+              </div>
+              <div className="sm:col-span-2">
+                <FieldLabel>Diagnóstico de derivación</FieldLabel>
+                <Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} placeholder="Ej: Fractura de radio distal, Síndrome de túnel carpiano…" className={inputClass} />
+              </div>
+              <div className="sm:col-span-2">
+                <FieldLabel>Motivo de consulta</FieldLabel>
+                <Textarea value={referralReason} onChange={(e) => setReferralReason(e.target.value)} rows={3} placeholder="Descripción del motivo de consulta o derivación…" className="rounded-md text-sm" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Contacto + Resumen ── */}
+        {step === 3 && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="font-serif text-xl font-semibold text-foreground mb-1">Contacto</h2>
+              <p className="text-sm text-muted-foreground">Datos de contacto del paciente.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <FieldLabel>Teléfono</FieldLabel>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="+54 11 1234-5678" />
+              </div>
+              <div>
+                <FieldLabel>Email</FieldLabel>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+              </div>
+              <div className="sm:col-span-2">
+                <FieldLabel>Domicilio</FieldLabel>
+                <Input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+
+            {/* Contacto de emergencia */}
+            <div>
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">Contacto de emergencia</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <FieldLabel>Nombre completo</FieldLabel>
+                  <Input value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} className={inputClass} />
+                </div>
+                <div>
+                  <FieldLabel>Teléfono</FieldLabel>
+                  <Input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} className={inputClass} />
+                </div>
+                <div>
+                  <FieldLabel>Relación</FieldLabel>
+                  <Select value={emergencyRelation} onValueChange={setEmergencyRelation}>
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue placeholder="Seleccionar…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="parent">Padre / Madre</SelectItem>
+                      <SelectItem value="spouse">Cónyuge / Pareja</SelectItem>
+                      <SelectItem value="sibling">Hermano/a</SelectItem>
+                      <SelectItem value="child">Hijo/a</SelectItem>
+                      <SelectItem value="friend">Amigo/a</SelectItem>
+                      <SelectItem value="other">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumen visual */}
+            <div className="bg-muted/50 border border-border rounded-xl p-5 space-y-3">
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Resumen</p>
+              <div className="space-y-2">
+                <SummaryRow label="Paciente" value={`${lastName}, ${firstName}`} />
+                <SummaryRow label="DNI" value={dni} />
+                <SummaryRow label="Nacimiento" value={birthDate} />
+                {gender && <SummaryRow label="Género" value={{ female: "Femenino", male: "Masculino", other: "Otro", no_data: "Prefiero no decir" }[gender] ?? gender} />}
+                {nationality && <SummaryRow label="Nacionalidad" value={nationality} />}
+                <SummaryRow label="Ingreso" value={admissionDate} />
+                {insurance && <SummaryRow label="Obra social" value={insurance} />}
+                {insuranceNumber && <SummaryRow label="N° afiliado" value={insuranceNumber} />}
+                {diagnosis && <SummaryRow label="Diagnóstico" value={diagnosis} />}
+                {doctorName && <SummaryRow label="Médico" value={doctorName} />}
+                {phone && <SummaryRow label="Teléfono" value={phone} />}
+                {email && <SummaryRow label="Email" value={email} />}
+                {address && <SummaryRow label="Domicilio" value={address} />}
+                {emergencyName && <SummaryRow label="Emergencia" value={`${emergencyName}${emergencyPhone ? " · " + emergencyPhone : ""}${emergencyRelation ? " (" + emergencyRelation + ")" : ""}`} />}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation buttons */}
+        <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
+          {step > 1 ? (
+            <Button variant="ghost" onClick={handleBack} className="text-muted-foreground">
+              ← Anterior
+            </Button>
+          ) : (
+            <div />
+          )}
+          {step < 3 ? (
+            <Button onClick={handleNext} className="bg-primary hover:bg-primary/85">
+              Siguiente →
+            </Button>
+          ) : (
+            <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/85 gap-2">
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saving ? "Guardando..." : "Confirmar y guardar"}
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
-export default NewPatientForm;

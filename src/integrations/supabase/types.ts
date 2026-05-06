@@ -856,7 +856,12 @@ export type Database = {
           deleted_by: string | null
           discharged_at: string | null
           dni: string
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relation: string | null
           first_name: string
+          gender: string | null
           id: string
           insurance: string | null
           insurance_number: string | null
@@ -879,7 +884,12 @@ export type Database = {
           deleted_by?: string | null
           discharged_at?: string | null
           dni: string
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           first_name: string
+          gender?: string | null
           id?: string
           insurance?: string | null
           insurance_number?: string | null
@@ -902,7 +912,12 @@ export type Database = {
           deleted_by?: string | null
           discharged_at?: string | null
           dni?: string
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relation?: string | null
           first_name?: string
+          gender?: string | null
           id?: string
           insurance?: string | null
           insurance_number?: string | null

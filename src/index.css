@@ -77,7 +77,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: hsl(var(--muted-foreground));
+    color: hsl(var(--foreground) / 0.6);
   }
 
   .font-serif {

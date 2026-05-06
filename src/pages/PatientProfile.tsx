@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Plus, Eye, Edit, Search, Trash2, FileDown, Upload, Download, Image as ImageIcon, ChevronDown, ChevronUp, BarChart3, Activity, Calendar, ClipboardList, Stethoscope, User, Heart, BriefcaseMedical } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Eye, Edit, Search, Trash2, FileDown, Upload, Download, Image as ImageIcon, ChevronDown, ChevronUp, ChevronRight, BarChart3, Activity, Calendar, ClipboardList, Stethoscope, User, Heart, BriefcaseMedical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -77,12 +77,13 @@ export default function PatientProfile() {
   const [evalSubTab, setEvalSubTab] = useState("functional");
   const [showUploadFile, setShowUploadFile] = useState(false);
   const [deleteFile, setDeleteFile] = useState<any>(null);
+  const [contextOpen, setContextOpen] = useState(true);
 
   const fetchPatientBase = async () => {
     if (!id) return;
     const [p, o, ep] = await Promise.all([
       supabase.from("patients").select("*").eq("id", id).single(),
-      supabase.from("patient_occupational_profiles").select("*").eq("patient_id", id).single(),
+      supabase.from("patient_occupational_profiles").select("*").eq("patient_id", id).maybeSingle(),
       supabase.from("treatment_episodes").select("*").eq("patient_id", id).eq("is_deleted", false).order("episode_number", { ascending: true }),
     ]);
     setPatient(p.data);
@@ -103,7 +104,7 @@ export default function PatientProfile() {
     if (!episodeId) {
       // No episode: fallback to patient-level queries
       const [c, s, fe, ae, pl, cf, ap] = await Promise.all([
-        supabase.from("patient_clinical_records").select("*").eq("patient_id", id).single(),
+        supabase.from("patient_clinical_records").select("*").eq("patient_id", id).maybeSingle(),
         supabase.from("therapy_sessions").select("*").eq("patient_id", id).eq("is_deleted", false).order("session_date", { ascending: false }),
         supabase.from("functional_evaluations").select("*").eq("patient_id", id).order("evaluation_date", { ascending: false }),
         supabase.from("analytical_evaluations").select("*").eq("patient_id", id).order("evaluation_date", { ascending: false }),
@@ -125,7 +126,7 @@ export default function PatientProfile() {
     }
 
     const [c, s, fe, ae, pl, cf, ap] = await Promise.all([
-      supabase.from("patient_clinical_records").select("*").eq("patient_id", id).eq("episode_id", episodeId).single(),
+      supabase.from("patient_clinical_records").select("*").eq("patient_id", id).eq("episode_id", episodeId).maybeSingle(),
       supabase.from("therapy_sessions").select("*").eq("patient_id", id).eq("episode_id", episodeId).eq("is_deleted", false).order("session_date", { ascending: false }),
       supabase.from("functional_evaluations").select("*").eq("patient_id", id).eq("episode_id", episodeId).order("evaluation_date", { ascending: false }),
       supabase.from("analytical_evaluations").select("*").eq("patient_id", id).eq("episode_id", episodeId).order("evaluation_date", { ascending: false }),
@@ -186,6 +187,11 @@ export default function PatientProfile() {
   const activeEpisode = episodes.find((e: any) => e.id === activeEpisodeId);
   const sessionCount = sessions.length;
   const currentSessionLabel = sessionCount > 0 ? `Nº ${sessionCount}` : null;
+
+  const now = new Date();
+  const nextApptUpcoming = [...appointments]
+    .filter(a => new Date(a.appointment_date) > now && a.status !== "cancelled")
+    .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime())[0];
 
   return (
     <div className="flex flex-col -m-4 md:-m-6 lg:-m-8 overflow-hidden h-[calc(100vh-56px)] lg:h-screen">
@@ -295,23 +301,56 @@ export default function PatientProfile() {
           </div>
         </div>
 
-        {/* Right panel — main content */}
-        <div className="patient-content flex-1 overflow-y-auto p-7 min-w-0">
-          {patient.clinical_record_number && (
-            <div className="flex justify-end mb-4">
-              <span className="text-xs text-muted-foreground font-mono">HC #{patient.clinical_record_number}</span>
+        {/* Center panel — main content */}
+        <div className="patient-content flex-1 min-w-0 flex flex-col overflow-hidden">
+          {/* Patient header bar — always visible */}
+          <div className="sticky top-0 z-10 bg-card border-b border-border px-7 py-3 flex items-center gap-4 shrink-0">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 className="font-serif text-base font-semibold text-foreground">{patient.last_name}, {patient.first_name}</h2>
+                {age !== null && <span className="text-sm text-muted-foreground">{age} años</span>}
+                {activeEpisode && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Ep. activo
+                  </span>
+                )}
+              </div>
+              {clinical?.diagnosis && <p className="text-xs text-muted-foreground mt-0.5 truncate">{clinical.diagnosis}</p>}
             </div>
-          )}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs bg-muted px-2.5 py-1 rounded-full text-foreground font-medium tabular-nums">
+                {sessionCount} sesión{sessionCount !== 1 ? "es" : ""}
+              </span>
+              {nextApptUpcoming && (
+                <span className="text-xs bg-muted px-2.5 py-1 rounded-full text-foreground font-medium">
+                  Próx. {format(new Date(nextApptUpcoming.appointment_date), "d MMM", { locale: es })}
+                </span>
+              )}
+              {patient.clinical_record_number && (
+                <span className="text-xs text-muted-foreground font-mono">HC #{patient.clinical_record_number}</span>
+              )}
+            </div>
+            <button
+              onClick={() => setContextOpen(v => !v)}
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors hidden xl:block"
+              title={contextOpen ? "Ocultar panel de contexto" : "Mostrar panel de contexto"}
+            >
+              <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${contextOpen ? "" : "rotate-180"}`} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-7">
           <Tabs defaultValue="sessions" className="space-y-4">
             <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 gap-0">
               <TabsTrigger value="sessions" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Sesiones</TabsTrigger>
-              <TabsTrigger value="ficha" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Ficha clínica</TabsTrigger>
-              <TabsTrigger value="evaluations" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Evaluaciones</TabsTrigger>
-              <TabsTrigger value="archivos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Documentos</TabsTrigger>
+              <TabsTrigger value="clinica" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Clínica</TabsTrigger>
+              <TabsTrigger value="evaluaciones" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Evaluaciones</TabsTrigger>
+              <TabsTrigger value="planes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Planes</TabsTrigger>
+              <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Administración</TabsTrigger>
             </TabsList>
 
         {/* FICHA */}
-        <TabsContent value="ficha" className="space-y-5">
+        <TabsContent value="clinica" className="space-y-5">
           <div className="flex justify-end">
             <Button variant="outline" size="sm" onClick={() => setShowEditFicha(true)}>
               <Edit className="h-4 w-4 mr-1" /> Editar ficha
@@ -350,7 +389,7 @@ export default function PatientProfile() {
 
             const Section = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
               <div className="bg-card rounded-[10px] border border-border overflow-hidden">
-                <div className="px-5 py-3 border-b border-border flex items-center gap-2.5">
+                <div className="px-5 py-3 border-b border-border flex items-center gap-2.5 bg-muted">
                   <span className="text-muted-foreground">{icon}</span>
                   <h3 className="text-sm font-semibold text-foreground">{title}</h3>
                 </div>
@@ -373,8 +412,19 @@ export default function PatientProfile() {
                   <Field label="Nº de episodio" value={activeEpisode?.episode_number} />
                   <Field label="Nº de afiliado" value={patient.insurance_number} />
                   <Field label="Nacionalidad" value={(patient as any).nationality} />
+                  {(patient as any).gender && (
+                    <Field label="Género" value={{ female: "Femenino", male: "Masculino", other: "Otro", no_data: "Prefiero no decir" }[(patient as any).gender] ?? (patient as any).gender} />
+                  )}
                   <Field label="Teléfono" value={patient.phone} />
-                  <Field label="Domicilio" value={(patient as any).address} />
+                  {(patient as any).email && <Field label="Email" value={(patient as any).email} />}
+                  <Field label="Domicilio" value={(patient as any).address} full />
+                  {(patient as any).emergency_contact_name && (
+                    <Field
+                      label="Contacto de emergencia"
+                      value={`${(patient as any).emergency_contact_name}${(patient as any).emergency_contact_phone ? " · " + (patient as any).emergency_contact_phone : ""}${(patient as any).emergency_contact_relation ? " (" + (patient as any).emergency_contact_relation + ")" : ""}`}
+                      full
+                    />
+                  )}
                 </Section>
 
                 {/* Datos clínicos */}
@@ -423,7 +473,77 @@ export default function PatientProfile() {
               </div>
             );
           })()}
+
         </TabsContent>
+
+        {/* EVALUACIONES */}
+        <TabsContent value="evaluaciones" className="space-y-4">
+          <div className="flex items-center justify-between border-b border-border">
+            <div className="flex">
+              {[{ value: "functional", label: "Funcional" }, { value: "analytical", label: "Analítica" }].map(t => (
+                <button
+                  key={t.value}
+                  onClick={() => setEvalSubTab(t.value)}
+                  className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                    evalSubTab === t.value
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            {evalSubTab === "functional" && (
+              <Button onClick={() => setShowNewFuncEval(true)} size="sm" className="mb-1"><Plus className="h-4 w-4 mr-1" />Nueva evaluación</Button>
+            )}
+          </div>
+          {evalSubTab === "functional" && (
+            funcEvals.length === 0
+              ? <p className="text-muted-foreground text-sm text-center py-8">Sin evaluaciones funcionales.</p>
+              : <FuncEvalList evaluations={funcEvals} />
+          )}
+          {evalSubTab === "analytical" && (
+            <>
+              <AnalEvalList evaluations={analEvals} />
+              {analEvals.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-8">Las evaluaciones analíticas se registran desde Sesiones.</p>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        {/* OCUPACIONAL — removed, content lives in Clínica tab */}
+        {false && <TabsContent value="ocupacional" className="space-y-5">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setShowEditFicha(true)}>
+              <Edit className="h-4 w-4 mr-1" /> Editar
+            </Button>
+          </div>
+          {occupational ? (
+            <div className="bg-card rounded-[10px] border border-border overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center gap-2.5 bg-muted">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-foreground">Perfil ocupacional</h3>
+              </div>
+              <div className="px-5 py-4 grid grid-cols-2 gap-x-8 gap-y-4">
+                {occupational.dominance && <div><p className="field-label mb-0.5">Lateralidad</p><p className="text-sm text-foreground">{({right: "Diestro/a", left: "Zurdo/a", ambidextrous: "Ambidiestro/a"} as any)[occupational.dominance] || occupational.dominance}</p></div>}
+                {occupational.job && <div><p className="field-label mb-0.5">Trabajo</p><p className="text-sm text-foreground">{occupational.job}</p></div>}
+                {occupational.education && <div><p className="field-label mb-0.5">Educación</p><p className="text-sm text-foreground">{occupational.education}</p></div>}
+                {occupational.support_network && <div><p className="field-label mb-0.5">Red de apoyo</p><p className="text-sm text-foreground">{occupational.support_network}</p></div>}
+                {occupational.leisure && <div className="col-span-2"><p className="field-label mb-0.5">Ocio</p><p className="text-sm text-foreground">{occupational.leisure}</p></div>}
+                {occupational.physical_activity && <div className="col-span-2"><p className="field-label mb-0.5">Actividad física</p><p className="text-sm text-foreground">{occupational.physical_activity}</p></div>}
+                {occupational.sleep_rest && <div className="col-span-2"><p className="field-label mb-0.5">Sueño y descanso</p><p className="text-sm text-foreground">{occupational.sleep_rest}</p></div>}
+                {occupational.dash_score != null && <div><p className="field-label mb-0.5">Puntaje DASH</p><p className="text-sm text-foreground">{occupational.dash_score} / 100</p></div>}
+                {occupational.notes && <div className="col-span-2"><p className="field-label mb-0.5">Notas</p><p className="text-sm text-foreground">{occupational.notes}</p></div>}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card rounded-[10px] border border-dashed border-border p-8 text-center text-muted-foreground text-sm">
+              Sin perfil ocupacional registrado. <button className="text-primary hover:underline" onClick={() => setShowEditFicha(true)}>Completar ficha</button>
+            </div>
+          )}
+        </TabsContent>}
 
         <TabsContent value="sessions" className="space-y-4">
           <div className="flex justify-between items-center">
@@ -548,13 +668,40 @@ export default function PatientProfile() {
           )}
         </TabsContent>
 
-        {/* ARCHIVOS */}
-        <TabsContent value="archivos" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="font-semibold text-foreground">Archivos Clínicos</h2>
-            <Button onClick={() => setShowUploadFile(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Agregar archivo</Button>
+        {/* ADMINISTRACIÓN — Archivos + Turnos */}
+        <TabsContent value="admin" className="space-y-6">
+          {/* Turnos */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-foreground">Turnos</h3>
+              <Button onClick={() => setShowNewAppt(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Nuevo Turno</Button>
+            </div>
+            {appointments.length === 0 ? <p className="text-muted-foreground text-sm text-center py-4">Sin turnos.</p> : (
+              <div className="space-y-2">
+                {appointments.slice(0, 10).map((a) => (
+                  <Card key={a.id} className="border-border/50">
+                    <CardContent className="p-3 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm text-foreground">
+                          {format(new Date(a.appointment_date), "dd/MM/yyyy HH:mm")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{appointmentTypeMap[a.type] || a.type}</p>
+                      </div>
+                      <StatusBadge status={a.status} />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
-
+          <div className="border-t border-border/50" />
+          {/* Archivos clínicos */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-foreground">Archivos clínicos</h3>
+              <Button onClick={() => setShowUploadFile(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Agregar archivo</Button>
+            </div>
+          </div>
           {/* Fotos de evolución */}
           <div>
             <h3 className="font-medium text-foreground mb-3 flex items-center gap-2"><ImageIcon className="h-4 w-4" />Fotos de evolución</h3>
@@ -637,8 +784,80 @@ export default function PatientProfile() {
           </div>
         </TabsContent>
           </Tabs>
-        </div>
-      </div>
+          </div>{/* closes inner scroll div */}
+        </div>{/* closes center panel */}
+
+        {/* Context panel — 3rd column (collapsible) */}
+        {contextOpen && (
+          <div className="w-[260px] shrink-0 border-l border-border overflow-y-auto hidden xl:flex flex-col">
+            <div className="px-5 py-3 border-b border-border bg-muted shrink-0">
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Contexto</h3>
+            </div>
+
+            {/* Últimas 3 sesiones */}
+            <div className="p-5 border-b border-border/60">
+              <p className="field-label mb-3">Últimas sesiones</p>
+              {sessions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Sin sesiones registradas.</p>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.slice(0, 3).map((s: any) => (
+                    <div key={s.id} className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-medium text-foreground">
+                          {({admission: "Admisión", follow_up: "Seguimiento", discharge: "Alta"} as any)[s.session_type] || s.session_type}
+                        </p>
+                        {s.session_number && <p className="text-[10px] text-muted-foreground">Sesión {s.session_number}</p>}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                        {format(new Date(s.session_date + "T12:00:00"), "dd/MM/yy")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Próximo turno */}
+            <div className="p-5 border-b border-border/60">
+              <p className="field-label mb-3">Próximo turno</p>
+              {nextApptUpcoming ? (
+                <div>
+                  <p className="text-xs font-medium text-foreground">
+                    {format(new Date(nextApptUpcoming.appointment_date), "d MMM yyyy", { locale: es })}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {format(new Date(nextApptUpcoming.appointment_date), "HH:mm")} · {
+                      ({consultation: "Consulta", follow_up: "Seguimiento", evaluation: "Evaluación", admission: "Admisión", discharge: "Alta"} as any)[nextApptUpcoming.type] || nextApptUpcoming.type
+                    }
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Sin turnos próximos.</p>
+              )}
+            </div>
+
+            {/* Evaluaciones funcionales */}
+            {funcEvals.length > 0 && (
+              <div className="p-5">
+                <p className="field-label mb-3">Escalas ({funcEvals.length})</p>
+                <div className="space-y-2.5">
+                  {funcEvals.slice(0, 4).map((e: any) => (
+                    <div key={e.id} className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] text-muted-foreground tabular-nums">
+                        {format(new Date(e.evaluation_date + "T12:00:00"), "dd/MM/yy")}
+                      </p>
+                      {e.evaluation_type && (
+                        <span className="text-[10px] font-medium text-foreground">{e.evaluation_type}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>{/* closes flex flex-1 min-h-0 */}
 
       {/* Dialogs rendered outside the panels */}
       <NewEpisodeDialog open={showNewEpisode} onClose={() => setShowNewEpisode(false)} patientId={id!} userId={user!.id} episodes={episodes} onSaved={async (newEpId: string) => {
@@ -676,11 +895,16 @@ function EditFichaDialog({ open, onClose, patient, clinical, occupational, activ
       last_name: patient?.last_name || "",
       dni: patient?.dni || "",
       birth_date: patient?.birth_date || "",
+      gender: patient?.gender || "",
       phone: patient?.phone || "",
+      email: patient?.email || "",
       address: patient?.address || "",
       insurance: patient?.insurance || "",
       insurance_number: patient?.insurance_number || "",
       admission_date: patient?.admission_date || "",
+      emergency_contact_name: patient?.emergency_contact_name || "",
+      emergency_contact_phone: patient?.emergency_contact_phone || "",
+      emergency_contact_relation: patient?.emergency_contact_relation || "",
       diagnosis: clinical?.diagnosis || "",
       treatment_type: clinical?.treatment_type || "",
       injury_date: clinical?.injury_date || "",
@@ -720,11 +944,16 @@ function EditFichaDialog({ open, onClose, patient, clinical, occupational, activ
       last_name: form.last_name,
       dni: form.dni,
       birth_date: emptyToNull(form.birth_date),
+      gender: emptyToNull(form.gender),
       phone: emptyToNull(form.phone),
+      email: emptyToNull(form.email),
       address: emptyToNull(form.address),
       insurance: emptyToNull(form.insurance),
       insurance_number: emptyToNull(form.insurance_number),
       admission_date: form.admission_date || patient.admission_date,
+      emergency_contact_name: emptyToNull(form.emergency_contact_name),
+      emergency_contact_phone: emptyToNull(form.emergency_contact_phone),
+      emergency_contact_relation: emptyToNull(form.emergency_contact_relation),
     };
     const clinicalPayload = {
       patient_id: patient.id,
@@ -791,11 +1020,22 @@ function EditFichaDialog({ open, onClose, patient, clinical, occupational, activ
               <div><Label>Apellido</Label><Input value={form.last_name || ""} onChange={(e) => u("last_name", e.target.value)} /></div>
               <div><Label>DNI</Label><Input value={form.dni || ""} onChange={(e) => u("dni", e.target.value)} /></div>
               <div><Label>Fecha de nacimiento</Label><Input type="date" value={form.birth_date || ""} onChange={(e) => u("birth_date", e.target.value)} /></div>
+              <div><Label>Género</Label><Select value={form.gender || ""} onValueChange={(v) => u("gender", v)}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent><SelectItem value="female">Femenino</SelectItem><SelectItem value="male">Masculino</SelectItem><SelectItem value="other">Otro</SelectItem><SelectItem value="no_data">Prefiero no decir</SelectItem></SelectContent></Select></div>
               <div><Label>Teléfono</Label><Input value={form.phone || ""} onChange={(e) => u("phone", e.target.value)} /></div>
+              <div><Label>Email</Label><Input type="email" value={form.email || ""} onChange={(e) => u("email", e.target.value)} /></div>
               <div><Label>Obra social</Label><Input value={form.insurance || ""} onChange={(e) => u("insurance", e.target.value)} /></div>
               <div><Label>Nº de afiliado</Label><Input value={form.insurance_number || ""} onChange={(e) => u("insurance_number", e.target.value)} /></div>
               <div className="sm:col-span-2"><Label>Dirección</Label><Input value={form.address || ""} onChange={(e) => u("address", e.target.value)} /></div>
               <div><Label>Fecha de admisión</Label><Input type="date" value={form.admission_date || ""} onChange={(e) => u("admission_date", e.target.value)} /></div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Contacto de emergencia</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><Label>Nombre completo</Label><Input value={form.emergency_contact_name || ""} onChange={(e) => u("emergency_contact_name", e.target.value)} /></div>
+              <div><Label>Teléfono</Label><Input value={form.emergency_contact_phone || ""} onChange={(e) => u("emergency_contact_phone", e.target.value)} /></div>
+              <div><Label>Relación</Label><Select value={form.emergency_contact_relation || ""} onValueChange={(v) => u("emergency_contact_relation", v)}><SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger><SelectContent><SelectItem value="parent">Padre / Madre</SelectItem><SelectItem value="spouse">Cónyuge / Pareja</SelectItem><SelectItem value="sibling">Hermano/a</SelectItem><SelectItem value="child">Hijo/a</SelectItem><SelectItem value="friend">Amigo/a</SelectItem><SelectItem value="other">Otro</SelectItem></SelectContent></Select></div>
             </div>
           </div>
 
@@ -1407,7 +1647,9 @@ function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onDeleted 
     setDeleting(true);
     const wasDischarge = deleteSession.session_type === "discharge";
     const episodeId = deleteSession.episode_id;
-    const { error } = await supabase.from("therapy_sessions").update({ is_deleted: true }).eq("id", deleteSession.id).eq("patient_id", patientId);
+
+    // Usar RPC SECURITY DEFINER para evitar conflicto entre trigger insert_audit_log y WITH CHECK de RLS
+    const { error } = await supabase.rpc("soft_delete_session", { p_session_id: deleteSession.id });
     if (error) {
       console.error("Error al eliminar la sesión:", error);
       setDeleting(false);
@@ -1415,8 +1657,8 @@ function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onDeleted 
       return;
     }
 
-    // Si la sesión eliminada era de alta, revertir estado si no quedan otras altas
-    if (wasDischarge) {
+    // Si era alta, revertir episode si corresponde (el RPC ya revierte patients.status)
+    if (wasDischarge && episodeId) {
       const { data: remaining } = await supabase
         .from("therapy_sessions")
         .select("id")
@@ -1425,13 +1667,10 @@ function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onDeleted 
         .eq("is_deleted", false)
         .limit(1);
       if (!remaining || remaining.length === 0) {
-        await supabase.from("patients").update({ status: "active" }).eq("id", patientId);
-        if (episodeId) {
-          await supabase
-            .from("treatment_episodes")
-            .update({ status: "active", discharge_date: null })
-            .eq("id", episodeId);
-        }
+        await supabase
+          .from("treatment_episodes")
+          .update({ status: "active", discharge_date: null })
+          .eq("id", episodeId);
       }
     }
 

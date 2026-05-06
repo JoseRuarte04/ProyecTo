@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { differenceInYears, differenceInCalendarDays } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
   Plus,
   Briefcase,
   Stethoscope,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -165,12 +167,14 @@ const SCAR_PLACEHOLDER = "No evaluado";
 
 // ── Reusable wrappers ──
 function SectionCard({
+  id,
   icon: Icon,
   title,
   action,
   children,
   toggle,
 }: {
+  id?: string;
   icon: any;
   title: string;
   action?: React.ReactNode;
@@ -179,8 +183,8 @@ function SectionCard({
 }) {
   const isOff = toggle && !toggle.checked;
   return (
-    <Card className="rounded-xl border-border bg-card mb-6 overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border">
+    <Card id={id} className="rounded-xl border-border bg-card mb-6 overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border bg-muted">
         <div className="flex items-center gap-2.5">
           <Icon className="h-4 w-4 text-muted-foreground" />
           <h2 className="font-serif text-[15px] font-semibold tracking-tight text-foreground">{title}</h2>
@@ -352,6 +356,8 @@ export default function SessionForm() {
   const [saving, setSaving] = useState(false);
   const [editingFuncEval, setEditingFuncEval] = useState<any>(null);
   const [editingAnalEval, setEditingAnalEval] = useState<any>(null);
+  const [activeSection, setActiveSection] = useState("sec-datos");
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [session_date, setSessionDate] = useState(new Date().toISOString().split("T")[0]);
@@ -1214,67 +1220,142 @@ export default function SessionForm() {
   const GonioPartSelector = ({
     value,
     onChange,
+    allValues,
   }: {
     value: GonioPartKey;
     onChange: (v: GonioPartKey) => void;
+    allValues?: Record<GonioPartKey, Record<string, string>>;
   }) => (
     <div className="flex flex-wrap gap-1.5 mb-3">
-      {(Object.keys(GONIO_PARTS) as GonioPartKey[]).map((k) => (
-        <Button
-          key={k}
-          type="button"
-          size="sm"
-          variant={value === k ? "default" : "outline"}
-          className={
-            value === k
-              ? "bg-primary hover:bg-primary/85  h-8 text-xs rounded-full"
-              : "h-8 text-xs rounded-full border-border"
-          }
-          onClick={() => onChange(k)}
-        >
-          {GONIO_PARTS[k].label}
-        </Button>
-      ))}
+      {(Object.keys(GONIO_PARTS) as GonioPartKey[]).map((k) => {
+        const fields = GONIO_PARTS[k].fields;
+        const filled = allValues ? fields.filter(f => !!allValues[k]?.[f.key]).length : 0;
+        const total = fields.length;
+        const hasSome = filled > 0;
+        const isActive = value === k;
+        return (
+          <Button
+            key={k}
+            type="button"
+            size="sm"
+            variant={isActive ? "default" : "outline"}
+            className={cn(
+              "h-8 text-xs rounded-full gap-1.5",
+              isActive ? "bg-primary hover:bg-primary/85" : "border-border"
+            )}
+            onClick={() => onChange(k)}
+          >
+            {GONIO_PARTS[k].label}
+            {allValues && hasSome && (
+              <span className={cn(
+                "text-[10px] font-semibold leading-none px-1 py-0.5 rounded-full",
+                isActive ? "bg-white/25 text-white" : "bg-primary/15 text-primary"
+              )}>
+                {filled}/{total}
+              </span>
+            )}
+          </Button>
+        );
+      })}
     </div>
   );
 
   const sessionTitle = `${patient.last_name} — Sesión Nº ${session_number || "—"}`;
   const age = patient.birth_date ? differenceInYears(new Date(), new Date(patient.birth_date)) : null;
 
+  // Section completion indicators
+  const sectionDone: Record<string, boolean> = {
+    "sec-datos": !!session_date,
+    "sec-ficha": !!cli_diagnosis,
+    "sec-ocupacional": !!(occ_job || occ_dominance),
+    "sec-funcional": showFunctional && qd_items.some(x => x !== null),
+    "sec-evolucion": !!general_observations,
+    "sec-analitica": show_measurements && (showPain || showEdema || showMobility || showStrength),
+    "sec-intervenciones": !!interventions,
+    "sec-notas": !!(notes || home_instructions_sent),
+  };
+
+  const indexSections = [
+    { id: "sec-datos",         label: "Datos",          icon: Calendar,     show: true },
+    { id: "sec-ficha",         label: "Ficha clínica",  icon: Stethoscope,  show: isAdmission },
+    { id: "sec-ocupacional",   label: "Ocupacional",    icon: Briefcase,    show: isAdmission },
+    { id: "sec-funcional",     label: "Funcional",      icon: ClipboardList,show: true },
+    { id: "sec-evolucion",     label: "Evolución",      icon: FileText,     show: !isAdmission },
+    { id: "sec-analitica",     label: "Analítica",      icon: BarChart2,    show: true },
+    { id: "sec-intervenciones",label: "Intervenciones", icon: ClipboardList,show: true },
+    { id: "sec-notas",         label: "Notas",          icon: MessageSquare,show: true },
+  ].filter(s => s.show);
+
+  const scrollToSection = (sectionId: string) => {
+    const container = scrollContainerRef.current;
+    const el = document.getElementById(sectionId);
+    if (!container || !el) return;
+    const containerTop = container.getBoundingClientRect().top;
+    const elTop = el.getBoundingClientRect().top;
+    container.scrollTop += elTop - containerTop - 16;
+    setActiveSection(sectionId);
+  };
+
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Sticky top bar */}
-      <header className="sticky top-0 z-50 bg-card border-b border-border h-14 flex items-center px-4">
-        <div className="max-w-2xl w-full mx-auto flex items-center justify-between gap-2">
+      <header className="sticky top-0 z-50 bg-card border-b border-border h-14 flex items-center px-4 shrink-0">
+        <div className="w-full flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate(`/patients/${patientId}`)}
-            className="text-muted-foreground hover:text-foreground -ml-2"
+            className="text-muted-foreground hover:text-foreground -ml-2 shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex-1 text-center min-w-0">
+          <div className="flex-1 min-w-0">
             <h1 className="text-sm font-semibold text-foreground truncate">{sessionTitle}</h1>
             {clinical?.diagnosis && (
               <p className="text-xs text-muted-foreground truncate">{clinical.diagnosis}</p>
             )}
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={saving || !session_date}
-            size="sm"
-            className="bg-primary hover:bg-primary/85 "
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-            {isEditMode ? "Actualizar" : "Guardar"}
-          </Button>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      {/* 2-column body */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Index lateral sticky */}
+        <aside className="w-44 shrink-0 border-r border-border hidden lg:flex flex-col overflow-y-auto bg-background">
+          <nav className="p-3 pt-4 space-y-0.5">
+            {indexSections.map(s => {
+              const done = sectionDone[s.id];
+              const isActive = activeSection === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => scrollToSection(s.id)}
+                  className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-left text-xs transition-colors ${
+                    isActive
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <s.icon className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{s.label}</span>
+                  </span>
+                  {done
+                    ? <span className="w-3.5 h-3.5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0"><Check className="h-2 w-2 text-emerald-600 stroke-[2.5]" /></span>
+                    : <span className="w-3.5 h-3.5 rounded-full border border-border/60 shrink-0" />
+                  }
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* Scrollable form content */}
+        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Card 1: Datos de la sesión */}
-        <SectionCard icon={Calendar} title="Datos de la sesión">
+        <SectionCard id="sec-datos" icon={Calendar} title="Datos de la sesión">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel>Fecha *</FieldLabel>
@@ -1342,7 +1423,7 @@ export default function SessionForm() {
 
         {/* Ficha clínica (admission only) */}
         {isAdmission && (
-          <SectionCard icon={Stethoscope} title="Ficha clínica">
+          <SectionCard id="sec-ficha" icon={Stethoscope} title="Ficha clínica">
             <div className="space-y-4">
               <div>
                 <FieldLabel>Diagnóstico (CIE-10)</FieldLabel>
@@ -1382,7 +1463,7 @@ export default function SessionForm() {
 
         {/* Perfil ocupacional (admission only, sin AVD/AIVD) */}
         {isAdmission && (
-          <SectionCard icon={Briefcase} title="Perfil ocupacional">
+          <SectionCard id="sec-ocupacional" icon={Briefcase} title="Perfil ocupacional">
             <div className="space-y-4">
               <div>
                 <FieldLabel>Dominancia</FieldLabel>
@@ -1408,9 +1489,17 @@ export default function SessionForm() {
 
         {/* Functional eval */}
         <SectionCard
+          id="sec-funcional"
           icon={ClipboardList}
           title="Evaluación funcional"
           toggle={{ checked: showFunctional, onChange: setShowFunctional }}
+          badge={showFunctional ? (
+            <div className="flex gap-1">
+              {(() => { const s = calcQuickDashScore(qd_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">QuickDASH {s.toFixed(0)}/100</Badge> : null; })()}
+              {(() => { const s = calcFimTotal(fim_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">FIM {s}/126</Badge> : null; })()}
+              {(() => { const s = calcBarthelTotal(barthel_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">Barthel {s}/100</Badge> : null; })()}
+            </div>
+          ) : null}
         >
           <div className="space-y-5">
             <QuickDashSection items={qd_items} onChange={setQdItems} />
@@ -1429,7 +1518,7 @@ export default function SessionForm() {
 
         {/* Card 2: Evolución (no en admisión) */}
         {!isAdmission && (
-        <SectionCard icon={FileText} title="Evolución">
+        <SectionCard id="sec-evolucion" icon={FileText} title="Evolución">
           <div className="space-y-4">
             <div>
               <FieldLabel>Nota general de la sesión</FieldLabel>
@@ -1465,6 +1554,7 @@ export default function SessionForm() {
 
         {/* Card 3: Evaluación analítica */}
         <SectionCard
+          id="sec-analitica"
           icon={BarChart2}
           title="Evaluación analítica"
           toggle={{ checked: show_measurements, onChange: setShowMeasurements, label: "Incluir evaluación analítica" }}
@@ -1603,7 +1693,7 @@ export default function SessionForm() {
             </Tabs>
             <div>
               <h4 className="text-xs font-medium text-muted-foreground mb-2">Goniometría PRE — {gonio_side}</h4>
-              <GonioPartSelector value={gonio_part} onChange={setGonioPart} />
+              <GonioPartSelector value={gonio_part} onChange={setGonioPart} allValues={all_pre_gonio[gonio_side]} />
               <GonioGrid
                 partKey={gonio_part}
                 values={all_pre_gonio[gonio_side][gonio_part]}
@@ -1620,7 +1710,7 @@ export default function SessionForm() {
               {show_post_gonio && (
                 <>
                   <h4 className="text-xs font-medium text-muted-foreground mb-2">Goniometría POST — {gonio_side}</h4>
-                  <GonioPartSelector value={gonio_part_post} onChange={setGonioPartPost} />
+                  <GonioPartSelector value={gonio_part_post} onChange={setGonioPartPost} allValues={all_post_gonio[gonio_side]} />
                   <GonioGrid
                     partKey={gonio_part_post}
                     values={all_post_gonio[gonio_side][gonio_part_post]}
@@ -1964,13 +2054,13 @@ export default function SessionForm() {
         </SectionCard>
 
         {/* Card 4: Intervenciones */}
-        <SectionCard icon={ClipboardList} title="Intervenciones">
+        <SectionCard id="sec-intervenciones" icon={ClipboardList} title="Intervenciones">
           <FieldLabel>En el día de hoy se abordó</FieldLabel>
           <Textarea rows={5} value={interventions} onChange={(e) => setInterventions(e.target.value)} className={textareaClass} />
         </SectionCard>
 
         {/* Card 5: Indicaciones y notas */}
-        <SectionCard icon={MessageSquare} title="Indicaciones y notas">
+        <SectionCard id="sec-notas" icon={MessageSquare} title="Indicaciones y notas">
           <div className="space-y-4">
             <div>
               <FieldLabel>Indicaciones enviadas al paciente</FieldLabel>
@@ -1983,21 +2073,51 @@ export default function SessionForm() {
             </div>
           </div>
         </SectionCard>
-      </main>
 
-      {/* Sticky bottom bar */}
-      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-border p-4">
-        <div className="max-w-2xl mx-auto flex justify-end">
-          <Button
-            onClick={handleSave}
-            disabled={saving || !session_date}
-            className="bg-primary hover:bg-primary/85 "
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {isEditMode ? "Actualizar sesión" : "Guardar sesión"}
-          </Button>
-        </div>
-      </footer>
+        {/* Anterior / Siguiente navigation */}
+        {(() => {
+          const idx = indexSections.findIndex(s => s.id === activeSection);
+          const hasPrev = idx > 0;
+          const hasNext = idx < indexSections.length - 1;
+          return (
+            <div className="flex justify-between items-center pt-2 pb-8 px-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!hasPrev}
+                onClick={() => hasPrev && scrollToSection(indexSections[idx - 1].id)}
+                className="text-muted-foreground gap-1"
+              >
+                ← {hasPrev ? indexSections[idx - 1].label : ""}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!hasNext}
+                onClick={() => hasNext && scrollToSection(indexSections[idx + 1].id)}
+                className="text-muted-foreground gap-1"
+              >
+                {hasNext ? indexSections[idx + 1].label : ""} →
+              </Button>
+            </div>
+          );
+        })()}
+          </div>
+        </main>
+      </div>
+
+      {/* Floating save button — bottom right */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button
+          onClick={handleSave}
+          disabled={saving || !session_date}
+          className="bg-primary hover:bg-primary/85 shadow-lg gap-2 px-5"
+          size="default"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          {saving ? "Guardando..." : isEditMode ? "Actualizar sesión" : "Guardar sesión"}
+        </Button>
+      </div>
     </div>
   );
 }
