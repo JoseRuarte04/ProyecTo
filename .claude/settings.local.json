@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__get_logs",
+      "Bash(npx tsc:*)",
+      "Bash(python3 \"C:\\\\Users\\\\jojor\\\\OneDrive\\\\Escritorio\\\\Proyecto T.O\\\\ProyectiTO/_bmad/scripts/resolve_customization.py\" --skill \"C:\\\\Users\\\\jojor\\\\OneDrive\\\\Escritorio\\\\Proyecto T.O\\\\ProyectiTO/.claude/skills/bmad-generate-project-context\" --key workflow2)",
+      "Bash(python3 _bmad/scripts/resolve_customization.py --skill \".claude/skills/bmad-quick-dev\" --key workflow)",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "Bash(npm run:*)"
+    ]
+  }
+}

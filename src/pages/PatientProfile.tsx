@@ -349,7 +349,7 @@ export default function PatientProfile() {
               <TabsTrigger value="sessions" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Sesiones</TabsTrigger>
               <TabsTrigger value="clinica" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Clínica</TabsTrigger>
               <TabsTrigger value="evaluaciones" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Evaluaciones</TabsTrigger>
-              <TabsTrigger value="planes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Planes</TabsTrigger>
+              <TabsTrigger value="archivos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Archivos</TabsTrigger>
               <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Administración</TabsTrigger>
             </TabsList>
 
@@ -617,34 +617,92 @@ export default function PatientProfile() {
           )}
         </TabsContent>
 
-        <TabsContent value="plans" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="font-semibold text-foreground">Planes de Tratamiento</h2>
-            <Button onClick={() => setShowNewPlan(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Nuevo Plan</Button>
+        <TabsContent value="archivos" className="space-y-6">
+          {/* Archivos clínicos */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-foreground">Archivos clínicos</h3>
+              <Button onClick={() => setShowUploadFile(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Agregar archivo</Button>
+            </div>
           </div>
-          {plans.length === 0 ? <p className="text-muted-foreground text-sm text-center py-8">Sin planes de tratamiento.</p> : (
-            <div className="space-y-2">
-              {plans.map((p) => (
-                <Card key={p.id} className="border-border/50">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm text-foreground">{p.title}</p>
-                          <StatusBadge status={p.status} />
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(p.start_date), "dd/MM/yyyy")} {p.end_date ? `— ${format(new Date(p.end_date), "dd/MM/yyyy")}` : ""}
-                        </p>
-                        {p.objective && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{p.objective}</p>}
+          {/* Fotos de evolución */}
+          <div>
+            <h3 className="font-medium text-foreground mb-3 flex items-center gap-2"><ImageIcon className="h-4 w-4" />Fotos de evolución</h3>
+            {(() => {
+              const photos = clinicalFiles.filter(f => f.category === "photo");
+              if (photos.length === 0) return <p className="text-muted-foreground text-sm text-center py-6">Sin fotos de evolución. Agregá la primera foto.</p>;
+              if (loadingUrls) return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {photos.map(p => <Skeleton key={p.id} className="h-48 w-full rounded-lg" />)}
+                </div>
+              );
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {photos.map(p => (
+                    <div key={p.id} className="relative group rounded-lg border border-border/50 overflow-hidden bg-muted">
+                      {signedUrls[p.id] ? (
+                        <img src={signedUrls[p.id]} alt={p.description || p.file_name} className="w-full h-48 object-cover" />
+                      ) : (
+                        <div className="w-full h-48 flex items-center justify-center text-muted-foreground text-sm">Sin vista previa</div>
+                      )}
+                      <button
+                        onClick={() => setDeleteFile(p)}
+                        className="absolute top-2 right-2 bg-background/80 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <div className="p-2">
+                        <p className="font-medium text-sm text-foreground">{format(new Date(p.photo_date), "dd/MM/yyyy")}</p>
+                        {p.description && <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>}
                       </div>
                     </div>
-                    <PlanCardActions plan={p} patient={patient} onDetail={() => setShowPlanDetail(p)} onEdit={() => setEditPlan(p)} onDelete={() => setDeletePlan(p)} />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+          <div className="border-t border-border/50" />
+          {/* Documentos y estudios */}
+          <div>
+            <h3 className="font-medium text-foreground mb-3">Documentos y estudios</h3>
+            {(() => {
+              const docs = clinicalFiles.filter(f => f.category === "study" || f.category === "document");
+              if (docs.length === 0) return <p className="text-muted-foreground text-sm text-center py-6">Sin documentos ni estudios.</p>;
+              return (
+                <div className="space-y-2">
+                  {docs.map(d => (
+                    <Card key={d.id} className="border-border/50">
+                      <CardContent className="p-3 flex items-center gap-3">
+                        <span className="text-lg flex-shrink-0">{d.category === "study" ? "🔬" : "📄"}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-foreground truncate">{d.file_name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${d.category === "study" ? "bg-blue-100 text-blue-800" : "bg-muted text-muted-foreground"}`}>
+                              {d.category === "study" ? "Estudio" : "Documento"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{format(new Date(d.photo_date), "dd/MM/yyyy")}</span>
+                          </div>
+                          {d.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{d.description}</p>}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {signedUrls[d.id] && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                              <a href={signedUrls[d.id]} download={d.file_name} rel="noopener noreferrer" aria-label={`Descargar ${d.file_name}`}>
+                              <Download className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteFile(d)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
         </TabsContent>
 
         {/* APPOINTMENTS */}
@@ -697,94 +755,6 @@ export default function PatientProfile() {
                 ))}
               </div>
             )}
-          </div>
-          <div className="border-t border-border/50" />
-          {/* Archivos clínicos */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-foreground">Archivos clínicos</h3>
-              <Button onClick={() => setShowUploadFile(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Agregar archivo</Button>
-            </div>
-          </div>
-          {/* Fotos de evolución */}
-          <div>
-            <h3 className="font-medium text-foreground mb-3 flex items-center gap-2"><ImageIcon className="h-4 w-4" />Fotos de evolución</h3>
-            {(() => {
-              const photos = clinicalFiles.filter(f => f.category === "photo");
-              if (photos.length === 0) return <p className="text-muted-foreground text-sm text-center py-6">Sin fotos de evolución. Agregá la primera foto.</p>;
-              if (loadingUrls) return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {photos.map(p => <Skeleton key={p.id} className="h-48 w-full rounded-lg" />)}
-                </div>
-              );
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {photos.map(p => (
-                    <div key={p.id} className="relative group rounded-lg border border-border/50 overflow-hidden bg-muted">
-                      {signedUrls[p.id] ? (
-                        <img src={signedUrls[p.id]} alt={p.description || p.file_name} className="w-full h-48 object-cover" />
-                      ) : (
-                        <div className="w-full h-48 flex items-center justify-center text-muted-foreground text-sm">Sin vista previa</div>
-                      )}
-                      <button
-                        onClick={() => setDeleteFile(p)}
-                        className="absolute top-2 right-2 bg-background/80 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      <div className="p-2">
-                        <p className="font-medium text-sm text-foreground">{format(new Date(p.photo_date), "dd/MM/yyyy")}</p>
-                        {p.description && <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
-
-          <div className="border-t border-border/50" />
-
-          {/* Documentos y estudios */}
-          <div>
-            <h3 className="font-medium text-foreground mb-3">Documentos y estudios</h3>
-            {(() => {
-              const docs = clinicalFiles.filter(f => f.category === "study" || f.category === "document");
-              if (docs.length === 0) return <p className="text-muted-foreground text-sm text-center py-6">Sin documentos ni estudios.</p>;
-              return (
-                <div className="space-y-2">
-                  {docs.map(d => (
-                    <Card key={d.id} className="border-border/50">
-                      <CardContent className="p-3 flex items-center gap-3">
-                        <span className="text-lg flex-shrink-0">{d.category === "study" ? "🔬" : "📄"}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm text-foreground truncate">{d.file_name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${d.category === "study" ? "bg-blue-100 text-blue-800" : "bg-muted text-muted-foreground"}`}>
-                              {d.category === "study" ? "Estudio" : "Documento"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">{format(new Date(d.photo_date), "dd/MM/yyyy")}</span>
-                          </div>
-                          {d.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{d.description}</p>}
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {signedUrls[d.id] && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                              <a href={signedUrls[d.id]} download={d.file_name} rel="noopener noreferrer" aria-label={`Descargar ${d.file_name}`}>
-                              <Download className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteFile(d)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              );
-            })()}
           </div>
           <div className="border-t border-border/50" />
           {/* Informe de Alta */}

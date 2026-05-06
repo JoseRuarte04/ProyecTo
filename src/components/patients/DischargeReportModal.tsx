@@ -66,6 +66,65 @@ export function DischargeReportModal({
       if (y + needed > pageH - margin) addPage();
     };
 
+    // Split a line into tokens handling **text** and *text* as bold; strips stray asterisks
+    const tokenize = (line: string) => {
+      const tokens: { text: string; bold: boolean; isSpace: boolean }[] = [];
+      const addPart = (text: string, bold: boolean) => {
+        text.split(/(\s+)/).forEach((piece) => {
+          if (piece !== "") tokens.push({ text: piece, bold, isSpace: piece.trim() === "" });
+        });
+      };
+      const pattern = /\*\*(.*?)\*\*|\*([^*\n]+?)\*/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(line)) !== null) {
+        if (match.index > lastIndex) addPart(line.slice(lastIndex, match.index).replace(/\*/g, ""), false);
+        addPart(match[1] ?? match[2], true);
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < line.length) addPart(line.slice(lastIndex).replace(/\*/g, ""), false);
+      return tokens;
+    };
+
+    // Render a body line with inline **bold** support and automatic word wrapping
+    const renderInlineLine = (rawLine: string) => {
+      const lineH = 5;
+
+      if (!/\*/.test(rawLine)) {
+        doc.setFont("helvetica", "normal");
+        const wrapped = doc.splitTextToSize(rawLine, contentW);
+        checkSpace(wrapped.length * lineH);
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * lineH + 1;
+        return;
+      }
+
+      checkSpace(lineH + 1);
+      let x = margin;
+      let lineStart = true;
+
+      for (const token of tokenize(rawLine)) {
+        if (lineStart && token.isSpace) continue;
+
+        doc.setFont("helvetica", token.bold ? "bold" : "normal");
+        const tw = doc.getTextWidth(token.text);
+
+        // Wrap before a word that would overflow (never wrap on spaces)
+        if (!token.isSpace && !lineStart && x + tw > margin + contentW) {
+          x = margin;
+          y += lineH;
+          if (y + lineH > pageH - margin) addPage();
+        }
+
+        doc.text(token.text, x, y);
+        x += tw;
+        if (!token.isSpace) lineStart = false;
+      }
+
+      doc.setFont("helvetica", "normal");
+      y += lineH + 1;
+    };
+
     // Header
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
@@ -81,17 +140,16 @@ export function DischargeReportModal({
     doc.line(margin, y, pageW - margin, y);
     y += 8;
 
-    // Body — split text preserving line breaks
+    // Body
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
 
-    const lines = reportText.split("\n");
-    for (const rawLine of lines) {
+    for (const rawLine of reportText.split("\n")) {
       if (rawLine.startsWith("## ")) {
         checkSpace(12);
         doc.setFontSize(13);
         doc.setFont("helvetica", "bold");
-        const wrapped = doc.splitTextToSize(rawLine.replace(/^## /, ""), contentW);
+        const wrapped = doc.splitTextToSize(rawLine.replace(/^## /, "").replace(/\*/g, ""), contentW);
         doc.text(wrapped, margin, y);
         y += wrapped.length * 6 + 3;
         doc.setFontSize(10);
@@ -100,7 +158,7 @@ export function DischargeReportModal({
         checkSpace(10);
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
-        const wrapped = doc.splitTextToSize(rawLine.replace(/^### /, ""), contentW);
+        const wrapped = doc.splitTextToSize(rawLine.replace(/^### /, "").replace(/\*/g, ""), contentW);
         doc.text(wrapped, margin, y);
         y += wrapped.length * 5 + 2;
         doc.setFontSize(10);
@@ -108,10 +166,7 @@ export function DischargeReportModal({
       } else if (rawLine.trim() === "") {
         y += 4;
       } else {
-        const wrapped = doc.splitTextToSize(rawLine, contentW);
-        checkSpace(wrapped.length * 5);
-        doc.text(wrapped, margin, y);
-        y += wrapped.length * 5 + 1;
+        renderInlineLine(rawLine);
       }
     }
 

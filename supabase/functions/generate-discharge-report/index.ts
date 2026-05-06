@@ -13,6 +13,11 @@ REGLAS ABSOLUTAS:
 6. Usa construcciones impersonales y voz pasiva donde sea apropiado (se observó, se evidencia, se constata).
 7. Refiérete al paciente en tercera persona (el paciente / la paciente).
 
+REGLAS DE FORMATO PARA DATOS CLÍNICOS:
+- Goniometría: cuando haya valores numéricos disponibles, escribilos siempre con la unidad en grados (ejemplo: "flexión 85°, extensión 10°"). Nunca escribas "No registrado." si hay valores numéricos presentes en el XML.
+- Fuerza muscular: expresar con escala de Daniels (0–5) cuando haya valores disponibles.
+- Edema/circometría: expresar en centímetros con los puntos anatómicos correspondientes cuando haya valores disponibles.
+
 ESTRUCTURA DEL INFORME:
 Genera el informe siguiendo EXACTAMENTE esta estructura:
 
@@ -20,15 +25,22 @@ Genera el informe siguiendo EXACTAMENTE esta estructura:
 
 ### 1. DATOS DEL PACIENTE
 [datos de identificación y diagnóstico del episodio]
+[párrafo de derivación: "La paciente/El paciente fue derivada/o del Servicio de [servicio] por el/la Dr./Dra. [nombre] con diagnóstico de [diagnóstico], para inicio de tratamiento en Terapia Ocupacional." — usar solo si los datos de derivación están presentes en el episodio o en el registro clínico; si no están disponibles, omitir este párrafo sin escribir "No registrado."]
 
 ### 2. PERFIL OCUPACIONAL
 [historia ocupacional, roles, actividades de la vida diaria]
 
-### 3. EVALUACIÓN Y TRATAMIENTO
+### 3. EVALUACIÓN INICIAL
+[hallazgos de la primera evaluación analítica y funcional con valores concretos — goniometría en grados, fuerza en escala Daniels, edema en cm, scores funcionales]
+
+### 4. OBJETIVOS TERAPÉUTICOS
+[lista de objetivos trabajados durante el tratamiento, inferidos exclusivamente de las intervenciones registradas en las sesiones y de los hallazgos de la evaluación inicial — por ejemplo: recuperación de amplitud articular, fortalecimiento muscular, reeducación de sensibilidad, independencia en AVD, control del edema, etc. Solo incluir áreas que tengan datos registrados.]
+
+### 5. PROCESO TERAPÉUTICO
 [resumen cronológico del proceso terapéutico sesión por sesión]
 
-### 4. EVOLUCIÓN Y EVALUACIÓN FINAL
-[comparación primera vs última evaluación analítica y funcional con valores concretos]
+### 6. EVOLUCIÓN Y EVALUACIÓN FINAL
+[comparación evaluación inicial vs final con valores concretos; destacar cambios funcionales relevantes]
 
 ### RECOMENDACIONES DE ALTA
 [indicaciones para continuar en domicilio — solo si hay datos en las sesiones]`;
