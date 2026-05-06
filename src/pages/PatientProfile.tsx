@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Plus, Eye, Edit, Search, Trash2, FileDown, Upload, Download, Image as ImageIcon, ChevronDown, ChevronUp, ChevronRight, BarChart3, Activity, Calendar, ClipboardList, Stethoscope, User, Heart, BriefcaseMedical } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Eye, Edit, Search, Trash2, FileDown, Upload, Download, Image as ImageIcon, ChevronDown, ChevronUp, ChevronRight, BarChart3, Activity, Calendar, ClipboardList, Stethoscope, User, Heart, BriefcaseMedical, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -27,6 +27,8 @@ import { exportPlanPdf } from "@/components/plans/PlanPdfExport";
 import { AnalEvalList } from "@/components/evaluations/AnalyticalEvalForm";
 import { EDEMA_POINTS, isNewEdemaFormat, normalizeEdemaValue } from "@/components/clinical/EdemaCircometryTable";
 import { QUICKDASH_QUESTIONS, FIM_MOTOR, FIM_COGNITIVE } from "@/components/evaluations/FunctionalScales";
+import { DischargeReportModal } from "@/components/patients/DischargeReportModal";
+import { useDischargeReport } from "@/hooks/useDischargeReport";
 
 const ALLOWED_CLINICAL_FILE_TYPES = [
   "image/jpeg",
@@ -46,7 +48,7 @@ const isAllowedClinicalFileType = (type: string) =>
 export default function PatientProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [patient, setPatient] = useState<any>(null);
   const [clinical, setClinical] = useState<any>(null);
   const [occupational, setOccupational] = useState<any>(null);
@@ -78,6 +80,8 @@ export default function PatientProfile() {
   const [showUploadFile, setShowUploadFile] = useState(false);
   const [deleteFile, setDeleteFile] = useState<any>(null);
   const [contextOpen, setContextOpen] = useState(true);
+  const [showDischargeReport, setShowDischargeReport] = useState(false);
+  const dischargeReport = useDischargeReport(id ?? "", activeEpisodeId, session);
 
   const fetchPatientBase = async () => {
     if (!id) return;
@@ -782,6 +786,29 @@ export default function PatientProfile() {
               );
             })()}
           </div>
+          <div className="border-t border-border/50" />
+          {/* Informe de Alta */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-foreground">Informe de Alta</h3>
+              <Button
+                size="sm"
+                className="gap-2"
+                disabled={!activeEpisodeId || sessions.length === 0}
+                onClick={() => setShowDischargeReport(true)}
+              >
+                <FileText className="h-4 w-4" />
+                Generar Informe de Alta
+              </Button>
+            </div>
+            {(!activeEpisodeId || sessions.length === 0) && (
+              <p className="text-muted-foreground text-sm text-center py-4">
+                {!activeEpisodeId
+                  ? "No hay episodio activo."
+                  : "El episodio no tiene sesiones cargadas."}
+              </p>
+            )}
+          </div>
         </TabsContent>
           </Tabs>
           </div>{/* closes inner scroll div */}
@@ -878,6 +905,16 @@ export default function PatientProfile() {
         setClinicalFiles(prev => prev.filter(f => f.id !== fileId));
         setSignedUrls(prev => { const n = { ...prev }; delete n[fileId]; return n; });
       }} />
+      <DischargeReportModal
+        open={showDischargeReport}
+        onOpenChange={(o) => { if (!o) { dischargeReport.reset(); } setShowDischargeReport(o); }}
+        state={dischargeReport.state}
+        reportText={dischargeReport.reportText}
+        setReportText={dischargeReport.setReportText}
+        onGenerate={dischargeReport.generate}
+        onReset={dischargeReport.reset}
+        patientName={patient ? `${patient.first_name} ${patient.last_name}` : ""}
+      />
     </div>
   );
 }
