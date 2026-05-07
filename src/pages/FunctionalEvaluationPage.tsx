@@ -5,9 +5,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ArrowLeft, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import {
+  QUICKDASH_QUESTIONS,
+  FIM_GROUPS, FIM_COGNITIVE_GROUPS,
+  BARTHEL_ITEMS,
+  calcFimTotal, calcBarthelTotal,
+} from "@/components/evaluations/FunctionalScales";
 
 const NA = () => <span className="text-muted-foreground italic text-sm">No registrado</span>;
 
@@ -48,6 +55,9 @@ export default function FunctionalEvaluationPage() {
   const [session, setSession] = useState<any>(null);
   const [patient, setPatient] = useState<any>(null);
   const [notFound, setNotFound] = useState(false);
+  const [qdOpen, setQdOpen] = useState(false);
+  const [fimOpen, setFimOpen] = useState(false);
+  const [barthelOpen, setBarthelOpen] = useState(false);
 
   useEffect(() => {
     if (!evalId || !patientId || !user) return;
@@ -127,9 +137,45 @@ export default function FunctionalEvaluationPage() {
       {hasScores && (
         <Section title="Escalas funcionales">
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            {nn(e.quickdash_score) && <DataCell label="QuickDASH" value={`${e.quickdash_score}/100`} />}
-            {nn(e.fim_score) && <DataCell label="FIM" value={`${e.fim_score}/126`} />}
-            {nn(e.barthel_score) && <DataCell label="Barthel" value={`${e.barthel_score}/100`} />}
+            {nn(e.quickdash_score) && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">QuickDASH</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground">{e.quickdash_score}/100</span>
+                  {e.quickdash_items && (
+                    <Button variant="ghost" size="sm" onClick={() => setQdOpen(true)} className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground">
+                      <Eye className="h-3 w-3" /> Ver detalle
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            {nn(e.fim_score) && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">FIM</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground">{e.fim_score}/126</span>
+                  {e.fim_items && (
+                    <Button variant="ghost" size="sm" onClick={() => setFimOpen(true)} className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground">
+                      <Eye className="h-3 w-3" /> Ver detalle
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            {nn(e.barthel_score) && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">Barthel</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground">{e.barthel_score}/100</span>
+                  {e.barthel_items && (
+                    <Button variant="ghost" size="sm" onClick={() => setBarthelOpen(true)} className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground">
+                      <Eye className="h-3 w-3" /> Ver detalle
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </Section>
       )}
@@ -192,6 +238,126 @@ export default function FunctionalEvaluationPage() {
           No hay datos registrados en esta evaluación.
         </div>
       )}
+
+      {/* QuickDASH detail dialog */}
+      <Dialog open={qdOpen} onOpenChange={setQdOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>QuickDASH — {e.quickdash_score}/100</DialogTitle>
+            <DialogDescription className="sr-only">Detalle de ítems QuickDASH</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            {QUICKDASH_QUESTIONS.map((q, i) => {
+              const items = Array.isArray(e.quickdash_items) ? e.quickdash_items : [];
+              const val = items[i];
+              const label = val != null ? q.scale[val - 1] : null;
+              return (
+                <div key={i} className="border-b border-border/30 pb-3 last:border-0">
+                  <p className="text-xs text-muted-foreground mb-1"><span className="font-semibold text-foreground/70">{i + 1}.</span> {q.q}</p>
+                  {label != null
+                    ? <p className="text-sm font-medium text-foreground">{val} — {label}</p>
+                    : <p className="text-sm text-muted-foreground italic">No registrado</p>
+                  }
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* FIM detail dialog */}
+      <Dialog open={fimOpen} onOpenChange={setFimOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>FIM — {e.fim_score}/126</DialogTitle>
+            <DialogDescription className="sr-only">Detalle de ítems FIM</DialogDescription>
+          </DialogHeader>
+          {(() => {
+            const FIM_LEVEL: Record<number, string> = {
+              1: "Dependiente total", 2: "Asistencia máxima", 3: "Asistencia moderada",
+              4: "Asistencia mínima", 5: "Solo supervisión",
+              6: "Independiente con adaptaciones", 7: "Independencia total",
+            };
+            const items = (e.fim_items && typeof e.fim_items === "object") ? e.fim_items as Record<string, any> : {};
+            const allGroups = [...FIM_GROUPS, ...FIM_COGNITIVE_GROUPS];
+            return (
+              <div className="space-y-4 mt-2">
+                {allGroups.map(group => {
+                  const subtotal = group.items
+                    .map(it => items[it.key])
+                    .filter((v): v is number => v != null)
+                    .reduce((a, b) => a + b, 0);
+                  const hasAny = group.items.some(it => items[it.key] != null);
+                  return (
+                    <div key={group.name}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">{group.name}</p>
+                        {hasAny && <span className="text-xs font-semibold text-muted-foreground">{subtotal}/{group.max}</span>}
+                      </div>
+                      <div className="space-y-1.5">
+                        {group.items.map(it => {
+                          const v = items[it.key];
+                          return (
+                            <div key={it.key} className="flex items-center justify-between gap-3 border-b border-border/30 pb-1.5 last:border-0">
+                              <span className="text-xs text-foreground flex-1">{it.label}</span>
+                              {v != null
+                                ? <span className="text-xs font-medium text-foreground shrink-0">{v} — {FIM_LEVEL[v]}</span>
+                                : <span className="text-xs text-muted-foreground italic shrink-0">No registrado</span>
+                              }
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Barthel detail dialog */}
+      <Dialog open={barthelOpen} onOpenChange={setBarthelOpen}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Índice de Barthel — {e.barthel_score}/100</DialogTitle>
+            <DialogDescription className="sr-only">Detalle de ítems Barthel</DialogDescription>
+          </DialogHeader>
+          {(() => {
+            const items = (e.barthel_items && typeof e.barthel_items === "object") ? e.barthel_items as Record<string, any> : {};
+            const barthelInterpretation = (s: number) => {
+              if (s <= 20) return "Dependencia total";
+              if (s <= 60) return "Dependencia severa";
+              if (s <= 90) return "Dependencia moderada";
+              if (s <= 99) return "Dependencia escasa";
+              return "Independiente";
+            };
+            return (
+              <div className="space-y-1.5 mt-2">
+                {BARTHEL_ITEMS.map(item => {
+                  const v = items[item.key];
+                  const opt = item.options.find(o => o.v === v);
+                  return (
+                    <div key={item.key} className="flex items-center justify-between gap-3 border-b border-border/30 pb-1.5 last:border-0">
+                      <span className="text-xs text-foreground flex-1 font-medium">{item.label}</span>
+                      {opt != null
+                        ? <span className="text-xs font-medium text-foreground shrink-0">{opt.v} — {opt.l}</span>
+                        : <span className="text-xs text-muted-foreground italic shrink-0">No registrado</span>
+                      }
+                    </div>
+                  );
+                })}
+                {nn(e.barthel_score) && (
+                  <p className="text-xs text-center text-muted-foreground pt-3">
+                    Interpretación: <span className="font-semibold text-foreground">{barthelInterpretation(e.barthel_score)}</span>
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

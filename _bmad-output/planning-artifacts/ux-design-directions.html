@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProyectiTO — Direcciones de diseño: Vista de Sesiones</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #0f0f0f; color: #e5e5e5; }
+
+  /* Nav */
+  .top-nav { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; padding: 16px 32px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
+  .top-nav h1 { font-size: 14px; font-weight: 600; color: #fff; }
+  .top-nav span { font-size: 12px; color: #666; }
+  .nav-tabs { display: flex; gap: 4px; margin-left: auto; }
+  .nav-tab { padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+  .nav-tab.active { background: #fff; color: #000; font-weight: 600; }
+  .nav-tab:not(.active) { color: #888; border-color: #333; }
+  .nav-tab:not(.active):hover { color: #ccc; border-color: #555; }
+
+  /* Section wrapper */
+  .section { display: none; padding: 32px; }
+  .section.active { display: block; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #555; margin-bottom: 24px; }
+
+  /* Variation grid */
+  .variations { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px; }
+  .variation { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; overflow: hidden; }
+  .variation-header { padding: 12px 16px; border-bottom: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: space-between; }
+  .variation-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #666; }
+  .variation-tag { font-size: 10px; padding: 2px 8px; border-radius: 99px; border: 1px solid; }
+  .tag-recommended { color: #4ade80; border-color: #4ade8040; background: #4ade8010; }
+  .tag-compact { color: #60a5fa; border-color: #60a5fa40; background: #60a5fa10; }
+  .tag-minimal { color: #c084fc; border-color: #c084fc40; background: #c084fc10; }
+  .variation-body { padding: 16px; }
+  .variation-note { padding: 10px 16px; border-top: 1px solid #2a2a2a; font-size: 11px; color: #666; line-height: 1.5; }
+  .pros-cons { padding: 10px 16px; border-top: 1px solid #2a2a2a; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pros, .cons { font-size: 11px; }
+  .pros-title { color: #4ade80; font-weight: 600; margin-bottom: 4px; }
+  .cons-title { color: #f87171; font-weight: 600; margin-bottom: 4px; }
+  .pros li, .cons li { color: #888; margin-left: 12px; margin-bottom: 2px; }
+
+  /* ── APP UI MOCKUP STYLES (simula la app real) ── */
+  .app { background: #fff; border-radius: 8px; overflow: hidden; font-family: 'Inter', -apple-system, sans-serif; color: #0f172a; }
+
+  /* Session card base */
+  .s-card { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: #fff; }
+  .s-card:last-child { margin-bottom: 0; }
+
+  /* ── VARIACIÓN A: Badge inline en header ── */
+  .va-header { padding: 10px 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; border-bottom: 1px solid #f1f5f9; }
+  .va-meta { display: flex; flex-direction: column; gap: 2px; }
+  .va-date { font-size: 12px; font-weight: 600; color: #0f172a; }
+  .va-type { font-size: 11px; color: #64748b; }
+  .va-badges { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 600; border: 1px solid; white-space: nowrap; }
+  .badge-anal { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
+  .badge-func { color: #7c3aed; background: #f5f3ff; border-color: #ddd6fe; }
+  .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .va-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .va-field { font-size: 11px; }
+  .va-field-label { color: #94a3b8; font-weight: 500; margin-bottom: 1px; }
+  .va-field-value { color: #334155; line-height: 1.4; }
+  .va-field-value.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* ── VARIACIÓN B: Botones outlined al pie ── */
+  .vb-header { padding: 10px 12px; display: flex; align-items: center; gap-8: gap; border-bottom: 1px solid #f1f5f9; }
+  .vb-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .pill-seguimiento { background: #f0fdf4; color: #16a34a; }
+  .pill-admision { background: #eff6ff; color: #2563eb; }
+  .vb-info { margin-left: auto; font-size: 11px; color: #94a3b8; }
+  .vb-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
+  .vb-row { display: flex; gap: 6px; font-size: 11px; }
+  .vb-row-label { color: #94a3b8; min-width: 80px; font-weight: 500; }
+  .vb-row-value { color: #334155; line-height: 1.4; }
+  .vb-footer { padding: 8px 12px; border-top: 1px solid #f1f5f9; display: flex; gap: 6px; }
+  .btn-eval { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid; cursor: pointer; }
+  .btn-anal { color: #2563eb; border-color: #bfdbfe; background: #eff6ff; }
+  .btn-func { color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff; }
+  .btn-icon { font-size: 10px; }
+
+  /* ── VARIACIÓN C: Borde lateral de color ── */
+  .vc-card { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: #fff; display: flex; }
+  .vc-strip { width: 3px; flex-shrink: 0; }
+  .strip-both { background: linear-gradient(180deg, #2563eb 50%, #7c3aed 50%); }
+  .strip-anal { background: #2563eb; }
+  .strip-none { background: #e2e8f0; }
+  .vc-content { flex: 1; padding: 10px 12px; }
+  .vc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .vc-date-type { display: flex; align-items: center; gap: 8px; }
+  .vc-date { font-size: 12px; font-weight: 600; color: #0f172a; }
+  .vc-type { font-size: 10px; color: #64748b; padding: 1px 6px; background: #f8fafc; border-radius: 4px; border: 1px solid #e2e8f0; }
+  .vc-nro { font-size: 10px; color: #94a3b8; }
+  .vc-fields { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .vc-field-row { font-size: 11px; display: flex; gap: 6px; }
+  .vc-field-lbl { color: #94a3b8; min-width: 72px; font-weight: 500; }
+  .vc-field-val { color: #334155; line-height: 1.35; }
+  .vc-actions { display: flex; gap: 6px; }
+  .vc-btn { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: 5px; font-size: 10px; font-weight: 600; border: 1px solid; }
+
+  /* ── VARIACIÓN D: Minimal, icono de check ── */
+  .vd-card { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; background: #fff; }
+  .vd-header { padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f8fafc; }
+  .vd-date { font-size: 12px; font-weight: 600; color: #0f172a; }
+  .vd-sep { color: #cbd5e1; font-size: 11px; }
+  .vd-type { font-size: 11px; color: #64748b; }
+  .vd-nro { font-size: 10px; color: #94a3b8; margin-left: auto; }
+  .vd-indicators { display: flex; gap: 4px; }
+  .vd-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .vd-dot-anal { background: #2563eb; }
+  .vd-dot-func { background: #7c3aed; }
+  .vd-dot-empty { background: #e2e8f0; }
+  .vd-body { padding: 8px 12px; font-size: 11px; color: #475569; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .vd-footer { padding: 6px 12px; border-top: 1px solid #f8fafc; display: flex; align-items: center; gap: 12px; }
+  .vd-link { font-size: 11px; color: #2563eb; text-decoration: none; display: flex; align-items: center; gap: 3px; }
+  .vd-link.func { color: #7c3aed; }
+
+  /* ── PÁGINA DE EVALUACIÓN — Variación 1: Grid 2 columnas ── */
+  .ep-header { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+  .ep-back { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #2563eb; margin-bottom: 8px; cursor: pointer; }
+  .ep-title { font-size: 16px; font-weight: 700; color: #0f172a; font-family: 'Georgia', serif; }
+  .ep-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .ep-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 14px; max-height: 360px; overflow-y: auto; }
+  .ep-section { }
+  .ep-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #f1f5f9; }
+  .ep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ep-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .ep-item { background: #f8fafc; border-radius: 6px; padding: 6px 8px; }
+  .ep-item-label { font-size: 10px; color: #94a3b8; font-weight: 500; margin-bottom: 1px; }
+  .ep-item-value { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .ep-item-unit { font-size: 10px; color: #64748b; font-weight: 400; margin-left: 2px; }
+  .ep-item-nr { font-size: 12px; color: #cbd5e1; font-style: italic; }
+  .ep-score-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: #f8fafc; border-radius: 6px; }
+  .ep-score-label { font-size: 11px; color: #475569; }
+  .ep-score-value { font-size: 16px; font-weight: 700; color: #0f172a; }
+  .ep-score-max { font-size: 11px; color: #94a3b8; }
+  .ep-pain { display: flex; align-items: center; gap: 10px; padding: 8px; background: #f8fafc; border-radius: 6px; }
+  .ep-pain-value { font-size: 28px; font-weight: 800; color: #0f172a; }
+  .ep-pain-bar { flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+  .ep-pain-fill { height: 100%; border-radius: 3px; }
+
+  /* Evaluación — Variación 2: Tabla por sección */
+  .ep2-body { padding: 12px 16px; max-height: 360px; overflow-y: auto; }
+  .ep2-section { margin-bottom: 14px; }
+  .ep2-section-title { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .ep2-table { width: 100%; border-collapse: collapse; }
+  .ep2-table td { padding: 5px 6px; font-size: 11px; border-bottom: 1px solid #f1f5f9; }
+  .ep2-table td:first-child { color: #64748b; width: 45%; }
+  .ep2-table td:last-child { font-weight: 600; color: #0f172a; text-align: right; }
+  .ep2-nr { color: #cbd5e1 !important; font-weight: 400 !important; font-style: italic; }
+  .ep2-icon { font-size: 14px; }
+
+  .label-sessnum { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 4px; background: #f0fdf4; color: #16a34a; font-size: 10px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <h1>ProyectiTO — Direcciones de diseño</h1>
+  <span>Vista de sesiones + Página de evaluación</span>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="showSection('tarjetas')">Tarjetas de sesión</div>
+    <div class="nav-tab" onclick="showSection('evaluacion')">Página de evaluación</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- SECCIÓN 1: TARJETAS DE SESIÓN                            -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section active" id="section-tarjetas">
+  <div class="section-title">Tarjetas de sesión — 4 variaciones de diseño</div>
+  <div class="variations">
+
+    <!-- VARIACIÓN A -->
+    <div class="variation">
+      <div class="variation-header">
+        <span class="variation-label">Variación A — Badge en header</span>
+        <span class="variation-tag tag-recommended">Recomendada</span>
+      </div>
+      <div class="variation-body">
+        <div class="app">
+          <!-- Tarjeta 1: con ambas evaluaciones -->
+          <div class="s-card">
+            <div class="va-header">
+              <div class="va-meta">
+                <div class="va-date">15/04/2026</div>
+                <div class="va-type">Seguimiento · Sesión 4</div>
+              </div>
+              <div class="va-badges">
+                <span class="badge badge-anal"><span class="badge-dot"></span>Anal.</span>
+                <span class="badge badge-func"><span class="badge-dot"></span>Func.</span>
+              </div>
+            </div>
+            <div class="va-body">
+              <div class="va-field">
+                <div class="va-field-label">Intervenciones</div>
+                <div class="va-field-value clamp">Movilización activo-asistida de muñeca. Ejercicios de prensión con masilla terapéutica. Termoterapia superficial 10 min.</div>
+              </div>
+              <div class="va-field">
+                <div class="va-field-label">Evolución</div>
+                <div class="va-field-value clamp">Paciente refiere leve mejoría en dolor. Rango articular en flexión aumentó respecto a sesión anterior.</div>
+              </div>
+            </div>
+          </div>
+          <!-- Tarjeta 2: solo analítica -->
+          <div class="s-card">
+            <div class="va-header">
+              <div class="va-meta">
+                <div class="va-date">08/04/2026</div>
+                <div class="va-type">Seguimiento · Sesión 3</div>
+              </div>
+              <div class="va-badges">
+                <span class="badge badge-anal"><span class="badge-dot"></span>Anal.</span>
+              </div>
+            </div>
+            <div class="va-body">
+              <div class="va-field">
+                <div class="va-field-label">Intervenciones</div>
+                <div class="va-field-value clamp">Drenaje linfático manual. TENS analgésico zona dorsal de mano.</div>
+              </div>
+            </div>
+          </div>
+          <!-- Tarjeta 3: sin evaluación -->
+          <div class="s-card">
+            <div class="va-header">
+              <div class="va-meta">
+                <div class="va-date">01/04/2026</div>
+                <div class="va-type">Seguimiento · Sesión 2</div>
+              </div>
+              <div class="va-badges"></div>
+            </div>
+            <div class="va-body">
+              <div class="va-field">
+                <div class="va-field-label">Observaciones</div>
+                <div class="va-field-value">Paciente presenta edema moderado. Toleró bien la sesión.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="variation-note">Los badges aparecen solo si hay evaluación con ese session_id. Click en badge navega a la página de evaluación.</div>
+      <div class="pros-cons">
+        <div class="pros"><div class="pros-title">✓ Pros</div><ul><li>Muy compacto</li><li>Escaneo rápido</li><li>Sin clutter cuando no hay eval</li></ul></div>
+        <div class="cons"><div class="cons-title">✗ Contras</div><ul><li>Badge pequeño, área de click chica</li><li>Puede no ser obvio que es clickeable</li></ul></div>
+      </div>
+    </div>
+
+    <!-- VARIACIÓN B -->
+    <div class="variation">
+      <div class="variation-header">
+        <span class="variation-label">Variación B — Botones al pie</span>
+        <span class="variation-tag tag-compact">Clara</span>
+      </div>
+      <div class="variation-body">
+        <div class="app">
+          <div class="s-card">
+            <div class="vb-header" style="padding:10px 12px; display:flex; align-items:center; gap:8px; border-bottom:1px solid #f1f5f9;">
+              <span class="vb-pill pill-seguimiento">Seguimiento</span>
+              <span style="font-size:11px;font-weight:600;color:#0f172a;">Sesión 4</span>
+              <span class="vb-info">15/04/2026</span>
+            </div>
+            <div class="vb-body">
+              <div class="vb-row"><span class="vb-row-label">Intervenciones</span><span class="vb-row-value">Movilización activo-asistida. Masilla terapéutica. Termoterapia 10 min.</span></div>
+              <div class="vb-row"><span class="vb-row-label">Evolución</span><span class="vb-row-value">Leve mejoría en dolor. Rango articular en flexión aumentó.</span></div>
+              <div class="vb-row"><span class="vb-row-label">AVD</span><span class="vb-row-value">Logra abrir canillas. Dificultad con escritura prolongada.</span></div>
+            </div>
+            <div class="vb-footer">
+              <button class="btn-eval btn-anal"><span class="btn-icon">📊</span> Ver evaluación analítica</button>
+              <button class="btn-eval btn-func"><span class="btn-icon">📋</span> Ver evaluación funcional</button>
+            </div>
+          </div>
+          <div class="s-card">
+            <div class="vb-header" style="padding:10px 12px; display:flex; align-items:center; gap:8px; border-bottom:1px solid #f1f5f9;">
+              <span class="vb-pill pill-seguimiento">Seguimiento</span>
+              <span style="font-size:11px;font-weight:600;color:#0f172a;">Sesión 3</span>
+              <span class="vb-info">08/04/2026</span>
+            </div>
+            <div class="vb-body">
+              <div class="vb-row"><span class="vb-row-label">Intervenciones</span><span class="vb-row-value">Drenaje linfático manual. TENS analgésico.</span></div>
+            </div>
+            <div class="vb-footer">
+              <button class="btn-eval btn-anal"><span class="btn-icon">📊</span> Ver evaluación analítica</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="variation-note">Botones outlined al pie, solo si hay datos. Acción muy clara, área de click grande.</div>
+      <div class="pros-cons">
+        <div class="pros"><div class="pros-title">✓ Pros</div><ul><li>Acción muy explícita</li><li>Área de click grande</li><li>Fácil de entender</li></ul></div>
+        <div class="cons"><div class="cons-title">✗ Contras</div><ul><li>Tarjeta más alta</li><li>Footer puede verse "pesado"</li></ul></div>
+      </div>
+    </div>
+
+    <!-- VARIACIÓN C -->
+    <div class="variation">
+      <div class="variation-header">
+        <span class="variation-label">Variación C — Borde lateral</span>
+        <span class="variation-tag tag-minimal">Visual</span>
+      </div>
+      <div class="variation-body">
+        <div class="app">
+          <div class="vc-card">
+            <div class="vc-strip strip-both"></div>
+            <div class="vc-content">
+              <div class="vc-top">
+                <div class="vc-date-type">
+                  <span class="vc-date">15/04/2026</span>
+                  <span class="vc-type">Seguimiento</span>
+                </div>
+                <span class="vc-nro">Sesión 4</span>
+              </div>
+              <div class="vc-fields">
+                <div class="vc-field-row"><span class="vc-field-lbl">Intervenciones</span><span class="vc-field-val">Movilización activo-asistida. Masilla. Termoterapia.</span></div>
+                <div class="vc-field-row"><span class="vc-field-lbl">Evolución</span><span class="vc-field-val">Leve mejoría. Rango en flexión aumentó.</span></div>
+              </div>
+              <div class="vc-actions">
+                <span class="vc-btn badge-anal">📊 Analítica</span>
+                <span class="vc-btn badge-func">📋 Funcional</span>
+              </div>
+            </div>
+          </div>
+          <div class="vc-card">
+            <div class="vc-strip strip-anal"></div>
+            <div class="vc-content">
+              <div class="vc-top">
+                <div class="vc-date-type">
+                  <span class="vc-date">08/04/2026</span>
+                  <span class="vc-type">Seguimiento</span>
+                </div>
+                <span class="vc-nro">Sesión 3</span>
+              </div>
+              <div class="vc-fields">
+                <div class="vc-field-row"><span class="vc-field-lbl">Intervenciones</span><span class="vc-field-val">Drenaje linfático. TENS analgésico.</span></div>
+              </div>
+              <div class="vc-actions">
+                <span class="vc-btn badge-anal">📊 Analítica</span>
+              </div>
+            </div>
+          </div>
+          <div class="vc-card">
+            <div class="vc-strip strip-none"></div>
+            <div class="vc-content">
+              <div class="vc-top">
+                <div class="vc-date-type">
+                  <span class="vc-date">01/04/2026</span>
+                  <span class="vc-type">Admisión</span>
+                </div>
+                <span class="vc-nro">Sesión 1</span>
+              </div>
+              <div class="vc-fields">
+                <div class="vc-field-row"><span class="vc-field-lbl">Observaciones</span><span class="vc-field-val">Primera sesión. Evaluación de rango articular inicial.</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="variation-note">Borde lateral bicolor (azul+violeta) indica presencia de ambas evaluaciones. Borde gris = sin evaluación.</div>
+      <div class="pros-cons">
+        <div class="pros"><div class="pros-title">✓ Pros</div><ul><li>Visual muy intuitivo</li><li>Estado legible de un vistazo</li></ul></div>
+        <div class="cons"><div class="cons-title">✗ Contras</div><ul><li>Depende de color para significado</li><li>Más complejo de implementar</li></ul></div>
+      </div>
+    </div>
+
+    <!-- VARIACIÓN D -->
+    <div class="variation">
+      <div class="variation-header">
+        <span class="variation-label">Variación D — Minimal + dots</span>
+        <span class="variation-tag tag-minimal">Minimalista</span>
+      </div>
+      <div class="variation-body">
+        <div class="app">
+          <div class="vd-card">
+            <div class="vd-header">
+              <span class="vd-date">15/04/2026</span>
+              <span class="vd-sep">·</span>
+              <span class="vd-type">Seguimiento</span>
+              <span class="vd-nro">Sesión 4</span>
+              <div class="vd-indicators">
+                <div class="vd-dot vd-dot-anal" title="Evaluación analítica"></div>
+                <div class="vd-dot vd-dot-func" title="Evaluación funcional"></div>
+              </div>
+            </div>
+            <div class="vd-body">Movilización activo-asistida de muñeca. Ejercicios de prensión con masilla terapéutica. Termoterapia superficial 10 min. Paciente refiere leve mejoría en dolor.</div>
+            <div class="vd-footer">
+              <a class="vd-link">📊 Ver evaluación analítica →</a>
+              <a class="vd-link func">📋 Ver evaluación funcional →</a>
+            </div>
+          </div>
+          <div class="vd-card">
+            <div class="vd-header">
+              <span class="vd-date">08/04/2026</span>
+              <span class="vd-sep">·</span>
+              <span class="vd-type">Seguimiento</span>
+              <span class="vd-nro">Sesión 3</span>
+              <div class="vd-indicators">
+                <div class="vd-dot vd-dot-anal" title="Evaluación analítica"></div>
+                <div class="vd-dot vd-dot-empty" title="Sin evaluación funcional"></div>
+              </div>
+            </div>
+            <div class="vd-body">Drenaje linfático manual región dorsal de mano. TENS analgésico zona afectada 20 min.</div>
+            <div class="vd-footer">
+              <a class="vd-link">📊 Ver evaluación analítica →</a>
+            </div>
+          </div>
+          <div class="vd-card">
+            <div class="vd-header">
+              <span class="vd-date">01/04/2026</span>
+              <span class="vd-sep">·</span>
+              <span class="vd-type">Admisión</span>
+              <span class="vd-nro">Sesión 1</span>
+              <div class="vd-indicators">
+                <div class="vd-dot vd-dot-empty"></div>
+                <div class="vd-dot vd-dot-empty"></div>
+              </div>
+            </div>
+            <div class="vd-body">Primera sesión de evaluación. Anamnesis completa. Rango articular inicial documentado.</div>
+          </div>
+        </div>
+      </div>
+      <div class="variation-note">Dots de colores en header indican presencia de evaluaciones. Links de texto al pie. Diseño muy limpio.</div>
+      <div class="pros-cons">
+        <div class="pros"><div class="pros-title">✓ Pros</div><ul><li>Muy limpio y liviano</li><li>Texto fluido sin campos</li></ul></div>
+        <div class="cons"><div class="cons-title">✗ Contras</div><ul><li>Dots muy pequeños</li><li>Sin jerarquía de campos clínicos</li></ul></div>
+      </div>
+    </div>
+
+  </div><!-- /variations -->
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- SECCIÓN 2: PÁGINA DE EVALUACIÓN                          -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section" id="section-evaluacion">
+  <div class="section-title">Página de evaluación analítica — 2 variaciones de layout</div>
+  <div class="variations">
+
+    <!-- EVALUACIÓN VARIACIÓN 1: Grid de datos -->
+    <div class="variation">
+      <div class="variation-header">
+        <span class="variation-label">Evaluación 1 — Grid de datos</span>
+        <span class="variation-tag tag-recommended">Recomendada</span>
+      </div>
+      <div class="variation-body">
+        <div class="app">
+          <div class="ep-header">
+            <div class="ep-back">← Volver a sesiones</div>
+            <div class="ep-title">Evaluación Analítica</div>
+            <div class="ep-meta">María García · 15/04/2026 · <span class="label-sessnum">Sesión 4</span></div>
+          </div>
+          <div class="ep-body">
+            <!-- Dolor -->
+            <div class="ep-section">
+              <div class="ep-section-title">Dolor</div>
+              <div class="ep-pain">
+                <div>
+                  <div style="font-size:10px;color:#94a3b8;margin-bottom:2px;">EVA</div>
+                  <div class="ep-pain-value">4</div>
+                </div>
+                <div style="flex:1;">
+                  <div class="ep-pain-bar"><div class="ep-pain-fill" style="width:40%;background:linear-gradient(90deg,#4ade80,#facc15,#f87171);"></div></div>
+                  <div style="display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-top:3px;"><span>0</span><span>10</span></div>
+                </div>
+              </div>
+            </div>
+            <!-- Goniometría -->
+            <div class="ep-section">
+              <div class="ep-section-title">Goniometría</div>
+              <div class="ep-grid-3">
+                <div class="ep-item"><div class="ep-item-label">Flexión muñeca</div><div class="ep-item-value">52<span class="ep-item-unit">°</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Extensión muñeca</div><div class="ep-item-value">38<span class="ep-item-unit">°</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Desv. radial</div><div class="ep-item-value">14<span class="ep-item-unit">°</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Desv. cubital</div><div class="ep-item-value">22<span class="ep-item-unit">°</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Pronosupinación</div><div class="ep-item-value ep-item-nr">No reg.</div></div>
+                <div class="ep-item"><div class="ep-item-label">Supinación</div><div class="ep-item-value ep-item-nr">No reg.</div></div>
+              </div>
+            </div>
+            <!-- Fuerza -->
+            <div class="ep-section">
+              <div class="ep-section-title">Fuerza muscular (Daniels)</div>
+              <div class="ep-grid">
+                <div class="ep-item"><div class="ep-item-label">Flexores muñeca</div><div class="ep-item-value">3<span class="ep-item-unit">/5</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Extensores muñeca</div><div class="ep-item-value">3<span class="ep-item-unit">/5</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Prensión</div><div class="ep-item-value">4<span class="ep-item-unit">/5</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Pinza</div><div class="ep-item-value ep-item-nr">No reg.</div></div>
+              </div>
+            </div>
+            <!-- Edema -->
+            <div class="ep-section">
+              <div class="ep-section-title">Edema / Circometría</div>
+              <div class="ep-grid-3">
+                <div class="ep-item"><div class="ep-item-label">MCF</div><div class="ep-item-value">19.5<span class="ep-item-unit">cm</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Muñeca</div><div class="ep-item-value">17.2<span class="ep-item-unit">cm</span></div></div>
+                <div class="ep-item"><div class="ep-item-label">Antebrazo</div><div class="ep-item-value ep-item-nr">No reg.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="variation-note">Grid de 2-3 columnas según la cantidad de datos. Secciones con título. "No reg." en gris claro.</div>
+      <div class="pros-cons">
+        <div class="pros"><div class="pros-title">✓ Pros</div><ul><li>Muy escaneable</li><li>Compacto, poco scroll</li><li>Valores numéricos destacados</li></ul></div>
+        <div class="cons"><div class="cons-title">✗ Contras</div><ul><li>Requiere conocer los campos</li><li>Grid puede romperse en mobile</li></ul></div>
+      </div>
+    </div>
+
+    <!-- EVALUACIÓN VARIACIÓN 2: Tabla por sección -->
+    <div class="variation">
+      <div class="variation-header">
+        <span class="variation-label">Evaluación 2 — Tabla por sección</span>
+        <span class="variation-tag tag-compact">Alternativa</span>
+      </div>
+      <div class="variation-body">
+        <div class="app">
+          <div class="ep-header">
+            <div class="ep-back">← Volver a sesiones</div>
+            <div class="ep-title">Evaluación Analítica</div>
+            <div class="ep-meta">María García · 15/04/2026 · <span class="label-sessnum">Sesión 4</span></div>
+          </div>
+          <div class="ep2-body">
+            <div class="ep2-section">
+              <div class="ep2-section-title"><span class="ep2-icon">🩺</span> Dolor</div>
+              <table class="ep2-table">
+                <tr><td>EVA (0-10)</td><td>4 / 10</td></tr>
+              </table>
+            </div>
+            <div class="ep2-section">
+              <div class="ep2-section-title"><span class="ep2-icon">📐</span> Goniometría</div>
+              <table class="ep2-table">
+                <tr><td>Flexión de muñeca</td><td>52°</td></tr>
+                <tr><td>Extensión de muñeca</td><td>38°</td></tr>
+                <tr><td>Desviación radial</td><td>14°</td></tr>
+                <tr><td>Desviación cubital</td><td>22°</td></tr>
+                <tr><td>Pronosupinación</td><td class="ep2-nr">No registrado</td></tr>
+              </table>
+            </div>
+            <div class="ep2-section">
+              <div class="ep2-section-title"><span class="ep2-icon">💪</span> Fuerza muscular</div>
+              <table class="ep2-table">
+                <tr><td>Flexores de muñeca</td><td>3/5</td></tr>
+                <tr><td>Extensores de muñeca</td><td>3/5</td></tr>
+                <tr><td>Prensión</td><td>4/5</td></tr>
+                <tr><td>Pinza</td><td class="ep2-nr">No registrado</td></tr>
+              </table>
+            </div>
+            <div class="ep2-section">
+              <div class="ep2-section-title"><span class="ep2-icon">📏</span> Edema / Circometría</div>
+              <table class="ep2-table">
+                <tr><td>MCF</td><td>19.5 cm</td></tr>
+                <tr><td>Muñeca</td><td>17.2 cm</td></tr>
+                <tr><td>Antebrazo distal</td><td class="ep2-nr">No registrado</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="variation-note">Tabla label-valor por sección. Más verbose pero muy legible. Funciona bien en cualquier ancho.</div>
+      <div class="pros-cons">
+        <div class="pros"><div class="pros-title">✓ Pros</div><ul><li>100% responsivo</li><li>Fácil de leer en voz alta</li><li>Familiar (como historia clínica)</li></ul></div>
+        <div class="cons"><div class="cons-title">✗ Contras</div><ul><li>Más scroll necesario</li><li>Valores numéricos no tan destacados</li></ul></div>
+      </div>
+    </div>
+
+  </div><!-- /variations -->
+</div>
+
+<script>
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
