@@ -12,9 +12,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Eye } from "lucide-react";
+import { Loader2, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Card, CardContent } from "@/components/ui/card";
 import { EdemaCircometryTable, buildEdemaPayload, normalizeEdemaValue, isNewEdemaFormat, EDEMA_POINTS, type EdemaSide } from "@/components/clinical/EdemaCircometryTable";
 
 // --- Constants ---
@@ -366,7 +366,7 @@ function PainBadge({ score }: { score: number | null }) {
   return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${color}`}>EVA {score}/10</span>;
 }
 
-// --- Detail Dialog ---
+// --- Detail Content (shared between dialog and inline view) ---
 
 const testResultLabel: Record<string, string> = {
   positive: "Positivo (+)",
@@ -374,8 +374,7 @@ const testResultLabel: Record<string, string> = {
   not_performed: "No realizado",
 };
 
-export function AnalEvalDetailDialog({ evaluation, onClose }: { evaluation: any; onClose: () => void }) {
-  if (!evaluation) return null;
+function AnalEvalDetailContent({ evaluation }: { evaluation: any }) {
   const e = evaluation;
 
   const gonioData: Record<string, string> | null = typeof e.goniometry === "string" ? JSON.parse(e.goniometry) : e.goniometry;
@@ -401,269 +400,272 @@ export function AnalEvalDetailDialog({ evaluation, onClose }: { evaluation: any;
   })();
 
   return (
-    <Dialog open={!!evaluation} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Evaluación Analítica — {format(new Date(e.evaluation_date), "dd/MM/yyyy")}</DialogTitle>
-          <DialogDescription className="sr-only">Detalle de evaluación analítica</DialogDescription>
-        </DialogHeader>
+    <Accordion type="multiple" defaultValue={["dolor", "edema", "movilidad", "fuerza", "sensibilidad", "pruebas", "trofico", "postura"]} className="w-full">
+      <AccordionItem value="dolor">
+        <AccordionTrigger className="text-sm font-semibold">Dolor</AccordionTrigger>
+        <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <div><p className="text-muted-foreground text-xs font-medium">Intensidad EVA</p><PainBadge score={e.pain_score} /></div>
+          <Row label="Aparición" value={e.pain_appearance} />
+          <Row label="Localización" value={e.pain_location} />
+          <Row label="Irradiación" value={e.pain_radiation} />
+          <Row label="Características" value={e.pain_characteristics} />
+          <Row label="Descripción general" value={e.pain} />
+          <Row label="Agravantes / Atenuantes" value={e.pain_aggravating_factors} />
+        </AccordionContent>
+      </AccordionItem>
 
-        <Accordion type="multiple" defaultValue={["dolor", "edema", "movilidad", "fuerza", "sensibilidad", "pruebas", "trofico", "postura"]} className="w-full">
-          <AccordionItem value="dolor">
-            <AccordionTrigger className="text-sm font-semibold">Dolor</AccordionTrigger>
-            <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div><p className="text-muted-foreground text-xs font-medium">Intensidad EVA</p><PainBadge score={e.pain_score} /></div>
-              <Row label="Aparición" value={e.pain_appearance} />
-              <Row label="Localización" value={e.pain_location} />
-              <Row label="Irradiación" value={e.pain_radiation} />
-              <Row label="Características" value={e.pain_characteristics} />
-              <Row label="Descripción general" value={e.pain} />
-              <Row label="Agravantes / Atenuantes" value={e.pain_aggravating_factors} />
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="edema">
-            <AccordionTrigger className="text-sm font-semibold">Edema</AccordionTrigger>
-            <AccordionContent className="space-y-3 pt-2">
-              <Row label="Observación" value={e.edema} />
-              {(() => {
-                const c: any = e.edema_circummetry;
-                if (!c) return null;
-                if (isNewEdemaFormat(c)) {
-                  const norm = normalizeEdemaValue(c);
-                  const sanoEntries = EDEMA_POINTS.filter(p => norm.sano[p.key] != null && norm.sano[p.key] !== "");
-                  const afEntries = EDEMA_POINTS.filter(p => norm.afectado[p.key] != null && norm.afectado[p.key] !== "");
-                  if (sanoEntries.length === 0 && afEntries.length === 0) return null;
-                  const showSano = sanoEntries.length > 0;
-                  return (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs border-collapse">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">Punto</th>
-                            {showSano && <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">MS Sano{norm.sano.fecha ? ` (${norm.sano.fecha})` : ""}</th>}
-                            <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">MS Afectado{norm.afectado.fecha ? ` (${norm.afectado.fecha})` : ""}</th>
+      <AccordionItem value="edema">
+        <AccordionTrigger className="text-sm font-semibold">Edema</AccordionTrigger>
+        <AccordionContent className="space-y-3 pt-2">
+          <Row label="Observación" value={e.edema} />
+          {(() => {
+            const c: any = e.edema_circummetry;
+            if (!c) return null;
+            if (isNewEdemaFormat(c)) {
+              const norm = normalizeEdemaValue(c);
+              const sanoEntries = EDEMA_POINTS.filter(p => norm.sano[p.key] != null && norm.sano[p.key] !== "");
+              const afEntries = EDEMA_POINTS.filter(p => norm.afectado[p.key] != null && norm.afectado[p.key] !== "");
+              if (sanoEntries.length === 0 && afEntries.length === 0) return null;
+              const showSano = sanoEntries.length > 0;
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">Punto</th>
+                        {showSano && <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">MS Sano{norm.sano.fecha ? ` (${norm.sano.fecha})` : ""}</th>}
+                        <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">MS Afectado{norm.afectado.fecha ? ` (${norm.afectado.fecha})` : ""}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {EDEMA_POINTS.map(p => {
+                        const s = norm.sano[p.key], a = norm.afectado[p.key];
+                        const has = (s != null && s !== "") || (a != null && a !== "");
+                        if (!has) return null;
+                        return (
+                          <tr key={p.key} className="border-b border-border/50">
+                            <td className="py-1 px-2">{p.label}</td>
+                            {showSano && <td className="py-1 px-2">{s != null && s !== "" ? `${s} cm` : "—"}</td>}
+                            <td className="py-1 px-2">{a != null && a !== "" ? `${a} cm` : "—"}</td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {EDEMA_POINTS.map(p => {
-                            const s = norm.sano[p.key], a = norm.afectado[p.key];
-                            const has = (s != null && s !== "") || (a != null && a !== "");
-                            if (!has) return null;
-                            return (
-                              <tr key={p.key} className="border-b border-border/50">
-                                <td className="py-1 px-2">{p.label}</td>
-                                {showSano && <td className="py-1 px-2">{s != null && s !== "" ? `${s} cm` : "—"}</td>}
-                                <td className="py-1 px-2">{a != null && a !== "" ? `${a} cm` : "—"}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                }
-                if (typeof c === "object") {
-                  if (!c.reference && c.value_cm == null) return null;
-                  const txt = `${c.reference || ""}${c.side ? ` (${c.side})` : ""}${c.value_cm != null ? ` — ${c.value_cm} cm` : ""}${c.mano_global ? " · Mano global" : ""}`.trim();
-                  return <Row label="Circometría" value={txt} />;
-                }
-                return <Row label="Circometría" value={c} />;
-              })()}
-              <Row label="Test de Godet" value={e.godet_test} />
-            </AccordionContent>
-          </AccordionItem>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }
+            if (typeof c === "object") {
+              if (!c.reference && c.value_cm == null) return null;
+              const txt = `${c.reference || ""}${c.side ? ` (${c.side})` : ""}${c.value_cm != null ? ` — ${c.value_cm} cm` : ""}${c.mano_global ? " · Mano global" : ""}`.trim();
+              return <Row label="Circometría" value={txt} />;
+            }
+            return <Row label="Circometría" value={c} />;
+          })()}
+          <Row label="Test de Godet" value={e.godet_test} />
+        </AccordionContent>
+      </AccordionItem>
 
-          <AccordionItem value="movilidad">
-            <AccordionTrigger className="text-sm font-semibold">Movilidad</AccordionTrigger>
-            <AccordionContent className="space-y-3 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Row label="AROM" value={e.arom} />
-                <Row label="PROM" value={e.prom} />
-                <Row label="Kapandji" value={e.kapandji} />
-              </div>
-              {(() => {
-                const partMap: Record<string, string> = {
-                  shoulder: "Hombro", elbow: "Codo", wrist: "Muñeca", hand: "Mano", thumb: "Pulgar",
-                };
+      <AccordionItem value="movilidad">
+        <AccordionTrigger className="text-sm font-semibold">Movilidad</AccordionTrigger>
+        <AccordionContent className="space-y-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Row label="AROM" value={e.arom} />
+            <Row label="PROM" value={e.prom} />
+            <Row label="Kapandji" value={e.kapandji} />
+          </div>
+          {(() => {
+            const partMap: Record<string, string> = {
+              shoulder: "Hombro", elbow: "Codo", wrist: "Muñeca", hand: "Mano", thumb: "Pulgar",
+            };
 
-                const renderPart = (data: any) => {
-                  if (!data || !data.body_part) return null;
-                  const partName = partMap[data.body_part] || data.body_part;
-                  const values = data.values || {};
-                  const entries = Object.entries(values).filter(([, v]) => v !== "" && v != null);
-                  if (entries.length === 0) return null;
-                  const valuesStr = entries.map(([k, v]) => `${k}: ${v}°`).join(" · ");
-                  return <span key={data.body_part}>{partName}: {valuesStr}</span>;
-                };
+            const renderPart = (data: any) => {
+              if (!data || !data.body_part) return null;
+              const partName = partMap[data.body_part] || data.body_part;
+              const values = data.values || {};
+              const entries = Object.entries(values).filter(([, v]) => v !== "" && v != null);
+              if (entries.length === 0) return null;
+              const valuesStr = entries.map(([k, v]) => `${k}: ${v}°`).join(" · ");
+              return <span key={data.body_part}>{partName}: {valuesStr}</span>;
+            };
 
-                const renderGroup = (group: any, label: string) => {
-                  if (!group) return null;
-                  // Array format (new)
-                  if (Array.isArray(group)) {
-                    const rendered = group.map(renderPart).filter(Boolean);
-                    if (rendered.length === 0) return null;
-                    return (
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                        <div className="text-sm space-y-0.5">{rendered.map((r, i) => <p key={i}>{r}</p>)}</div>
-                      </div>
-                    );
-                  }
-                  // Single object format (old — has body_part)
-                  if (group.body_part) {
-                    const r = renderPart(group);
-                    if (!r) return null;
-                    return (
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                        <p className="text-sm">{r}</p>
-                      </div>
-                    );
-                  }
-                  return null;
-                };
-
-                if (!gonioData) return null;
-
-                const hasPre = gonioData && "pre" in gonioData && gonioData.pre;
-                const hasPost = gonioData && "post" in gonioData && gonioData.post;
-
-                if (hasPre || hasPost) {
-                  return (
-                    <div className="space-y-3">
-                      {renderGroup((gonioData as any).pre, "Goniometría PRE")}
-                      {renderGroup((gonioData as any).post, "Goniometría POST")}
-                    </div>
-                  );
-                }
-
-                // Fallback to flat key-value (very old format)
-                if (Object.values(gonioData).some(v => v !== "" && v != null && typeof v !== "object")) {
-                  return (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">Goniometría</p>
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
-                        {Object.entries(gonioData).filter(([, v]) => v !== "" && v != null && typeof v !== "object").map(([key, val]) => (
-                          <div key={key} className="bg-muted/50 rounded px-2 py-1">
-                            <p className="text-[10px] text-muted-foreground">{key}</p>
-                            <p className="text-xs font-medium">{String(val)}°</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="fuerza">
-            <AccordionTrigger className="text-sm font-semibold">Fuerza Muscular</AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(() => {
-                const fmtDyn = (raw: any) => {
-                  if (raw == null) return null;
-                  if (typeof raw === "object" && (Array.isArray(raw.values) || raw.average != null)) {
-                    const vals = (raw.values || []).map((v: any) => (v != null && v !== "" ? v : "—")).join(" / ");
-                    return `${vals} kgf → Promedio: ${raw.average ?? "—"} kgf`;
-                  }
-                  return `${raw} kgf`;
-                };
-                const msd = fmtDyn(e.dynamometer_msd);
-                const msi = fmtDyn(e.dynamometer_msi);
+            const renderGroup = (group: any, label: string) => {
+              if (!group) return null;
+              if (Array.isArray(group)) {
+                const rendered = group.map(renderPart).filter(Boolean);
+                if (rendered.length === 0) return null;
                 return (
-                  <>
-                    <Row label="Dinamómetro MSD" value={msd} />
-                    <Row label="Dinamómetro MSI" value={msi} />
-                    <Row label="Fuerza general" value={e.muscle_strength} />
-                  </>
-                );
-              })()}
-              </div>
-
-              {danielsArr.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Daniels — Músculos evaluados</p>
-                    <div className="flex-1 h-px bg-border" />
-                  </div>
                   <div className="space-y-1">
-                    {danielsArr.map((r, i) => (
-                      <p key={i} className="text-sm">
-                        <span className="font-medium text-foreground">{r.muscle}:</span> Daniels {r.grade}
-                      </p>
+                    <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+                    <div className="text-sm space-y-0.5">{rendered.map((r, i) => <p key={i}>{r}</p>)}</div>
+                  </div>
+                );
+              }
+              if (group.body_part) {
+                const r = renderPart(group);
+                if (!r) return null;
+                return (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+                    <p className="text-sm">{r}</p>
+                  </div>
+                );
+              }
+              return null;
+            };
+
+            if (!gonioData) return null;
+
+            const hasPre = gonioData && "pre" in gonioData && gonioData.pre;
+            const hasPost = gonioData && "post" in gonioData && gonioData.post;
+
+            if (hasPre || hasPost) {
+              return (
+                <div className="space-y-3">
+                  {renderGroup((gonioData as any).pre, "Goniometría PRE")}
+                  {renderGroup((gonioData as any).post, "Goniometría POST")}
+                </div>
+              );
+            }
+
+            if (Object.values(gonioData).some(v => v !== "" && v != null && typeof v !== "object")) {
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Goniometría</p>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                    {Object.entries(gonioData).filter(([, v]) => v !== "" && v != null && typeof v !== "object").map(([key, val]) => (
+                      <div key={key} className="bg-muted/50 rounded px-2 py-1">
+                        <p className="text-[10px] text-muted-foreground">{key}</p>
+                        <p className="text-xs font-medium">{String(val)}°</p>
+                      </div>
                     ))}
                   </div>
                 </div>
-              )}
-            </AccordionContent>
-          </AccordionItem>
+              );
+            }
+            return null;
+          })()}
+        </AccordionContent>
+      </AccordionItem>
 
-          <AccordionItem value="sensibilidad">
-            <AccordionTrigger className="text-sm font-semibold">Sensibilidad</AccordionTrigger>
-            <AccordionContent className="space-y-3 pt-2">
-              {(e.sensitivity_tacto_ligero || e.sensitivity_dos_puntos || e.sensitivity_picking_up || e.sensitivity_semmes_weinstein) && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Epicrítica</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Row label="Tacto ligero" value={e.sensitivity_tacto_ligero} />
-                    <Row label="Discriminación 2 puntos" value={e.sensitivity_dos_puntos} />
-                    <Row label="Picking up" value={e.sensitivity_picking_up} />
-                    <Row label="Semmes-Weinstein" value={e.sensitivity_semmes_weinstein} />
-                  </div>
-                </div>
-              )}
-              {(e.sensitivity_toco_pincho || e.sensitivity_temperatura) && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Protopática</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Row label="Toco-pincho" value={e.sensitivity_toco_pincho} />
-                    <Row label="Temperatura" value={e.sensitivity_temperatura} />
-                  </div>
-                </div>
-              )}
-              {e.sensitivity && <Row label="General" value={e.sensitivity} />}
-            </AccordionContent>
-          </AccordionItem>
+      <AccordionItem value="fuerza">
+        <AccordionTrigger className="text-sm font-semibold">Fuerza Muscular</AccordionTrigger>
+        <AccordionContent className="space-y-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {(() => {
+            const fmtDyn = (raw: any) => {
+              if (raw == null) return null;
+              if (typeof raw === "object" && (Array.isArray(raw.values) || raw.average != null)) {
+                const vals = (raw.values || []).map((v: any) => (v != null && v !== "" ? v : "—")).join(" / ");
+                return `${vals} kgf → Promedio: ${raw.average ?? "—"} kgf`;
+              }
+              return `${raw} kgf`;
+            };
+            const msd = fmtDyn(e.dynamometer_msd);
+            const msi = fmtDyn(e.dynamometer_msi);
+            return (
+              <>
+                <Row label="Dinamómetro MSD" value={msd} />
+                <Row label="Dinamómetro MSI" value={msi} />
+                <Row label="Fuerza general" value={e.muscle_strength} />
+              </>
+            );
+          })()}
+          </div>
 
-          <AccordionItem value="trofico">
-            <AccordionTrigger className="text-sm font-semibold">Estado Trófico y Cicatriz</AccordionTrigger>
-            <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <Row label="Estado trófico" value={e.trophic_state} />
-              <Row label="Cicatriz" value={e.scar} />
-              <Row label="Vancouver VSS" value={e.vancouver_score != null ? `${e.vancouver_score}/15` : null} />
-              <Row label="OSAS observador" value={e.osas_score != null ? `${e.osas_score}/60` : null} />
-            </AccordionContent>
-          </AccordionItem>
+          {danielsArr.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Daniels — Músculos evaluados</p>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              <div className="space-y-1">
+                {danielsArr.map((r, i) => (
+                  <p key={i} className="text-sm">
+                    <span className="font-medium text-foreground">{r.muscle}:</span> Daniels {r.grade}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </AccordionContent>
+      </AccordionItem>
 
-          <AccordionItem value="pruebas">
-            <AccordionTrigger className="text-sm font-semibold">Pruebas Específicas</AccordionTrigger>
-            <AccordionContent className="space-y-1 pt-2">
-              {testsData ? (
-                Object.entries(testsData).filter(([, v]) => v).map(([key, val]) => (
-                  <div key={key} className="flex items-center justify-between py-1 border-b border-border/30 last:border-0">
-                    <span className="text-sm capitalize">{key.replace(/_/g, " ")}</span>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${val === "positive" ? "bg-primary/10 text-primary" : val === "negative" ? "bg-muted text-muted-foreground" : "bg-muted/50 text-muted-foreground"}`}>
-                      {testResultLabel[val as string] || val}
-                    </span>
-                  </div>
-                ))
-              ) : <p className="text-sm text-muted-foreground">No se registraron pruebas.</p>}
-            </AccordionContent>
-          </AccordionItem>
+      <AccordionItem value="sensibilidad">
+        <AccordionTrigger className="text-sm font-semibold">Sensibilidad</AccordionTrigger>
+        <AccordionContent className="space-y-3 pt-2">
+          {(e.sensitivity_tacto_ligero || e.sensitivity_dos_puntos || e.sensitivity_picking_up || e.sensitivity_semmes_weinstein) && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Epicrítica</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Row label="Tacto ligero" value={e.sensitivity_tacto_ligero} />
+                <Row label="Discriminación 2 puntos" value={e.sensitivity_dos_puntos} />
+                <Row label="Picking up" value={e.sensitivity_picking_up} />
+                <Row label="Semmes-Weinstein" value={e.sensitivity_semmes_weinstein} />
+              </div>
+            </div>
+          )}
+          {(e.sensitivity_toco_pincho || e.sensitivity_temperatura) && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Protopática</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Row label="Toco-pincho" value={e.sensitivity_toco_pincho} />
+                <Row label="Temperatura" value={e.sensitivity_temperatura} />
+              </div>
+            </div>
+          )}
+          {e.sensitivity && <Row label="General" value={e.sensitivity} />}
+        </AccordionContent>
+      </AccordionItem>
 
-          <AccordionItem value="postura">
-            <AccordionTrigger className="text-sm font-semibold">Postura y Emotividad</AccordionTrigger>
-            <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <Row label="Postura" value={e.posture} />
-              <Row label="Estado emocional" value={e.emotional_state} />
-              <Row label="Notas" value={e.notes} />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+      <AccordionItem value="trofico">
+        <AccordionTrigger className="text-sm font-semibold">Estado Trófico y Cicatriz</AccordionTrigger>
+        <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <Row label="Estado trófico" value={e.trophic_state} />
+          <Row label="Cicatriz" value={e.scar} />
+          <Row label="Vancouver VSS" value={e.vancouver_score != null ? `${e.vancouver_score}/15` : null} />
+          <Row label="OSAS observador" value={e.osas_score != null ? `${e.osas_score}/60` : null} />
+        </AccordionContent>
+      </AccordionItem>
+
+      <AccordionItem value="pruebas">
+        <AccordionTrigger className="text-sm font-semibold">Pruebas Específicas</AccordionTrigger>
+        <AccordionContent className="space-y-1 pt-2">
+          {testsData ? (
+            Object.entries(testsData).filter(([, v]) => v).map(([key, val]) => (
+              <div key={key} className="flex items-center justify-between py-1 border-b border-border/30 last:border-0">
+                <span className="text-sm capitalize">{key.replace(/_/g, " ")}</span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${val === "positive" ? "bg-primary/10 text-primary" : val === "negative" ? "bg-muted text-muted-foreground" : "bg-muted/50 text-muted-foreground"}`}>
+                  {testResultLabel[val as string] || val}
+                </span>
+              </div>
+            ))
+          ) : <p className="text-sm text-muted-foreground">No se registraron pruebas.</p>}
+        </AccordionContent>
+      </AccordionItem>
+
+      <AccordionItem value="postura">
+        <AccordionTrigger className="text-sm font-semibold">Postura y Emotividad</AccordionTrigger>
+        <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <Row label="Postura" value={e.posture} />
+          <Row label="Estado emocional" value={e.emotional_state} />
+          <Row label="Notas" value={e.notes} />
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+}
+
+export function AnalEvalDetailDialog({ evaluation, onClose }: { evaluation: any; onClose: () => void }) {
+  if (!evaluation) return null;
+  return (
+    <Dialog open={!!evaluation} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Evaluación Analítica — {format(new Date(evaluation.evaluation_date), "dd/MM/yyyy")}</DialogTitle>
+          <DialogDescription className="sr-only">Detalle de evaluación analítica</DialogDescription>
+        </DialogHeader>
+        <AnalEvalDetailContent evaluation={evaluation} />
       </DialogContent>
     </Dialog>
   );
@@ -671,31 +673,30 @@ export function AnalEvalDetailDialog({ evaluation, onClose }: { evaluation: any;
 
 // --- List with detail ---
 
-export function AnalEvalList({ evaluations }: { evaluations: any[] }) {
-  const [detail, setDetail] = useState<any>(null);
+export function AnalEvalList({ evaluations, patientId }: { evaluations: any[]; patientId: string }) {
+  const navigate = useNavigate();
 
   if (evaluations.length === 0) {
     return <p className="text-muted-foreground text-sm text-center py-8">Sin evaluaciones analíticas.</p>;
   }
 
   return (
-    <>
-      <div className="space-y-2">
-        {evaluations.map(e => (
-          <Card key={e.id} className="border-border/50">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <p className="font-medium text-sm">{format(new Date(e.evaluation_date), "dd/MM/yyyy")}</p>
-                <PainBadge score={e.pain_score} />
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetail(e)}>
-                <Eye className="h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <AnalEvalDetailDialog evaluation={detail} onClose={() => setDetail(null)} />
-    </>
+    <div className="space-y-3">
+      {evaluations.map(e => (
+        <div
+          key={e.id}
+          className="bg-card rounded-[10px] border border-border px-5 py-3.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-accent/40 transition-colors"
+          onClick={() => navigate(`/patients/${patientId}/evaluations/analytical/${e.id}`)}
+        >
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-foreground text-[13px]">{format(new Date(e.evaluation_date), "dd/MM/yyyy")}</p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <PainBadge score={e.pain_score} />
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+      ))}
+    </div>
   );
 }

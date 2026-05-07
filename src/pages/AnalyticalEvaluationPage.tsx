@@ -83,26 +83,167 @@ export default function AnalyticalEvaluationPage() {
 
   const nn = (v: any) => v != null && v !== "";
 
-  // ── Goniometría ──
-  const renderGonioJsonb = (g: any) => {
-    if (!g || typeof g !== "object") return null;
-    const partNames: Record<string, string> = { shoulder: "Hombro", elbow: "Codo", wrist: "Muñeca", hand: "Mano", thumb: "Pulgar" };
-    const renderPart = (label: string, data: any) => {
-      if (!data || !data.values || typeof data.values !== "object") return null;
-      const vals = Object.entries(data.values).filter(([, v]) => v != null).map(([k, v]) => `${k}: ${v}°`);
-      if (vals.length === 0) return null;
-      const partLabel = data.body_part ? (partNames[data.body_part] || data.body_part) : "";
-      return (
-        <div key={label} className="text-sm text-foreground">
-          <span className="font-medium">{label}{partLabel ? ` (${partLabel})` : ""}:</span>{" "}
-          {vals.join(" · ")}
-        </div>
-      );
-    };
-    const pre = renderPart("PRE", g.pre);
-    const post = renderPart("POST", g.post);
-    if (!pre && !post) return null;
-    return <div className="space-y-1">{pre}{post}</div>;
+  // ── Goniometría — tablas por articulación ──
+  type MovRow = { mov: string; msdPre: number | null; msdPost: number | null; msiPre: number | null; msiPost: number | null };
+  type JointTable = { joint: string; rows: MovRow[] };
+
+  const JOINT_CONFIG_A = [
+    { key: "shoulder", label: "Hombro", movements: [
+      { key: "flex", label: "Flexión" }, { key: "ext", label: "Extensión" },
+      { key: "add", label: "Aducción" }, { key: "abd", label: "Abducción" },
+      { key: "rot_ext", label: "Rot. Externa" }, { key: "rot_int", label: "Rot. Interna" },
+    ]},
+    { key: "elbow", label: "Codo", movements: [
+      { key: "flex", label: "Flexión" }, { key: "ext", label: "Extensión" },
+      { key: "prono", label: "Pronación" }, { key: "supino", label: "Supinación" },
+    ]},
+    { key: "wrist", label: "Muñeca", movements: [
+      { key: "flex", label: "Flexión" }, { key: "ext", label: "Extensión" },
+      { key: "dr", label: "Desv. Radial" }, { key: "dc", label: "Desv. Cubital" },
+      { key: "prono", label: "Pronación" }, { key: "supino", label: "Supinación" },
+    ]},
+    { key: "hand", label: "Mano", movements: [
+      { key: "mcf_flex", label: "MCF Flex" }, { key: "mcf_ext", label: "MCF Ext" },
+      { key: "ifp_flex", label: "IFP Flex" }, { key: "ifp_ext", label: "IFP Ext" },
+      { key: "ifd_flex", label: "IFD Flex" }, { key: "ifd_ext", label: "IFD Ext" },
+    ]},
+    { key: "thumb", label: "Pulgar", movements: [
+      { key: "mcf_flex", label: "MCF Flex" }, { key: "mcf_ext", label: "MCF Ext" },
+      { key: "if_flex", label: "IF Flex" }, { key: "if_ext", label: "IF Ext" },
+    ]},
+  ];
+
+  const GONIO_B_FIELD: Record<string, string> = {
+    flexion: "Flexión", extension: "Extensión", abduccion: "Abducción", aduccion: "Aducción",
+    rot_ext: "Rot. Externa", rot_int: "Rot. Interna", pronacion: "Pronación", supinacion: "Supinación",
+    desv_radial: "Desv. Radial", desv_cubital: "Desv. Cubital",
+    mcf_flex: "MCF1 Flex", mcf_ext: "MCF1 Ext", mcf2_flex: "MCF2 Flex", mcf2_ext: "MCF2 Ext",
+    mcf3_flex: "MCF3 Flex", mcf3_ext: "MCF3 Ext", mcf4_flex: "MCF4 Flex", mcf4_ext: "MCF4 Ext",
+    ifp_flex: "IFP Flex", ifp_ext: "IFP Ext", ifd_flex: "IFD Flex", ifd_ext: "IFD Ext",
+    pulgar_mcf_flex: "MCF Flex", pulgar_mcf_ext: "MCF Ext", pulgar_if_flex: "IF Flex", pulgar_if_ext: "IF Ext",
+  };
+
+  const GONIO_B_PREFIXES = [
+    { prefix: "hombro_", joint: "Hombro" }, { prefix: "codo_", joint: "Codo" },
+    { prefix: "muñeca_", joint: "Muñeca" },
+    { prefix: "mano_mcf_", joint: "Mano" }, { prefix: "mano_ifp_", joint: "Mano" }, { prefix: "mano_ifd_", joint: "Mano" },
+    { prefix: "pulgar_mcf_", joint: "Pulgar" }, { prefix: "pulgar_if_", joint: "Pulgar" },
+  ];
+
+  const getPartVals = (arr: any[], bodyPart: string): Record<string, number> => {
+    if (!Array.isArray(arr)) return {};
+    const item = arr.find((a: any) => a?.body_part === bodyPart);
+    return item?.values || {};
+  };
+
+  const flatToJointMap = (obj: any): Record<string, Record<string, number | null>> => {
+    const r: Record<string, Record<string, number | null>> = {};
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return r;
+    for (const [k, v] of Object.entries(obj)) {
+      const match = GONIO_B_PREFIXES.find(p => k.startsWith(p.prefix));
+      if (!match) continue;
+      const field = k.slice(match.prefix.length);
+      const label = GONIO_B_FIELD[field] || field;
+      if (!r[match.joint]) r[match.joint] = {};
+      r[match.joint][label] = v != null && v !== "" ? Number(v) : null;
+    }
+    return r;
+  };
+
+  const parseGoniometry = (g: any): JointTable[] => {
+    if (!g || typeof g !== "object") return [];
+    const msd = g.MSD || {};
+    const msi = g.MSI || {};
+    const msdPre = msd.pre, msdPost = msd.post, msiPre = msi.pre, msiPost = msi.post;
+
+    // Format A: pre is array of { body_part, values }
+    if (Array.isArray(msdPre) || Array.isArray(msiPre)) {
+      const tables: JointTable[] = [];
+      for (const part of JOINT_CONFIG_A) {
+        const pp = getPartVals(msdPre, part.key);
+        const pq = getPartVals(msdPost, part.key);
+        const rp = getPartVals(msiPre, part.key);
+        const rq = getPartVals(msiPost, part.key);
+        const rows: MovRow[] = [];
+        for (const m of part.movements) {
+          const a = pp[m.key] != null ? Number(pp[m.key]) : null;
+          const b = pq[m.key] != null ? Number(pq[m.key]) : null;
+          const c = rp[m.key] != null ? Number(rp[m.key]) : null;
+          const d = rq[m.key] != null ? Number(rq[m.key]) : null;
+          if (a != null || b != null || c != null || d != null)
+            rows.push({ mov: m.label, msdPre: a, msdPost: b, msiPre: c, msiPost: d });
+        }
+        if (rows.length > 0) tables.push({ joint: part.label, rows });
+      }
+      return tables;
+    }
+
+    // Format B: pre is flat object with prefixed keys
+    if ((msdPre && typeof msdPre === "object") || (msiPre && typeof msiPre === "object")) {
+      const JOINT_ORDER = ["Hombro", "Codo", "Muñeca", "Mano", "Pulgar"];
+      const mpMap = flatToJointMap(msdPre), mqMap = flatToJointMap(msdPost);
+      const rpMap = flatToJointMap(msiPre), rqMap = flatToJointMap(msiPost);
+      const allJoints = new Set([...Object.keys(mpMap), ...Object.keys(mqMap), ...Object.keys(rpMap), ...Object.keys(rqMap)]);
+      const tables: JointTable[] = [];
+      for (const joint of JOINT_ORDER) {
+        if (!allJoints.has(joint)) continue;
+        const allLabels = new Set([
+          ...Object.keys(mpMap[joint] || {}), ...Object.keys(mqMap[joint] || {}),
+          ...Object.keys(rpMap[joint] || {}), ...Object.keys(rqMap[joint] || {}),
+        ]);
+        const rows: MovRow[] = [];
+        for (const label of allLabels) {
+          const a = (mpMap[joint] || {})[label] ?? null;
+          const b = (mqMap[joint] || {})[label] ?? null;
+          const c = (rpMap[joint] || {})[label] ?? null;
+          const d = (rqMap[joint] || {})[label] ?? null;
+          if (a != null || b != null || c != null || d != null)
+            rows.push({ mov: label, msdPre: a, msdPost: b, msiPre: c, msiPost: d });
+        }
+        if (rows.length > 0) tables.push({ joint, rows });
+      }
+      return tables;
+    }
+
+    return [];
+  };
+
+  const renderGonioTables = (tables: JointTable[]) => {
+    if (tables.length === 0) return null;
+    const hasPost = tables.some(t => t.rows.some(r => r.msdPost != null || r.msiPost != null));
+    return (
+      <div className="space-y-5">
+        {tables.map(({ joint, rows }) => (
+          <div key={joint}>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{joint}</p>
+            <div className="overflow-x-auto">
+              <table className="text-xs w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left text-muted-foreground font-medium pb-1.5 pr-3 min-w-[110px]">Movimiento</th>
+                    <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">MSD PRE</th>
+                    {hasPost && <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">MSD POST</th>}
+                    <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">MSI PRE</th>
+                    {hasPost && <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">MSI POST</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr key={i} className="border-t border-border/30">
+                      <td className="py-1 pr-3 text-foreground font-medium">{row.mov}</td>
+                      <td className="py-1 px-2 text-center text-foreground">{row.msdPre != null ? `${row.msdPre}°` : "—"}</td>
+                      {hasPost && <td className="py-1 px-2 text-center text-foreground">{row.msdPost != null ? `${row.msdPost}°` : "—"}</td>}
+                      <td className="py-1 px-2 text-center text-foreground">{row.msiPre != null ? `${row.msiPre}°` : "—"}</td>
+                      {hasPost && <td className="py-1 px-2 text-center text-foreground">{row.msiPost != null ? `${row.msiPost}°` : "—"}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   // ── Daniels ──
@@ -113,9 +254,13 @@ export default function AnalyticalEvaluationPage() {
     else if (Array.isArray(d.muscles)) arr = d.muscles;
     if (arr.length === 0) return null;
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="space-y-1.5">
         {arr.map((r, i) => (
-          <DataCell key={i} label={r.muscle} value={r.grade != null ? `${r.grade}/5` : null} />
+          <p key={i} className="text-sm text-foreground">
+            <span className="font-medium">{r.muscle}</span>
+            <span className="text-muted-foreground"> · </span>
+            <span>{r.grade != null ? `${r.grade}/5` : "—"}</span>
+          </p>
         ))}
       </div>
     );
@@ -213,13 +358,50 @@ export default function AnalyticalEvaluationPage() {
   const evalDate = e.evaluation_date ? format(new Date(e.evaluation_date), "dd 'de' MMMM yyyy", { locale: es }) : "";
   const sessionLabel = session?.session_number != null ? `Sesión Nº ${session.session_number}` : "";
 
-  const gonioNode = renderGonioJsonb(e.goniometry);
+  const displayLocation = e.pain_location
+    ? e.pain_location.replace(/\s*[—\-–]\s*Irradia a:.*$/i, "").trim() || null
+    : null;
+
+  const gonioTables = parseGoniometry(e.goniometry);
+  const fistClosure = e.muscle_strength
+    ? (e.muscle_strength.match(/Cierre de pu[ñn]o:\s*([^—\n]+)/i)?.[1]?.trim() || null)
+    : null;
   const danielsNode = renderDaniels(e.muscle_strength_daniels);
-  const edemaNode = renderEdema(e.edema_circummetry ?? e.edema);
+  const edemaObservation = (typeof e.edema === "string" && e.edema?.trim() && !isNewEdemaFormat(e.edema)) ? e.edema : null;
+  const edemaNode = renderEdema(e.edema_circummetry ?? (isNewEdemaFormat(e.edema) ? e.edema : null));
   const testsNode = renderSpecificTests(e.specific_tests);
 
-  const hasStrength = danielsNode || nn(e.muscle_strength_median) || nn(e.muscle_strength_cubital) || nn(e.muscle_strength_radial);
-  const hasScales = nn(e.vancouver_score) || nn(e.osas_score) || nn(e.godet_test);
+  const hasDyn = !!(e.dynamometer_msd || e.dynamometer_msi);
+  const hasDppd = !!(e.dppd_fingers && typeof e.dppd_fingers === "object"
+    && Object.values(e.dppd_fingers as Record<string, any>).some((v: any) => v != null));
+  const hasStrength = hasDyn || hasDppd || danielsNode
+    || nn(e.muscle_strength_median) || nn(e.muscle_strength_cubital) || nn(e.muscle_strength_radial);
+  const hasEdema = edemaObservation || nn(e.godet_test) || edemaNode;
+
+  const hasEpicritica = nn(e.sensitivity_tacto_ligero) || nn(e.sensitivity_dos_puntos)
+    || nn(e.sensitivity_picking_up) || nn(e.sensitivity_semmes_weinstein) || nn(e.sensitivity_functional);
+  const hasProtopática = nn(e.sensitivity_toco_pincho) || nn(e.sensitivity_temperatura)
+    || nn(e.sensitivity_protective) || nn(e.sensitivity);
+  const hasSensitivity = hasEpicritica || hasProtopática;
+
+  const scarEval = (e.scar_evaluation && typeof e.scar_evaluation === "object" && !Array.isArray(e.scar_evaluation))
+    ? e.scar_evaluation as Record<string, any>
+    : null;
+  const vss = scarEval?.vss && typeof scarEval.vss === "object" ? scarEval.vss as Record<string, any> : null;
+  const vssTotal = vss != null
+    ? ((vss.pigmentacion ?? 0) + (vss.vascularizacion ?? 0) + (vss.flexibilidad ?? 0) + (vss.altura ?? 0))
+    : (nn(e.vancouver_score) ? e.vancouver_score : null);
+  const hasCicatriz = !!(scarEval || nn(e.scar) || nn(e.vancouver_score));
+
+  const VSS_LABELS: Record<string, Record<number, string>> = {
+    pigmentacion:   { 0: "0 — Normal", 1: "1 — Hipopigmentación", 2: "2 — Pigmentación mixta", 3: "3 — Hiperpigmentación" },
+    vascularizacion:{ 0: "0 — Normal", 1: "1 — Rosa", 2: "2 — Rojo", 3: "3 — Púrpura" },
+    flexibilidad:   { 0: "0 — Normal", 1: "1 — Suave, flexible", 2: "2 — Cedente", 3: "3 — Firme", 4: "4 — Cordón", 5: "5 — Contractura" },
+    altura:         { 0: "0 — Normal", 1: "1 — ≤1mm", 2: "2 — >1 a ≤2mm", 3: "3 — >2 a ≤4mm", 4: "4 — >4mm" },
+  };
+  const vssLabel = (field: string, val: any) => VSS_LABELS[field]?.[Number(val)] ?? String(val);
+
+  const hasOtros = nn(e.trophic_state) || nn(e.posture) || nn(e.emotional_state);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -238,44 +420,190 @@ export default function AnalyticalEvaluationPage() {
 
       {/* Dolor */}
       <Section title="Dolor">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          <DataCell label="EVA" value={nn(e.pain_score) ? `${e.pain_score}/10` : null} />
-          <DataCell label="Localización" value={e.pain_location} />
+        {nn(e.pain_score) && (
+          <div className="rounded-xl bg-muted/40 border border-border/60 p-4 mb-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Escala EVA</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-foreground leading-none">{e.pain_score}</span>
+                <span className="text-sm text-muted-foreground font-medium">/10</span>
+              </div>
+            </div>
+            <div className="flex gap-1 h-4">
+              {Array.from({ length: 10 }, (_, i) => {
+                const active = (i + 1) <= e.pain_score;
+                const activeC = i < 3 ? "bg-emerald-500" : i < 6 ? "bg-amber-400" : "bg-red-500";
+                const inactiveC = i < 3 ? "bg-emerald-100" : i < 6 ? "bg-amber-100" : "bg-red-100";
+                const radius = i === 0 ? "rounded-l-full" : i === 9 ? "rounded-r-full" : "rounded-sm";
+                return <div key={i} className={`flex-1 ${radius} ${active ? activeC : inactiveC}`} />;
+              })}
+            </div>
+            <div className="flex justify-between text-[10px] text-muted-foreground mt-2">
+              <span>Sin dolor</span>
+              <span>Dolor máximo</span>
+            </div>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <DataCell label="Aparición" value={e.pain_appearance} />
+          <DataCell label="Localización" value={displayLocation} />
+          <div className="col-span-2 flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Irradiación</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${nn(e.pain_radiation) ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-muted text-muted-foreground border-border"}`}>
+                {nn(e.pain_radiation) ? "Sí irradia" : "No irradia"}
+              </span>
+              {nn(e.pain_radiation) && (
+                <>
+                  <span className="text-muted-foreground text-sm leading-none">→</span>
+                  <span className="text-sm font-medium text-foreground">{e.pain_radiation}</span>
+                </>
+              )}
+            </div>
+          </div>
           <DataCell label="Características" value={e.pain_characteristics} />
-          <DataCell label="Factores agravantes" value={e.pain_aggravating_factors} />
-          <DataCell label="Apariencia" value={e.pain_appearance} />
-          <DataCell label="Irradiación" value={e.pain_radiation} />
+          <DataCell label="Agravantes / Atenuantes" value={e.pain_aggravating_factors} />
+          {nn(e.pain) && <div className="col-span-2"><DataCell label="Descripción general" value={e.pain} /></div>}
         </div>
       </Section>
 
-      {/* Goniometría */}
-      <Section title="Goniometría">
-        {gonioNode ?? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            <DataCell label="AROM" value={e.arom} />
-            <DataCell label="PROM" value={e.prom} />
-            <DataCell label="Kapandji" value={e.kapandji} />
+      {/* Movilidad */}
+      <Section title="Movilidad">
+        {gonioTables.length > 0 && (
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Goniometría</p>
+        )}
+        {gonioTables.length > 0
+          ? renderGonioTables(gonioTables)
+          : (nn(e.arom) || nn(e.prom)) && (
+            <div className="space-y-3">
+              {nn(e.arom) && <DataCell label="AROM" value={e.arom} />}
+              {nn(e.prom) && <DataCell label="PROM" value={e.prom} />}
+            </div>
+          )
+        }
+        {(nn(e.kapandji) || fistClosure) && (
+          <div className={`grid grid-cols-2 gap-3${gonioTables.length > 0 || nn(e.arom) || nn(e.prom) ? " mt-4 pt-4 border-t border-border/30" : ""}`}>
+            {nn(e.kapandji) && <DataCell label="Kapandji" value={e.kapandji} />}
+            {fistClosure && <DataCell label="Cierre de puño" value={fistClosure} />}
           </div>
         )}
-        {!gonioNode && !nn(e.arom) && !nn(e.prom) && !nn(e.kapandji) && <NA />}
+        {gonioTables.length === 0 && !nn(e.arom) && !nn(e.prom) && !nn(e.kapandji) && !fistClosure && <NA />}
       </Section>
 
       {/* Fuerza muscular */}
       {hasStrength && (
         <Section title="Fuerza muscular">
-          <div className="space-y-3">
-            {danielsNode}
-            {nn(e.muscle_strength_median) && <DataCell label="Nervio Mediano" value={e.muscle_strength_median} />}
-            {nn(e.muscle_strength_cubital) && <DataCell label="Nervio Cubital" value={e.muscle_strength_cubital} />}
-            {nn(e.muscle_strength_radial) && <DataCell label="Nervio Radial" value={e.muscle_strength_radial} />}
+          <div className="space-y-5">
+            {/* Dinamómetro */}
+            {hasDyn && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Dinamómetro</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {e.dynamometer_msd && <DataCell label="MSD" value={`${e.dynamometer_msd.average} kgf`} />}
+                  {e.dynamometer_msi && <DataCell label="MSI" value={`${e.dynamometer_msi.average} kgf`} />}
+                </div>
+              </div>
+            )}
+
+            {/* DPPD */}
+            {hasDppd && (() => {
+              const d = e.dppd_fingers as Record<string, any>;
+              const keys = ["pulgar", "indice", "medio", "anular", "menique"] as const;
+              const labels = ["Pulgar", "Índice", "Medio", "Anular", "Meñique"];
+              return (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">DPPD</p>
+                  <div className="overflow-x-auto">
+                    <table className="text-xs w-full border-collapse">
+                      <thead>
+                        <tr className="border-b border-border/50">
+                          {labels.map(l => (
+                            <th key={l} className="text-center text-muted-foreground font-medium pb-1.5 px-2">{l}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          {keys.map(k => (
+                            <td key={k} className="py-1.5 px-2 text-center text-foreground">
+                              {d[k] != null ? `${d[k]} cm` : "—"}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Daniels */}
+            {danielsNode && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Daniels</p>
+                {danielsNode}
+              </div>
+            )}
+
+            {/* Nervios periféricos */}
+            {(nn(e.muscle_strength_median) || nn(e.muscle_strength_cubital) || nn(e.muscle_strength_radial)) && (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {nn(e.muscle_strength_median) && <DataCell label="Nervio Mediano" value={e.muscle_strength_median} />}
+                {nn(e.muscle_strength_cubital) && <DataCell label="Nervio Cubital" value={e.muscle_strength_cubital} />}
+                {nn(e.muscle_strength_radial) && <DataCell label="Nervio Radial" value={e.muscle_strength_radial} />}
+              </div>
+            )}
           </div>
         </Section>
       )}
 
-      {/* Edema / Circometría */}
-      {edemaNode && (
-        <Section title="Edema / Circometría">
-          {edemaNode}
+      {/* Sensibilidad */}
+      {hasSensitivity && (
+        <Section title="Sensibilidad">
+          <div className="space-y-5">
+            {hasEpicritica && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Epicrítica (funcional)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {nn(e.sensitivity_tacto_ligero) && <DataCell label="Tacto ligero" value={e.sensitivity_tacto_ligero} />}
+                  {nn(e.sensitivity_dos_puntos) && <DataCell label="Discriminación 2 puntos" value={e.sensitivity_dos_puntos} />}
+                  {nn(e.sensitivity_picking_up) && <DataCell label="Picking up test" value={e.sensitivity_picking_up} />}
+                  {nn(e.sensitivity_semmes_weinstein) && <DataCell label="Semmes-Weinstein" value={e.sensitivity_semmes_weinstein} />}
+                  {nn(e.sensitivity_functional) && <DataCell label="Observaciones" value={e.sensitivity_functional} />}
+                </div>
+              </div>
+            )}
+            {hasProtopática && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Protopática (protectora)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {nn(e.sensitivity_toco_pincho) && <DataCell label="Toco-pincho" value={e.sensitivity_toco_pincho} />}
+                  {nn(e.sensitivity_temperatura) && <DataCell label="Temperatura frío-calor" value={e.sensitivity_temperatura} />}
+                  {(nn(e.sensitivity_protective) || nn(e.sensitivity)) && (
+                    <div className="col-span-2">
+                      <DataCell label="Observaciones" value={e.sensitivity_protective || e.sensitivity} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </Section>
+      )}
+
+      {/* Edema */}
+      {hasEdema && (
+        <Section title="Edema">
+          <div className="space-y-3">
+            {edemaObservation && <DataCell label="Observación" value={edemaObservation} />}
+            {nn(e.godet_test) && <DataCell label="Test de Godet" value={e.godet_test} />}
+          </div>
+          {edemaNode && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Circometría</p>
+              {edemaNode}
+            </div>
+          )}
         </Section>
       )}
 
@@ -286,13 +614,45 @@ export default function AnalyticalEvaluationPage() {
         </Section>
       )}
 
-      {/* Escalas */}
-      {hasScales && (
-        <Section title="Escalas">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            {nn(e.vancouver_score) && <DataCell label="Vancouver (VSS)" value={e.vancouver_score} unit="/15" />}
-            {nn(e.osas_score) && <DataCell label="OSAS" value={e.osas_score} unit="/60" />}
-            {nn(e.godet_test) && <DataCell label="Test Godet" value={e.godet_test} />}
+      {/* Cicatriz */}
+      {hasCicatriz && (
+        <Section title="Cicatriz">
+          <div className="space-y-5">
+            {(scarEval || nn(e.scar)) && (
+              <div className="grid grid-cols-2 gap-3">
+                {nn(scarEval?.localizacion) && <DataCell label="Localización" value={scarEval!.localizacion} />}
+                {nn(scarEval?.longitud_cm) && <DataCell label="Longitud" value={`${scarEval!.longitud_cm} cm`} />}
+                {nn(scarEval?.sensibilidad) && <DataCell label="Sensibilidad" value={scarEval!.sensibilidad} />}
+                {nn(scarEval?.temperatura) && <DataCell label="Temperatura" value={scarEval!.temperatura} />}
+                {nn(e.scar) && <div className="col-span-2"><DataCell label="Observaciones" value={e.scar} /></div>}
+              </div>
+            )}
+            {vssTotal != null && (
+              <div className={scarEval || nn(e.scar) ? "pt-4 border-t border-border/30" : ""}>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Escala Vancouver VSS — Total: {vssTotal}/15
+                </p>
+                {vss && (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {vss.pigmentacion != null && <DataCell label="Pigmentación" value={vssLabel("pigmentacion", vss.pigmentacion)} />}
+                    {vss.vascularizacion != null && <DataCell label="Vascularización" value={vssLabel("vascularizacion", vss.vascularizacion)} />}
+                    {vss.flexibilidad != null && <DataCell label="Flexibilidad" value={vssLabel("flexibilidad", vss.flexibilidad)} />}
+                    {vss.altura != null && <DataCell label="Altura" value={vssLabel("altura", vss.altura)} />}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </Section>
+      )}
+
+      {/* Otros */}
+      {hasOtros && (
+        <Section title="Otros">
+          <div className="grid grid-cols-2 gap-3">
+            {nn(e.trophic_state) && <DataCell label="Estado trófico" value={e.trophic_state} />}
+            {nn(e.posture) && <DataCell label="Postura" value={e.posture} />}
+            {nn(e.emotional_state) && <DataCell label="Emotividad" value={e.emotional_state} />}
           </div>
         </Section>
       )}

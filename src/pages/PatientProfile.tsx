@@ -505,11 +505,11 @@ export default function PatientProfile() {
           {evalSubTab === "functional" && (
             funcEvals.length === 0
               ? <p className="text-muted-foreground text-sm text-center py-8">Sin evaluaciones funcionales.</p>
-              : <FuncEvalList evaluations={funcEvals} />
+              : <FuncEvalList evaluations={funcEvals} patientId={id!} />
           )}
           {evalSubTab === "analytical" && (
             <>
-              <AnalEvalList evaluations={analEvals} />
+              <AnalEvalList evaluations={analEvals} patientId={id!} />
               {analEvals.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-8">Las evaluaciones analíticas se registran desde Sesiones.</p>
               )}
@@ -555,13 +555,18 @@ export default function PatientProfile() {
               <h2 className="font-semibold text-foreground">Historial de visitas</h2>
               <p className="text-xs text-muted-foreground mt-0.5">{sessions.length} {sessions.length === 1 ? "visita registrada" : "visitas registradas"}</p>
             </div>
-            <Button onClick={() => {
-              const isFirst = sessions.length === 0;
-              const params = new URLSearchParams();
-              if (activeEpisodeId) params.set("episode", activeEpisodeId);
-              if (isFirst) params.set("type", "admission");
-              navigate(`/patients/${id}/sessions/new${params.toString() ? `?${params.toString()}` : ''}`);
-            }} size="sm"><Plus className="h-4 w-4 mr-2" />{sessions.length === 0 ? "Registrar admisión" : "Nueva sesión"}</Button>
+            <Button
+              onClick={() => {
+                const isFirst = sessions.length === 0;
+                const params = new URLSearchParams();
+                if (activeEpisodeId) params.set("episode", activeEpisodeId);
+                if (isFirst) params.set("type", "admission");
+                navigate(`/patients/${id}/sessions/new${params.toString() ? `?${params.toString()}` : ''}`);
+              }}
+              size="sm"
+              disabled={patient?.status === "discharged"}
+              title={patient?.status === "discharged" ? "El paciente está de alta — no se pueden agregar más sesiones" : undefined}
+            ><Plus className="h-4 w-4 mr-2" />{sessions.length === 0 ? "Registrar admisión" : "Nueva sesión"}</Button>
           </div>
           {sessions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -611,7 +616,7 @@ export default function PatientProfile() {
               <div className="flex justify-between items-center">
                 <h2 className="font-semibold text-foreground">Evaluaciones Analíticas</h2>
               </div>
-              <AnalEvalList evaluations={analEvals} />
+              <AnalEvalList evaluations={analEvals} patientId={id!} />
               <p className="text-xs text-muted-foreground text-center mt-2">Las evaluaciones analíticas se registran desde el tab Sesiones</p>
             </>
           )}
@@ -1984,157 +1989,34 @@ function NewFuncEvalDialog({ open, onClose, patientId, userId, onSaved }: { open
   );
 }
 
-function FuncEvalList({ evaluations }: { evaluations: any[] }) {
-  const [detail, setDetail] = useState<any>(null);
-  const dominanceMap: Record<string, string> = { right: "Derecha", left: "Izquierda", ambidextrous: "Ambidiestro/a" };
-
-  const ScoreBadge = ({ label, value, max }: { label: string; value: number | null; max: number }) => {
-    if (value === null || value === undefined) return null;
-    const pct = value / max;
-    const color = pct <= 0.33 ? "bg-green-100 text-green-800" : pct <= 0.66 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800";
-    return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${color}`}>{label}: {value}/{max}</span>;
-  };
-
+function FuncEvalList({ evaluations, patientId }: { evaluations: any[]; patientId: string }) {
+  const navigate = useNavigate();
   return (
-    <>
-      <div className="space-y-2">
-        {evaluations.map((e) => (
-          <Card key={e.id} className="border-border/50">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-medium text-sm">{format(new Date(e.evaluation_date), "dd/MM/yyyy")}</p>
-                {e.quickdash_score != null && (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">QuickDASH: {e.quickdash_score}/100</span>
-                )}
-                {e.fim_score != null && (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-800">FIM: {e.fim_score}/126</span>
-                )}
-                <ScoreBadge label="DASH" value={e.dash_score} max={100} />
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setDetail(e)}><Eye className="h-4 w-4" /></Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Dialog open={!!detail} onOpenChange={() => setDetail(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Evaluación Funcional — {detail && format(new Date(detail.evaluation_date), "dd/MM/yyyy")}</DialogTitle>
-            <DialogDescription className="sr-only">Detalle de evaluación funcional</DialogDescription>
-          </DialogHeader>
-          {detail && (() => {
-            const Field = ({ label, value }: { label: string; value: any }) => {
-              if (value == null || value === "") return null;
-              return (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-                  <p className="text-sm whitespace-pre-wrap">{value}</p>
-                </div>
-              );
-            };
-            const hasOccup = detail.avd || detail.aivd || detail.quickdash_score != null || detail.fim_score != null || detail.dash_score != null;
-            const hasHealth = detail.physical_activity || detail.sleep_rest || detail.health_management;
-            const quickdashItems: (number | null)[] = Array.isArray(detail.quickdash_items) ? detail.quickdash_items : [];
-            const fimItems = detail.fim_items && typeof detail.fim_items === "object" && !Array.isArray(detail.fim_items) ? detail.fim_items : {};
-            const hasQuickdashItems = quickdashItems.some((v) => v !== null && v !== undefined);
-            const hasFimItems = [...FIM_MOTOR, ...FIM_COGNITIVE].some((item) => fimItems[item.key] !== null && fimItems[item.key] !== undefined);
-            return (
-              <div className="space-y-5 text-sm">
-                {/* General */}
-                {detail.dominance && (
-                  <div className="border-l-2 border-primary/30 pl-3 py-1">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Lateralidad</p>
-                    <p>{dominanceMap[detail.dominance] || detail.dominance}</p>
-                  </div>
-                )}
-
-                {/* Desempeño + scores */}
-                {hasOccup && (
-                  <div className="border-l-2 border-primary/30 pl-3 py-1">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Desempeño Ocupacional</p>
-                    {(detail.quickdash_score != null || detail.fim_score != null) && (
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {detail.quickdash_score != null && (
-                          <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-primary/10 text-primary border border-primary/20">QuickDASH: {detail.quickdash_score}/100</span>
-                        )}
-                        {detail.fim_score != null && (
-                          <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-blue-100 text-blue-800 border border-blue-200">FIM: {detail.fim_score}/126</span>
-                        )}
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <Field label="AVD" value={detail.avd} />
-                      <Field label="AIVD" value={detail.aivd} />
-                      <Field label="Puntaje DASH" value={detail.dash_score != null ? `${detail.dash_score}/100` : null} />
-                    </div>
-                    {hasQuickdashItems && (
-                      <div className="mt-4 space-y-2">
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Detalle QuickDASH</p>
-                        <div className="space-y-1.5">
-                          {QUICKDASH_QUESTIONS.map((item, idx) => {
-                            const value = quickdashItems[idx];
-                            if (value === null || value === undefined) return null;
-                            return (
-                              <div key={idx} className="rounded-md border border-gray-100 bg-gray-50/60 px-3 py-2">
-                                <p className="text-xs text-gray-700"><span className="font-semibold text-primary">{idx + 1}.</span> {item.q}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">{value}. {item.scale[value - 1] || ""}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    {hasFimItems && (
-                      <div className="mt-4 space-y-2">
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Detalle FIM</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {[{ label: "Motor", items: FIM_MOTOR }, { label: "Cognitivo", items: FIM_COGNITIVE }].map((group) => (
-                            <div key={group.label} className="space-y-1">
-                              <p className="text-xs font-semibold text-primary uppercase">{group.label}</p>
-                              {group.items.map((item) => {
-                                const value = fimItems[item.key];
-                                if (value === null || value === undefined) return null;
-                                return (
-                                  <div key={item.key} className="flex items-center justify-between gap-3 border-b border-gray-100 py-1 text-xs">
-                                    <span className="text-gray-700">{item.label}</span>
-                                    <span className="font-semibold text-foreground">{value}/7</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Health */}
-                {hasHealth && (
-                  <div className="border-l-2 border-primary/30 pl-3 py-1">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Hábitos de Salud</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <Field label="Actividad física" value={detail.physical_activity} />
-                      <Field label="Descanso y sueño" value={detail.sleep_rest} />
-                      <Field label="Gestión de la salud" value={detail.health_management} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Notes */}
-                {detail.notes && (
-                  <div className="border-l-2 border-primary/30 pl-3 py-1">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Notas</p>
-                    <p className="whitespace-pre-wrap text-sm">{detail.notes}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
-    </>
+    <div className="space-y-3">
+      {evaluations.map((e) => (
+        <div
+          key={e.id}
+          className="bg-card rounded-[10px] border border-border px-5 py-3.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-accent/40 transition-colors"
+          onClick={() => navigate(`/patients/${patientId}/evaluations/functional/${e.id}`)}
+        >
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-foreground text-[13px]">{format(new Date(e.evaluation_date), "dd/MM/yyyy")}</p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {e.quickdash_score != null && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">QuickDASH: {e.quickdash_score}/100</span>
+              )}
+              {e.fim_score != null && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-800">FIM: {e.fim_score}/126</span>
+              )}
+              {e.barthel_score != null && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-violet-100 text-violet-800">Barthel: {e.barthel_score}/100</span>
+              )}
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+      ))}
+    </div>
   );
 }
 

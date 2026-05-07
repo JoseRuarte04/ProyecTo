@@ -825,11 +825,7 @@ export default function SessionForm() {
     setSaving(true);
 
     // ── Pain (gated) ──
-    const painLocFinal = showPain
-      ? [pain_location, pain_radiates_choice === "si" && pain_radiation ? `Irradia a: ${pain_radiation}` : ""]
-          .filter(Boolean)
-          .join(" — ") || null
-      : null;
+    const painLocFinal = showPain ? (pain_location || null) : null;
     const painRadiationFinal = showPain
       ? pain_radiates_choice === "si"
         ? pain_radiation || null
