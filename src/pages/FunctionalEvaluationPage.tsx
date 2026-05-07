@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -13,7 +13,6 @@ import {
   QUICKDASH_QUESTIONS,
   FIM_GROUPS, FIM_COGNITIVE_GROUPS,
   BARTHEL_ITEMS,
-  calcFimTotal, calcBarthelTotal,
 } from "@/components/evaluations/FunctionalScales";
 
 const NA = () => <span className="text-muted-foreground italic text-sm">No registrado</span>;
@@ -241,10 +240,9 @@ export default function FunctionalEvaluationPage() {
 
       {/* QuickDASH detail dialog */}
       <Dialog open={qdOpen} onOpenChange={setQdOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>QuickDASH — {e.quickdash_score}/100</DialogTitle>
-            <DialogDescription className="sr-only">Detalle de ítems QuickDASH</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-2">
             {QUICKDASH_QUESTIONS.map((q, i) => {
@@ -267,10 +265,9 @@ export default function FunctionalEvaluationPage() {
 
       {/* FIM detail dialog */}
       <Dialog open={fimOpen} onOpenChange={setFimOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>FIM — {e.fim_score}/126</DialogTitle>
-            <DialogDescription className="sr-only">Detalle de ítems FIM</DialogDescription>
           </DialogHeader>
           {(() => {
             const FIM_LEVEL: Record<number, string> = {
@@ -319,10 +316,9 @@ export default function FunctionalEvaluationPage() {
 
       {/* Barthel detail dialog */}
       <Dialog open={barthelOpen} onOpenChange={setBarthelOpen}>
-        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Índice de Barthel — {e.barthel_score}/100</DialogTitle>
-            <DialogDescription className="sr-only">Detalle de ítems Barthel</DialogDescription>
           </DialogHeader>
           {(() => {
             const items = (e.barthel_items && typeof e.barthel_items === "object") ? e.barthel_items as Record<string, any> : {};

@@ -79,6 +79,7 @@ export default function PatientProfile() {
   const [evalSubTab, setEvalSubTab] = useState("functional");
   const [showUploadFile, setShowUploadFile] = useState(false);
   const [deleteFile, setDeleteFile] = useState<any>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; description?: string; date?: string } | null>(null);
   const [contextOpen, setContextOpen] = useState(true);
   const [showDischargeReport, setShowDischargeReport] = useState(false);
   const dischargeReport = useDischargeReport(id ?? "", activeEpisodeId, session);
@@ -646,7 +647,12 @@ export default function PatientProfile() {
                   {photos.map(p => (
                     <div key={p.id} className="relative group rounded-lg border border-border/50 overflow-hidden bg-muted">
                       {signedUrls[p.id] ? (
-                        <img src={signedUrls[p.id]} alt={p.description || p.file_name} className="w-full h-48 object-cover" />
+                        <img
+                          src={signedUrls[p.id]}
+                          alt={p.description || p.file_name}
+                          className="w-full h-48 object-cover cursor-zoom-in"
+                          onClick={() => setLightboxPhoto({ url: signedUrls[p.id], description: p.description, date: p.photo_date })}
+                        />
                       ) : (
                         <div className="w-full h-48 flex items-center justify-center text-muted-foreground text-sm">Sin vista previa</div>
                       )}
@@ -890,6 +896,35 @@ export default function PatientProfile() {
         onReset={dischargeReport.reset}
         patientName={patient ? `${patient.first_name} ${patient.last_name}` : ""}
       />
+
+      {/* Lightbox */}
+      <Dialog open={!!lightboxPhoto} onOpenChange={(open) => { if (!open) setLightboxPhoto(null); }}>
+        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 bg-black/95 border-gray-800 flex flex-col items-center justify-center gap-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Foto ampliada</DialogTitle>
+            <DialogDescription>Vista ampliada de la imagen</DialogDescription>
+          </DialogHeader>
+          {lightboxPhoto && (
+            <>
+              <img
+                src={lightboxPhoto.url}
+                alt={lightboxPhoto.description || "Foto"}
+                className="max-w-full max-h-[80vh] object-contain"
+              />
+              {(lightboxPhoto.date || lightboxPhoto.description) && (
+                <div className="w-full px-4 py-2 text-center space-y-0.5">
+                  {lightboxPhoto.date && (
+                    <p className="text-xs text-gray-400">{format(new Date(lightboxPhoto.date), "dd/MM/yyyy")}</p>
+                  )}
+                  {lightboxPhoto.description && (
+                    <p className="text-sm text-gray-200">{lightboxPhoto.description}</p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
