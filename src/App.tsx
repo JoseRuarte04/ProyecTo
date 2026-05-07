@@ -14,6 +14,8 @@ import Exercises from "./pages/Exercises";
 import SessionForm from "./pages/SessionForm";
 import NewPatientForm from "./components/patients/NewPatientForm";
 import NotFound from "./pages/NotFound";
+import AnalyticalEvaluationPage from "./pages/AnalyticalEvaluationPage";
+import FunctionalEvaluationPage from "./pages/FunctionalEvaluationPage";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +36,8 @@ const App = () => (
               <Route path="patients/:id" element={<PatientProfile />} />
               <Route path="patients/:patientId/sessions/new" element={<SessionForm />} />
               <Route path="patients/:patientId/sessions/:sessionId/edit" element={<SessionForm />} />
+              <Route path="patients/:patientId/evaluations/analytical/:evalId" element={<AnalyticalEvaluationPage />} />
+              <Route path="patients/:patientId/evaluations/functional/:evalId" element={<FunctionalEvaluationPage />} />
               <Route path="appointments" element={<Appointments />} />
               <Route path="exercises" element={<Exercises />} />
             </Route>

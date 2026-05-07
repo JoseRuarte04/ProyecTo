@@ -1706,11 +1706,6 @@ function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onDeleted 
                   {s.session_number != null && <span className="text-[11px] text-muted-foreground">Sesión Nº {s.session_number}</span>}
                   {s.week_at_session != null && <span className="text-[11px] text-muted-foreground">· Semana {s.week_at_session} POP/PL</span>}
                 </div>
-                {(linkedEval || linkedFuncEval) && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-primary font-medium mt-1.5">
-                    <BarChart3 className="h-3 w-3" /> Con mediciones
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-1" onClick={(ev) => ev.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/patients/${patientId}/sessions/${s.id}/edit`)} aria-label="Editar sesión">
@@ -1766,22 +1761,6 @@ function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onDeleted 
                     </div>
                   )}
 
-                  {/* EVALUACIÓN FUNCIONAL */}
-                  {linkedFuncEval && (
-                    <div className="space-y-2">
-                      <SectionHeading>Evaluación funcional</SectionHeading>
-                      <FunctionalEvalBlock e={linkedFuncEval} />
-                    </div>
-                  )}
-
-                  {/* EVALUACIÓN ANALÍTICA */}
-                  {linkedEval && (
-                    <div className="space-y-2">
-                      <SectionHeading>Evaluación analítica</SectionHeading>
-                      <MeasurementsBlock e={linkedEval} />
-                    </div>
-                  )}
-
                   {/* EN EL DÍA DE HOY SE ABORDÓ */}
                   {nn(s.interventions) && (
                     <div>
@@ -1810,6 +1789,36 @@ function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onDeleted 
                   <p className="text-right text-xs text-muted-foreground pt-2">
                     {format(new Date(s.session_date), "dd/MM/yyyy")}
                   </p>
+                </div>
+              )}
+
+              {/* Evaluation buttons footer */}
+              {(linkedEval || linkedFuncEval) && (
+                <div className="border-t border-border/50 px-5 py-3 flex flex-wrap gap-2" onClick={(ev) => ev.stopPropagation()}>
+                  {linkedEval && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => navigate(`/patients/${patientId}/evaluations/analytical/${linkedEval.id}`)}
+                      aria-label={`Ver evaluación analítica — sesión ${s.session_number ?? ""}${s.session_date ? ` del ${format(new Date(s.session_date), "dd/MM/yyyy")}` : ""}`}
+                    >
+                      <ClipboardList className="h-3.5 w-3.5" />
+                      Ver evaluación analítica
+                    </Button>
+                  )}
+                  {linkedFuncEval && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => navigate(`/patients/${patientId}/evaluations/functional/${linkedFuncEval.id}`)}
+                      aria-label={`Ver evaluación funcional — sesión ${s.session_number ?? ""}${s.session_date ? ` del ${format(new Date(s.session_date), "dd/MM/yyyy")}` : ""}`}
+                    >
+                      <Activity className="h-3.5 w-3.5" />
+                      Ver evaluación funcional
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
