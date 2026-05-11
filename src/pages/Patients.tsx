@@ -4,8 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "./Dashboard";
-import { Plus, Search, Loader2, ExternalLink } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Plus, Search, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -127,9 +127,10 @@ export default function Patients() {
               return (
                 <div
                   key={p.id}
+                  onClick={() => navigate(`/patients/${p.id}`)}
                   className={cn(
                     "relative grid grid-cols-[1fr_80px_100px_80px] gap-4 px-4 items-center",
-                    "min-h-[56px] py-3 group hover:bg-muted/40 transition-colors",
+                    "min-h-[56px] py-3 group hover:bg-muted/40 transition-colors cursor-pointer",
                     idx !== filtered.length - 1 && "border-b border-border/60"
                   )}
                 >
@@ -157,27 +158,6 @@ export default function Patients() {
                     }
                   </p>
 
-                  {/* Acciones en hover */}
-                  <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-3 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-muted/80 via-muted/80 to-transparent pl-10">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs gap-1 font-medium"
-                      onClick={() => navigate(`/patients/${p.id}/sessions/new`)}
-                    >
-                      <Plus className="h-3 w-3" /> Sesión
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs gap-1 font-medium"
-                      asChild
-                    >
-                      <Link to={`/patients/${p.id}`}>
-                        <ExternalLink className="h-3 w-3" /> Perfil
-                      </Link>
-                    </Button>
-                  </div>
                 </div>
               );
             })}

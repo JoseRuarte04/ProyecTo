@@ -29,6 +29,7 @@ import { EDEMA_POINTS, isNewEdemaFormat, normalizeEdemaValue, isCircometriaForma
 import { QUICKDASH_QUESTIONS, FIM_MOTOR, FIM_COGNITIVE } from "@/components/evaluations/FunctionalScales";
 import { DischargeReportModal } from "@/components/patients/DischargeReportModal";
 import { useDischargeReport } from "@/hooks/useDischargeReport";
+import { EvolucionTab } from "@/components/patients/EvolucionTab";
 
 const ALLOWED_CLINICAL_FILE_TYPES = [
   "image/jpeg",
@@ -80,7 +81,6 @@ export default function PatientProfile() {
   const [showUploadFile, setShowUploadFile] = useState(false);
   const [deleteFile, setDeleteFile] = useState<any>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<{ url: string; description?: string; date?: string } | null>(null);
-  const [contextOpen, setContextOpen] = useState(true);
   const [showDischargeReport, setShowDischargeReport] = useState(false);
   const dischargeReport = useDischargeReport(id ?? "", activeEpisodeId, session);
 
@@ -335,13 +335,6 @@ export default function PatientProfile() {
                 <span className="text-xs text-muted-foreground font-mono">HC #{patient.clinical_record_number}</span>
               )}
             </div>
-            <button
-              onClick={() => setContextOpen(v => !v)}
-              className="p-1.5 rounded-lg hover:bg-muted transition-colors hidden xl:block"
-              title={contextOpen ? "Ocultar panel de contexto" : "Mostrar panel de contexto"}
-            >
-              <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${contextOpen ? "" : "rotate-180"}`} />
-            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-7">
@@ -350,6 +343,7 @@ export default function PatientProfile() {
               <TabsTrigger value="sessions" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Sesiones</TabsTrigger>
               <TabsTrigger value="clinica" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Clínica</TabsTrigger>
               <TabsTrigger value="evaluaciones" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Evaluaciones</TabsTrigger>
+              <TabsTrigger value="evolucion" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Evolución</TabsTrigger>
               <TabsTrigger value="archivos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Archivos</TabsTrigger>
               <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Administración</TabsTrigger>
             </TabsList>
@@ -607,7 +601,7 @@ export default function PatientProfile() {
                 <Button onClick={() => setShowNewFuncEval(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Nueva Evaluación</Button>
               </div>
               {funcEvals.length === 0 ? <p className="text-muted-foreground text-sm text-center py-8">Sin evaluaciones funcionales.</p> : (
-                <FuncEvalList evaluations={funcEvals} />
+                <FuncEvalList evaluations={funcEvals} patientId={id!} />
               )}
             </>
           )}
@@ -621,6 +615,16 @@ export default function PatientProfile() {
               <p className="text-xs text-muted-foreground text-center mt-2">Las evaluaciones analíticas se registran desde el tab Sesiones</p>
             </>
           )}
+        </TabsContent>
+
+        <TabsContent value="evolucion">
+          <EvolucionTab
+            analEvals={analEvals}
+            funcEvals={funcEvals}
+            sessions={sessions}
+            episode={activeEpisode ?? null}
+            patientId={id!}
+          />
         </TabsContent>
 
         <TabsContent value="archivos" className="space-y-6">
@@ -795,76 +799,6 @@ export default function PatientProfile() {
           </div>{/* closes inner scroll div */}
         </div>{/* closes center panel */}
 
-        {/* Context panel — 3rd column (collapsible) */}
-        {contextOpen && (
-          <div className="w-[260px] shrink-0 border-l border-border overflow-y-auto hidden xl:flex flex-col">
-            <div className="px-5 py-3 border-b border-border bg-muted shrink-0">
-              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Contexto</h3>
-            </div>
-
-            {/* Últimas 3 sesiones */}
-            <div className="p-5 border-b border-border/60">
-              <p className="field-label mb-3">Últimas sesiones</p>
-              {sessions.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Sin sesiones registradas.</p>
-              ) : (
-                <div className="space-y-3">
-                  {sessions.slice(0, 3).map((s: any) => (
-                    <div key={s.id} className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-xs font-medium text-foreground">
-                          {({admission: "Admisión", follow_up: "Seguimiento", discharge: "Alta"} as any)[s.session_type] || s.session_type}
-                        </p>
-                        {s.session_number && <p className="text-[10px] text-muted-foreground">Sesión {s.session_number}</p>}
-                      </div>
-                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                        {format(new Date(s.session_date + "T12:00:00"), "dd/MM/yy")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Próximo turno */}
-            <div className="p-5 border-b border-border/60">
-              <p className="field-label mb-3">Próximo turno</p>
-              {nextApptUpcoming ? (
-                <div>
-                  <p className="text-xs font-medium text-foreground">
-                    {format(new Date(nextApptUpcoming.appointment_date), "d MMM yyyy", { locale: es })}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {format(new Date(nextApptUpcoming.appointment_date), "HH:mm")} · {
-                      ({consultation: "Consulta", follow_up: "Seguimiento", evaluation: "Evaluación", admission: "Admisión", discharge: "Alta"} as any)[nextApptUpcoming.type] || nextApptUpcoming.type
-                    }
-                  </p>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Sin turnos próximos.</p>
-              )}
-            </div>
-
-            {/* Evaluaciones funcionales */}
-            {funcEvals.length > 0 && (
-              <div className="p-5">
-                <p className="field-label mb-3">Escalas ({funcEvals.length})</p>
-                <div className="space-y-2.5">
-                  {funcEvals.slice(0, 4).map((e: any) => (
-                    <div key={e.id} className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] text-muted-foreground tabular-nums">
-                        {format(new Date(e.evaluation_date + "T12:00:00"), "dd/MM/yy")}
-                      </p>
-                      {e.evaluation_type && (
-                        <span className="text-[10px] font-medium text-foreground">{e.evaluation_type}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>{/* closes flex flex-1 min-h-0 */}
 
       {/* Dialogs rendered outside the panels */}
@@ -2887,6 +2821,7 @@ function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, onSaved 
     admission_date: new Date().toISOString().split("T")[0],
     diagnosis: "",
     treatment_type: "",
+    affected_side: "" as "" | "MSD" | "MSI" | "both",
     doctor_name: "",
     injury_mechanism: "",
     weeks_post_injury: "",
@@ -2894,7 +2829,7 @@ function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, onSaved 
 
   const resetForm = () => setForm({
     admission_date: new Date().toISOString().split("T")[0],
-    diagnosis: "", treatment_type: "", doctor_name: "", injury_mechanism: "", weeks_post_injury: "",
+    diagnosis: "", treatment_type: "", affected_side: "", doctor_name: "", injury_mechanism: "", weeks_post_injury: "",
   });
 
   const handleSave = async () => {
@@ -2913,6 +2848,7 @@ function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, onSaved 
           admission_date: form.admission_date,
           status: "active",
           diagnosis: form.diagnosis.trim(),
+          affected_side: (form.affected_side || null) as "MSD" | "MSI" | "both" | null,
         })
         .select("id")
         .single();
@@ -2970,6 +2906,17 @@ function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, onSaved 
                 <SelectItem value="conservative">Conservador</SelectItem>
                 <SelectItem value="surgery">Quirúrgico</SelectItem>
                 <SelectItem value="mixed">Mixto</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Lado afectado</Label>
+            <Select value={form.affected_side} onValueChange={v => setForm({ ...form, affected_side: v as typeof form.affected_side })}>
+              <SelectTrigger><SelectValue placeholder="Sin especificar" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MSD">MSD — Miembro superior derecho</SelectItem>
+                <SelectItem value="MSI">MSI — Miembro superior izquierdo</SelectItem>
+                <SelectItem value="both">Ambos (MSD + MSI)</SelectItem>
               </SelectContent>
             </Select>
           </div>
