@@ -182,4 +182,67 @@ _Reglas críticas y patrones que los agentes de IA deben seguir al implementar c
 - Actualizar cuando cambie el stack tecnológico
 - Revisar periódicamente para eliminar reglas obsoletas
 
-Last Updated: 2026-05-06
+Last Updated: 2026-05-11
+
+---
+
+## Update 2026-05-11 — Feature QuickDASH Externo (completada)
+
+### Nueva tabla en Supabase: `quickdash_tokens`
+
+Migración aplicada: `supabase/migrations/20260511123816_quickdash_tokens.sql`
+
+Columnas: `id`, `token` (uuid único, secreto en URL), `patient_id`, `session_id`, `created_by`, `created_at`, `expires_at`, `completed_at`, `completed_by` ('patient'|'therapist'), `result` (jsonb: `{items: number[], score: number}`)
+
+RLS: terapeutas autenticados tienen SELECT/INSERT/UPDATE sobre sus propios tokens (`created_by = auth.uid()`). Acceso anónimo solo vía RPCs con SECURITY DEFINER.
+
+### RPCs creadas (en `src/integrations/supabase/types.ts` → sección Functions)
+
+- `get_quickdash_token(p_token)` — GRANT TO anon. Devuelve `{status, expires_at}`. No expone PII.
+- `complete_quickdash_token(p_token, p_items, p_score)` — GRANT TO anon. Valida token activo, valida 11 ítems 1-5, recalcula score server-side (ignora p_score del cliente).
+- `create_quickdash_token(p_session_id, p_patient_id, p_expires_at)` — GRANT TO authenticated. Invalida tokens previos activos de la misma sesión antes de crear uno nuevo.
+
+### Archivos creados
+
+**`src/pages/QuickDashPublicPage.tsx`**
+- Ruta: `/q/:token` — fuera de `<AppLayout>`, sin auth, sin sidebar
+- Estados: `loading → valid/expired/not_found/completed → submitting → success`
+- Renderiza preguntas inline (sin collapsible) para mejor UX mobile
+- Score con interpretación colorida en pantalla de éxito (leve/moderado/severo/muy severo)
+- Importa `QUICKDASH_QUESTIONS`, `calcQuickDashScore`, `emptyQuickDash` de `FunctionalScales`
+
+**`src/components/evaluations/QuickDashTokenManager.tsx`**
+- Modos: `loading | idle | generating | pending | patient_completed | manual`
+- En `idle`: botones "Generar link" / "Cargar manualmente"
+- En `generating`: selector de vencimiento (24hs / 48hs / 72hs / 7 días / fecha custom)
+- En `pending`: URL copiable + tiempo restante + polling cada 15s para detectar respuesta del paciente
+- En `patient_completed`: score + botón "Aplicar a evaluación funcional" (llama `onChange`)
+- En `manual`: renderiza `<QuickDashSection>` existente de FunctionalScales
+- Invalidación automática de tokens previos al generar uno nuevo (vía RPC)
+- Usa `maybeSingle()` para fetch inicial (patrón del proyecto)
+
+### Archivos modificados
+
+**`src/App.tsx`** — Ruta `/q/:token` registrada fuera de `<AppLayout>` (antes del catch-all `*`)
+
+**`src/pages/SessionForm.tsx`** (l.51 import + l.1605-1608 render)
+- En modo edición (`isEditMode = !!sessionId`): renderiza `<QuickDashTokenManager>`
+- En nueva sesión: renderiza `<QuickDashSection>` directamente (no hay sessionId para anclar token)
+- El flujo de guardado no cambió — sigue usando `qd_items` del estado local
+
+**`src/integrations/supabase/types.ts`**
+- Tabla `quickdash_tokens` agregada en `Tables` con Row/Insert/Update/Relationships
+- Las 3 RPCs nuevas + `soft_delete_session` agregadas en `Functions`
+- `completed_by` tipado como union literal `"patient" | "therapist" | null`
+
+### Decisiones de diseño a recordar
+
+- **Score recalculado server-side**: `complete_quickdash_token` ignora el `p_score` recibido y lo recalcula desde `p_items` para evitar manipulación.
+- **"Apply" explícito, no trigger**: el resultado del paciente en `quickdash_tokens.result` no se escribe automáticamente en `functional_evaluations`. El terapeuta lo aplica con un botón, lo que dispara `onChange(items)` en el padre. Se guarda en `functional_evaluations` al guardar la sesión normalmente.
+- **Polling, no Realtime**: el panel del terapeuta en modo `pending` hace polling cada 15s sobre el row específico por `id`. Evita configurar `supabase_realtime` publication.
+- **PII mínima en ruta pública**: `get_quickdash_token` no devuelve `patient_id`, `session_id` ni `created_by` al caller anon.
+
+### Estado actual del proyecto
+
+- Feature QuickDASH externo: **completada y en producción** (commit `82575a3`)
+- Próximo paso planificado: **dashboard del paciente** (vista de historial/progreso desde el lado del paciente)
