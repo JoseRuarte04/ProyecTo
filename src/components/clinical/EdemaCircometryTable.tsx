@@ -1,5 +1,43 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Plus, Trash2 } from "lucide-react";
+
+// ── New format ──────────────────────────────────────────────────────────────
+
+export interface CircometriaItem {
+  id: string;
+  reparo: string;
+  msd: string;
+  msi: string;
+}
+
+export function isCircometriaFormat(v: any): boolean {
+  return v != null && typeof v === "object" && Array.isArray(v.items);
+}
+
+export function normalizeCircometriaValue(v: any): CircometriaItem[] {
+  if (!isCircometriaFormat(v)) return [];
+  return (v.items as any[]).map((item: any, i: number) => ({
+    id: item.id ?? String(i),
+    reparo: item.reparo ?? "",
+    msd: item.msd != null ? String(item.msd) : "",
+    msi: item.msi != null ? String(item.msi) : "",
+  }));
+}
+
+export function buildCircometriaPayload(items: CircometriaItem[]): any {
+  const cleaned = items.filter(it => it.reparo.trim() || it.msd || it.msi);
+  if (cleaned.length === 0) return null;
+  return {
+    items: cleaned.map(({ reparo, msd, msi }) => ({
+      reparo: reparo.trim(),
+      msd: msd !== "" ? Number(msd) : null,
+      msi: msi !== "" ? Number(msi) : null,
+    })),
+  };
+}
+
+// ── Legacy format (kept for rendering historical records) ───────────────────
 
 export const EDEMA_POINTS: { key: string; label: string }[] = [
   { key: "antebrazo_15", label: "Antebrazo a 15 cm" },
@@ -21,10 +59,6 @@ export const EDEMA_POINTS: { key: string; label: string }[] = [
 export type EdemaSide = { fecha?: string | null; [key: string]: any };
 export type EdemaCircValue = { sano?: EdemaSide | null; afectado?: EdemaSide | null } | null;
 
-/**
- * Detects whether a value follows the new structured format.
- * Legacy values (with reference/value_cm/side/mano_global) are treated as empty.
- */
 export function isNewEdemaFormat(v: any): boolean {
   if (!v || typeof v !== "object" || Array.isArray(v)) return false;
   return "sano" in v || "afectado" in v;
@@ -38,140 +72,102 @@ export function normalizeEdemaValue(v: any): { sano: EdemaSide; afectado: EdemaS
   };
 }
 
-function sideHasValues(s: EdemaSide | null | undefined): boolean {
-  if (!s) return false;
-  return EDEMA_POINTS.some(({ key }) => {
-    const v = s[key];
-    return v !== undefined && v !== null && v !== "" && !Number.isNaN(Number(v));
-  });
+// ── Component ───────────────────────────────────────────────────────────────
+
+function calcDif(msd: string, msi: string): string {
+  const d = parseFloat(msd);
+  const s = parseFloat(msi);
+  if (isNaN(d) || isNaN(s)) return "—";
+  const diff = s - d;
+  return `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}`;
 }
 
-export function buildEdemaPayload(
-  sano: EdemaSide,
-  afectado: EdemaSide
-): EdemaCircValue {
-  const cleanSide = (s: EdemaSide): EdemaSide | null => {
-    const out: EdemaSide = {};
-    if (s.fecha) out.fecha = s.fecha;
-    let any = false;
-    EDEMA_POINTS.forEach(({ key }) => {
-      const raw = s[key];
-      if (raw === undefined || raw === null || raw === "") return;
-      const n = Number(raw);
-      if (Number.isNaN(n)) return;
-      out[key] = n;
-      any = true;
-    });
-    return any ? out : null;
-  };
-  const sanoP = cleanSide(sano);
-  const afectadoP = cleanSide(afectado);
-  if (!sanoP && !afectadoP) return null;
-  const obj: any = {};
-  if (sanoP) obj.sano = sanoP;
-  if (afectadoP) obj.afectado = afectadoP;
-  return obj;
+function newItem(): CircometriaItem {
+  return { id: crypto.randomUUID(), reparo: "", msd: "", msi: "" };
 }
 
 interface Props {
-  sano: EdemaSide;
-  afectado: EdemaSide;
-  onChange: (next: { sano: EdemaSide; afectado: EdemaSide }) => void;
-  mode: "admission" | "follow_up";
-  baselineSano?: EdemaSide | null;
+  items: CircometriaItem[];
+  onChange: (items: CircometriaItem[]) => void;
 }
 
-export function EdemaCircometryTable({ sano, afectado, onChange, mode, baselineSano }: Props) {
-  const isAdmission = mode === "admission";
-  const showSano = isAdmission || sideHasValues(baselineSano);
-  const readonlySano = !isAdmission && sideHasValues(baselineSano);
-  const sanoData = readonlySano ? (baselineSano as EdemaSide) : sano;
-
-  const setSano = (key: string, value: string) => onChange({ sano: { ...sano, [key]: value }, afectado });
-  const setAfectado = (key: string, value: string) => onChange({ sano, afectado: { ...afectado, [key]: value } });
-
-  const inputClass = "rounded-md h-9 text-sm";
-  const cellClass = "px-2 py-1.5 align-middle";
-  const readonlyClass = "px-2 py-1.5 align-middle bg-muted/40 text-muted-foreground text-sm text-center";
+export function EdemaCircometryTable({ items, onChange }: Props) {
+  const add = () => onChange([...items, newItem()]);
+  const update = (id: string, field: keyof Omit<CircometriaItem, "id">, value: string) =>
+    onChange(items.map(it => it.id === id ? { ...it, [field]: value } : it));
+  const remove = (id: string) => onChange(items.filter(it => it.id !== id));
 
   return (
     <div className="space-y-2">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2 w-[40%]">Punto anatómico</th>
-              {showSano && (
-                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">
-                  <div className="space-y-1">
-                    <div>MS Sano</div>
-                    {readonlySano ? (
-                      <div className="text-[11px] text-muted-foreground/80 font-normal">
-                        {sanoData.fecha ? `Basal: ${sanoData.fecha}` : "Basal"}
-                      </div>
-                    ) : (
-                      <Input
-                        type="date"
-                        value={sano.fecha || ""}
-                        onChange={(e) => onChange({ sano: { ...sano, fecha: e.target.value }, afectado })}
-                        className="rounded-md h-8 text-xs"
-                        aria-label="Fecha MS Sano"
-                      />
-                    )}
-                  </div>
-                </th>
-              )}
-              <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">
-                <div className="space-y-1">
-                  <div>MS Afectado</div>
-                  <Input
-                    type="date"
-                    value={afectado.fecha || ""}
-                    onChange={(e) => onChange({ sano, afectado: { ...afectado, fecha: e.target.value } })}
-                    className="rounded-md h-8 text-xs"
-                    aria-label="Fecha MS Afectado"
-                  />
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {EDEMA_POINTS.map(({ key, label }) => (
-              <tr key={key} className="border-b border-border/50">
-                <td className="py-1.5 px-2 text-xs text-foreground">{label}</td>
-                {showSano && (
-                  readonlySano ? (
-                    <td className={readonlyClass}>
-                      {sanoData[key] != null && sanoData[key] !== "" ? `${sanoData[key]} cm` : "—"}
-                    </td>
-                  ) : (
-                    <td className={cellClass}>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={sano[key] ?? ""}
-                        onChange={(e) => setSano(key, e.target.value)}
-                        className={inputClass}
-                        placeholder="cm"
-                      />
-                    </td>
-                  )
-                )}
-                <td className={cellClass}>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={afectado[key] ?? ""}
-                    onChange={(e) => setAfectado(key, e.target.value)}
-                    className={inputClass}
-                    placeholder="cm"
-                  />
-                </td>
+      {items.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2">Reparo anatómico</th>
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2 w-24">MSD (cm)</th>
+                <th className="text-left text-xs font-medium text-muted-foreground py-2 px-2 w-24">MSI (cm)</th>
+                <th className="text-center text-xs font-medium text-muted-foreground py-2 px-2 w-24">Diferencia</th>
+                <th className="py-2 px-1 w-8" />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {items.map(item => (
+                <tr key={item.id} className="border-b border-border/50">
+                  <td className="px-2 py-1.5">
+                    <Input
+                      value={item.reparo}
+                      onChange={e => update(item.id, "reparo", e.target.value)}
+                      placeholder="Ej: Codo epicóndilo"
+                      className="h-8 text-sm"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={item.msd}
+                      onChange={e => update(item.id, "msd", e.target.value)}
+                      placeholder="cm"
+                      className="h-8 text-sm"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={item.msi}
+                      onChange={e => update(item.id, "msi", e.target.value)}
+                      placeholder="cm"
+                      className="h-8 text-sm"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 text-sm text-center whitespace-nowrap text-muted-foreground font-medium">
+                    {calcDif(item.msd, item.msi)}
+                  </td>
+                  <td className="px-1 py-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => remove(item.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Button type="button" variant="outline" size="sm" onClick={add} className="h-8 text-xs gap-1.5">
+        <Plus className="h-3.5 w-3.5" />
+        Agregar reparo anatómico
+      </Button>
     </div>
   );
 }

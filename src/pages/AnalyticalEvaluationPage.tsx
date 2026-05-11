@@ -9,7 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { EDEMA_POINTS, isNewEdemaFormat, normalizeEdemaValue } from "@/components/clinical/EdemaCircometryTable";
+import { EDEMA_POINTS, isNewEdemaFormat, normalizeEdemaValue, isCircometriaFormat, normalizeCircometriaValue } from "@/components/clinical/EdemaCircometryTable";
 
 const NA = () => <span className="text-muted-foreground italic text-sm">No registrado</span>;
 
@@ -150,8 +150,88 @@ export default function AnalyticalEvaluationPage() {
     return r;
   };
 
-  const parseGoniometry = (g: any): JointTable[] => {
-    if (!g || typeof g !== "object") return [];
+  const parseGonioHalf = (half: any): JointTable[] => {
+    if (!half || typeof half !== "object") return [];
+    const msd = half.MSD, msi = half.MSI;
+
+    // Format A: MSD/MSI are arrays of { body_part, values } (SessionForm)
+    if (Array.isArray(msd) || Array.isArray(msi)) {
+      const tables: JointTable[] = [];
+      for (const part of JOINT_CONFIG_A) {
+        const pp = getPartVals(msd, part.key);
+        const rp = getPartVals(msi, part.key);
+        const rows: MovRow[] = [];
+        for (const m of part.movements) {
+          const a = pp[m.key] != null ? Number(pp[m.key]) : null;
+          const c = rp[m.key] != null ? Number(rp[m.key]) : null;
+          if (a != null || c != null)
+            rows.push({ mov: m.label, msdPre: a, msdPost: null, msiPre: c, msiPost: null });
+        }
+        if (rows.length > 0) tables.push({ joint: part.label, rows });
+      }
+      return tables;
+    }
+
+    // New Format B with pre/post: { MSD: { pre: flat, post: flat }, MSI: { ... } } (AnalyticalEvalForm)
+    const msdHasPrePost = msd && typeof msd === "object" && !Array.isArray(msd) && ("pre" in msd || "post" in msd);
+    const msiHasPrePost = msi && typeof msi === "object" && !Array.isArray(msi) && ("pre" in msi || "post" in msi);
+    if (msdHasPrePost || msiHasPrePost) {
+      const JOINT_ORDER = ["Hombro", "Codo", "Muñeca", "Mano", "Pulgar"];
+      const mpMap = flatToJointMap(msd?.pre), mqMap = flatToJointMap(msd?.post);
+      const rpMap = flatToJointMap(msi?.pre), rqMap = flatToJointMap(msi?.post);
+      const allJoints = new Set([...Object.keys(mpMap), ...Object.keys(mqMap), ...Object.keys(rpMap), ...Object.keys(rqMap)]);
+      const tables: JointTable[] = [];
+      for (const joint of JOINT_ORDER) {
+        if (!allJoints.has(joint)) continue;
+        const allLabels = new Set([
+          ...Object.keys(mpMap[joint] || {}), ...Object.keys(mqMap[joint] || {}),
+          ...Object.keys(rpMap[joint] || {}), ...Object.keys(rqMap[joint] || {}),
+        ]);
+        const rows: MovRow[] = [];
+        for (const label of allLabels) {
+          const a = (mpMap[joint] || {})[label] ?? null;
+          const b = (mqMap[joint] || {})[label] ?? null;
+          const c = (rpMap[joint] || {})[label] ?? null;
+          const d = (rqMap[joint] || {})[label] ?? null;
+          if (a != null || b != null || c != null || d != null)
+            rows.push({ mov: label, msdPre: a, msdPost: b, msiPre: c, msiPost: d });
+        }
+        if (rows.length > 0) tables.push({ joint, rows });
+      }
+      return tables;
+    }
+
+    // Old Format B: { MSD: flat, MSI: flat } (AnalyticalEvalForm before redesign)
+    if ((msd && typeof msd === "object") || (msi && typeof msi === "object")) {
+      const JOINT_ORDER = ["Hombro", "Codo", "Muñeca", "Mano", "Pulgar"];
+      const mpMap = flatToJointMap(msd), rpMap = flatToJointMap(msi);
+      const allJoints = new Set([...Object.keys(mpMap), ...Object.keys(rpMap)]);
+      const tables: JointTable[] = [];
+      for (const joint of JOINT_ORDER) {
+        if (!allJoints.has(joint)) continue;
+        const allLabels = new Set([...Object.keys(mpMap[joint] || {}), ...Object.keys(rpMap[joint] || {})]);
+        const rows: MovRow[] = [];
+        for (const label of allLabels) {
+          const a = (mpMap[joint] || {})[label] ?? null;
+          const c = (rpMap[joint] || {})[label] ?? null;
+          if (a != null || c != null)
+            rows.push({ mov: label, msdPre: a, msdPost: null, msiPre: c, msiPost: null });
+        }
+        if (rows.length > 0) tables.push({ joint, rows });
+      }
+      return tables;
+    }
+
+    return [];
+  };
+
+  const parseGoniometry = (g: any): { arom: JointTable[], prom: JointTable[] } => {
+    if (!g || typeof g !== "object") return { arom: [], prom: [] };
+
+    if (g.arom !== undefined || g.prom !== undefined) {
+      return { arom: parseGonioHalf(g.arom), prom: parseGonioHalf(g.prom) };
+    }
+
     const msd = g.MSD || {};
     const msi = g.MSI || {};
     const msdPre = msd.pre, msdPost = msd.post, msiPre = msi.pre, msiPost = msi.post;
@@ -175,7 +255,7 @@ export default function AnalyticalEvaluationPage() {
         }
         if (rows.length > 0) tables.push({ joint: part.label, rows });
       }
-      return tables;
+      return { arom: tables, prom: [] };
     }
 
     // Format B: pre is flat object with prefixed keys
@@ -202,10 +282,10 @@ export default function AnalyticalEvaluationPage() {
         }
         if (rows.length > 0) tables.push({ joint, rows });
       }
-      return tables;
+      return { arom: tables, prom: [] };
     }
 
-    return [];
+    return { arom: [], prom: [] };
   };
 
   const renderGonioTables = (tables: JointTable[]) => {
@@ -221,9 +301,9 @@ export default function AnalyticalEvaluationPage() {
                 <thead>
                   <tr className="border-b border-border/50">
                     <th className="text-left text-muted-foreground font-medium pb-1.5 pr-3 min-w-[110px]">Movimiento</th>
-                    <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">MSD PRE</th>
+                    <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">{hasPost ? "MSD PRE" : "MSD"}</th>
                     {hasPost && <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">MSD POST</th>}
-                    <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">MSI PRE</th>
+                    <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">{hasPost ? "MSI PRE" : "MSI"}</th>
                     {hasPost && <th className="text-center text-muted-foreground font-medium pb-1.5 px-2">MSI POST</th>}
                   </tr>
                 </thead>
@@ -268,43 +348,74 @@ export default function AnalyticalEvaluationPage() {
 
   // ── Edema ──
   const renderEdema = (edema: any) => {
-    if (!isNewEdemaFormat(edema)) {
-      // Legacy string format — show as plain text
-      if (edema && typeof edema === "string" && edema.trim()) {
-        return <p className="text-sm text-foreground whitespace-pre-wrap">{edema}</p>;
-      }
-      return null;
+    if (isCircometriaFormat(edema)) {
+      const items = normalizeCircometriaValue(edema);
+      if (items.length === 0) return null;
+      return (
+        <div className="overflow-x-auto">
+          <table className="text-xs w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="text-left text-muted-foreground font-medium pb-1 pr-4">Reparo anatómico</th>
+                <th className="text-center text-muted-foreground font-medium pb-1 px-2">MSD (cm)</th>
+                <th className="text-center text-muted-foreground font-medium pb-1 px-2">MSI (cm)</th>
+                <th className="text-center text-muted-foreground font-medium pb-1 px-2">Diferencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, i) => {
+                const d = parseFloat(item.msd), s = parseFloat(item.msi);
+                const dif = !isNaN(d) && !isNaN(s) ? `${(s - d) >= 0 ? "+" : ""}${(s - d).toFixed(1)}` : "—";
+                return (
+                  <tr key={i} className="border-t border-border/30">
+                    <td className="py-1 pr-4 text-foreground">{item.reparo || "—"}</td>
+                    <td className="py-1 px-2 text-center text-foreground">{item.msd ? `${item.msd}` : "—"}</td>
+                    <td className="py-1 px-2 text-center text-foreground">{item.msi ? `${item.msi}` : "—"}</td>
+                    <td className="py-1 px-2 text-center text-foreground">{dif}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      );
     }
-    const { sano, afectado } = normalizeEdemaValue(edema);
-    const hasAny = EDEMA_POINTS.some(({ key }) => sano[key] != null || afectado[key] != null);
-    if (!hasAny) return null;
-    return (
-      <div className="overflow-x-auto">
-        <table className="text-xs w-full border-collapse">
-          <thead>
-            <tr>
-              <th className="text-left text-muted-foreground font-medium pb-1 pr-4">Punto</th>
-              <th className="text-center text-muted-foreground font-medium pb-1 px-2">Sano (cm)</th>
-              <th className="text-center text-muted-foreground font-medium pb-1 px-2">Afectado (cm)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {EDEMA_POINTS.map(({ key, label }) => {
-              const s = sano[key];
-              const a = afectado[key];
-              if (s == null && a == null) return null;
-              return (
-                <tr key={key} className="border-t border-border/30">
-                  <td className="py-1 pr-4 text-foreground">{label}</td>
-                  <td className="py-1 px-2 text-center text-foreground">{s ?? "—"}</td>
-                  <td className="py-1 px-2 text-center text-foreground">{a ?? "—"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
+    if (isNewEdemaFormat(edema)) {
+      const { sano, afectado } = normalizeEdemaValue(edema);
+      const hasAny = EDEMA_POINTS.some(({ key }) => sano[key] != null || afectado[key] != null);
+      if (!hasAny) return null;
+      return (
+        <div className="overflow-x-auto">
+          <table className="text-xs w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="text-left text-muted-foreground font-medium pb-1 pr-4">Punto</th>
+                <th className="text-center text-muted-foreground font-medium pb-1 px-2">Sano (cm)</th>
+                <th className="text-center text-muted-foreground font-medium pb-1 px-2">Afectado (cm)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {EDEMA_POINTS.map(({ key, label }) => {
+                const s = sano[key];
+                const a = afectado[key];
+                if (s == null && a == null) return null;
+                return (
+                  <tr key={key} className="border-t border-border/30">
+                    <td className="py-1 pr-4 text-foreground">{label}</td>
+                    <td className="py-1 px-2 text-center text-foreground">{s ?? "—"}</td>
+                    <td className="py-1 px-2 text-center text-foreground">{a ?? "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    if (edema && typeof edema === "string" && edema.trim()) {
+      return <p className="text-sm text-foreground whitespace-pre-wrap">{edema}</p>;
+    }
+    return null;
   };
 
   // ── Pruebas específicas ──
@@ -362,7 +473,9 @@ export default function AnalyticalEvaluationPage() {
     ? e.pain_location.replace(/\s*[—\-–]\s*Irradia a:.*$/i, "").trim() || null
     : null;
 
-  const gonioTables = parseGoniometry(e.goniometry);
+  const gonioResult = parseGoniometry(e.goniometry);
+  const isNewGonioFormat = e.goniometry && (e.goniometry.arom !== undefined || e.goniometry.prom !== undefined);
+  const hasGonioTables = gonioResult.arom.length > 0 || gonioResult.prom.length > 0;
   const fistClosure = e.muscle_strength
     ? (e.muscle_strength.match(/Cierre de pu[ñn]o:\s*([^—\n]+)/i)?.[1]?.trim() || null)
     : null;
@@ -469,25 +582,41 @@ export default function AnalyticalEvaluationPage() {
 
       {/* Movilidad */}
       <Section title="Movilidad">
-        {gonioTables.length > 0 && (
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Goniometría</p>
-        )}
-        {gonioTables.length > 0
-          ? renderGonioTables(gonioTables)
-          : (nn(e.arom) || nn(e.prom)) && (
-            <div className="space-y-3">
-              {nn(e.arom) && <DataCell label="AROM" value={e.arom} />}
-              {nn(e.prom) && <DataCell label="PROM" value={e.prom} />}
+        {hasGonioTables ? (
+          isNewGonioFormat ? (
+            <div className="space-y-5">
+              {gonioResult.arom.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">AROM</p>
+                  {renderGonioTables(gonioResult.arom)}
+                </div>
+              )}
+              {gonioResult.prom.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">PROM</p>
+                  {renderGonioTables(gonioResult.prom)}
+                </div>
+              )}
             </div>
+          ) : (
+            <>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Goniometría</p>
+              {renderGonioTables(gonioResult.arom)}
+            </>
           )
-        }
+        ) : (nn(e.arom) || nn(e.prom)) ? (
+          <div className="space-y-3">
+            {nn(e.arom) && <DataCell label="AROM" value={e.arom} />}
+            {nn(e.prom) && <DataCell label="PROM" value={e.prom} />}
+          </div>
+        ) : null}
         {(nn(e.kapandji) || fistClosure) && (
-          <div className={`grid grid-cols-2 gap-3${gonioTables.length > 0 || nn(e.arom) || nn(e.prom) ? " mt-4 pt-4 border-t border-border/30" : ""}`}>
+          <div className={`grid grid-cols-2 gap-3${hasGonioTables || nn(e.arom) || nn(e.prom) ? " mt-4 pt-4 border-t border-border/30" : ""}`}>
             {nn(e.kapandji) && <DataCell label="Kapandji" value={e.kapandji} />}
             {fistClosure && <DataCell label="Cierre de puño" value={fistClosure} />}
           </div>
         )}
-        {gonioTables.length === 0 && !nn(e.arom) && !nn(e.prom) && !nn(e.kapandji) && !fistClosure && <NA />}
+        {!hasGonioTables && !nn(e.arom) && !nn(e.prom) && !nn(e.kapandji) && !fistClosure && <NA />}
       </Section>
 
       {/* Fuerza muscular */}

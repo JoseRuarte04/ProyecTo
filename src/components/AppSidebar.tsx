@@ -12,6 +12,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
   SidebarHeader,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -44,18 +45,24 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="px-5 py-6 border-b border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border">
         {!collapsed ? (
-          <div>
-            <p className="font-serif text-xl font-semibold text-foreground tracking-tight">RehabOT</p>
-            <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground mt-0.5">Clínica · Terapia Ocupacional</p>
+          <div className="flex items-center px-5 py-6">
+            <div className="flex-1 min-w-0">
+              <p className="font-serif text-xl font-semibold text-foreground tracking-tight">RehabOT</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground mt-0.5">Clínica · Terapia Ocupacional</p>
+            </div>
+            <SidebarTrigger className="ml-2 shrink-0 text-muted-foreground hover:text-foreground" />
           </div>
         ) : (
-          <p className="font-serif text-lg font-semibold text-foreground text-center">R</p>
+          <div className="flex flex-col items-center gap-2 py-4">
+            <p className="font-serif text-lg font-semibold text-foreground">R</p>
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+          </div>
         )}
       </SidebarHeader>
 
-      <SidebarContent className="px-3 py-5">
+      <SidebarContent className="py-5">
         <SidebarGroup>
           {!collapsed && (
             <SidebarGroupLabel className="px-3 mb-3 text-[10px] tracking-[0.14em] uppercase text-muted-foreground font-medium">
@@ -68,13 +75,16 @@ export function AppSidebar() {
                 const active = isActive(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={active}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
                       <NavLink
                         to={item.url}
-                        className={`relative flex items-center gap-3 rounded-lg px-3 py-3 text-[13px] transition-colors ${
-                          active
-                            ? "border-l-[3px] border-l-primary text-foreground font-semibold bg-transparent"
-                            : "text-sidebar-foreground font-normal hover:bg-sidebar-accent/60 border-l-[3px] border-l-transparent"
+                        className={`relative flex items-center rounded-lg text-[13px] transition-colors ${
+                          collapsed
+                            ? `justify-center p-0 ${active ? "text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent/60"}`
+                            : `gap-3 px-3 py-3 ${active
+                                ? "border-l-[3px] border-l-primary text-foreground font-semibold"
+                                : "border-l-[3px] border-l-transparent text-sidebar-foreground font-normal hover:bg-sidebar-accent/60"
+                              }`
                         }`}
                       >
                         <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={active ? 2 : 1.5} />

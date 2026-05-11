@@ -25,7 +25,7 @@ import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { exportPlanPdf } from "@/components/plans/PlanPdfExport";
 import { AnalEvalList } from "@/components/evaluations/AnalyticalEvalForm";
-import { EDEMA_POINTS, isNewEdemaFormat, normalizeEdemaValue } from "@/components/clinical/EdemaCircometryTable";
+import { EDEMA_POINTS, isNewEdemaFormat, normalizeEdemaValue, isCircometriaFormat, normalizeCircometriaValue } from "@/components/clinical/EdemaCircometryTable";
 import { QUICKDASH_QUESTIONS, FIM_MOTOR, FIM_COGNITIVE } from "@/components/evaluations/FunctionalScales";
 import { DischargeReportModal } from "@/components/patients/DischargeReportModal";
 import { useDischargeReport } from "@/hooks/useDischargeReport";
@@ -1415,6 +1415,38 @@ function MeasurementsBlock({ e }: { e: any }) {
           {(() => {
             const c: any = e.edema_circummetry;
             if (!nn(c)) return null;
+            if (isCircometriaFormat(c)) {
+              const items = normalizeCircometriaValue(c);
+              if (items.length === 0) return null;
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-1 px-2 font-medium text-muted-foreground">Reparo anatómico</th>
+                        <th className="text-left py-1 px-2 font-medium text-muted-foreground">MSD</th>
+                        <th className="text-left py-1 px-2 font-medium text-muted-foreground">MSI</th>
+                        <th className="text-center py-1 px-2 font-medium text-muted-foreground">Dif.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item, i) => {
+                        const d = parseFloat(item.msd), s = parseFloat(item.msi);
+                        const dif = !isNaN(d) && !isNaN(s) ? `${(s - d) >= 0 ? "+" : ""}${(s - d).toFixed(1)}` : "—";
+                        return (
+                          <tr key={i} className="border-b border-border/40">
+                            <td className="py-0.5 px-2">{item.reparo || "—"}</td>
+                            <td className="py-0.5 px-2">{item.msd ? `${item.msd} cm` : "—"}</td>
+                            <td className="py-0.5 px-2">{item.msi ? `${item.msi} cm` : "—"}</td>
+                            <td className="py-0.5 px-2 text-center">{dif}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }
             if (isNewEdemaFormat(c)) {
               const norm = normalizeEdemaValue(c);
               const sanoEntries = EDEMA_POINTS.filter(p => norm.sano[p.key] != null && norm.sano[p.key] !== "");
@@ -1434,8 +1466,7 @@ function MeasurementsBlock({ e }: { e: any }) {
                     <tbody>
                       {EDEMA_POINTS.map(p => {
                         const s = norm.sano[p.key], a = norm.afectado[p.key];
-                        const has = (s != null && s !== "") || (a != null && a !== "");
-                        if (!has) return null;
+                        if ((s == null || s === "") && (a == null || a === "")) return null;
                         return (
                           <tr key={p.key} className="border-b border-border/40">
                             <td className="py-0.5 px-2">{p.label}</td>

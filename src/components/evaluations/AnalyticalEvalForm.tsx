@@ -9,13 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Loader2, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { EdemaCircometryTable, buildEdemaPayload, normalizeEdemaValue, isNewEdemaFormat, EDEMA_POINTS, type EdemaSide } from "@/components/clinical/EdemaCircometryTable";
+import { EdemaCircometryTable, buildCircometriaPayload, normalizeCircometriaValue, isCircometriaFormat, isNewEdemaFormat, normalizeEdemaValue, EDEMA_POINTS, type CircometriaItem } from "@/components/clinical/EdemaCircometryTable";
 
 // --- Constants ---
 
@@ -47,12 +48,37 @@ const fieldLabel = (f: string) => {
   return map[f] || f;
 };
 
+const JOINT_TABS = [
+  { key: "hombro", label: "Hombro" },
+  { key: "codo", label: "Codo" },
+  { key: "muneca", label: "Muñeca" },
+  { key: "mano", label: "Mano" },
+  { key: "pulgar", label: "Pulgar" },
+];
+
+const JOINT_GROUPS: Record<string, typeof GONIOMETRY_GROUPS> = {
+  hombro: GONIOMETRY_GROUPS.filter(g => g.label === "Hombro"),
+  codo: GONIOMETRY_GROUPS.filter(g => g.label === "Codo"),
+  muneca: GONIOMETRY_GROUPS.filter(g => g.label === "Muñeca"),
+  mano: GONIOMETRY_GROUPS.filter(g => g.label.startsWith("Mano")),
+  pulgar: GONIOMETRY_GROUPS.filter(g => g.label.startsWith("Pulgar")),
+};
+
 const SPECIFIC_TESTS = [
   "Finkelstein", "Phalen", "Froment", "Wartenberg",
   "Garra cubital", "Jobe", "Pate", "Yocum", "Herber",
 ];
 
 const testKey = (t: string) => t.toLowerCase().replace(/\s+/g, "_");
+
+const GONIO_KEY_LABEL: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  GONIOMETRY_GROUPS.forEach(g => {
+    const prefix = g.label.toLowerCase().replace(/\s+/g, "_");
+    g.fields.forEach(f => { map[`${prefix}_${f}`] = `${g.label} ${fieldLabel(f)}`; });
+  });
+  return map;
+})();
 
 type TestResult = "positive" | "negative" | "not_performed" | null;
 
@@ -63,12 +89,25 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
 }) {
   const [saving, setSaving] = useState(false);
   const [painScore, setPainScore] = useState([0]);
-  const [gonioSide, setGonioSide] = useState<"MSD" | "MSI">("MSD");
-  const [gonio, setGonio] = useState<{ MSD: Record<string, string>; MSI: Record<string, string> }>({ MSD: {}, MSI: {} });
+  const [showArom, setShowArom] = useState(true);
+  const [gonioAromSide, setGonioAromSide] = useState<"MSD" | "MSI">("MSD");
+  const [gonioAromPart, setGonioAromPart] = useState("hombro");
+  const [gonioAromPre, setGonioAromPre] = useState<{ MSD: Record<string, string>; MSI: Record<string, string> }>({ MSD: {}, MSI: {} });
+  const [gonioAromPost, setGonioAromPost] = useState<{ MSD: Record<string, string>; MSI: Record<string, string> }>({ MSD: {}, MSI: {} });
+  const [showAromPost, setShowAromPost] = useState(false);
+  const [gonioAromSidePost, setGonioAromSidePost] = useState<"MSD" | "MSI">("MSD");
+  const [gonioAromPartPost, setGonioAromPartPost] = useState("hombro");
+  const [showProm, setShowProm] = useState(false);
+  const [gonioPromSide, setGonioPromSide] = useState<"MSD" | "MSI">("MSD");
+  const [gonioPromPart, setGonioPromPart] = useState("hombro");
+  const [gonioPromPre, setGonioPromPre] = useState<{ MSD: Record<string, string>; MSI: Record<string, string> }>({ MSD: {}, MSI: {} });
+  const [gonioPromPost, setGonioPromPost] = useState<{ MSD: Record<string, string>; MSI: Record<string, string> }>({ MSD: {}, MSI: {} });
+  const [showPromPost, setShowPromPost] = useState(false);
+  const [gonioPromSidePost, setGonioPromSidePost] = useState<"MSD" | "MSI">("MSD");
+  const [gonioPromPartPost, setGonioPromPartPost] = useState("hombro");
   const [tests, setTests] = useState<Record<string, TestResult>>({});
   // Circometría
-  const [edemaSano, setEdemaSano] = useState<EdemaSide>({});
-  const [edemaAfectado, setEdemaAfectado] = useState<EdemaSide>({});
+  const [edemaCircItems, setEdemaCircItems] = useState<CircometriaItem[]>([]);
   // Dinamometría 3 mediciones
   const [dynMsdVals, setDynMsdVals] = useState<[string, string, string]>(["", "", ""]);
   const [dynMsiVals, setDynMsiVals] = useState<[string, string, string]>(["", "", ""]);
@@ -77,7 +116,7 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
     pain_appearance: "", pain_location: "", pain_radiation: "",
     pain_characteristics: "", pain: "", pain_aggravating_factors: "",
     edema: "", godet_test: "",
-    arom: "", prom: "", kapandji: "",
+    kapandji: "",
     muscle_strength: "",
     sensitivity_functional: "", sensitivity_protective: "", sensitivity: "",
     trophic_state: "", scar: "", vancouver_score: "", osas_score: "",
@@ -100,16 +139,31 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
 
   const handleSave = async () => {
     setSaving(true);
-    const gonioHasValues = Object.values(gonio.MSD).some(v => v !== "") || Object.values(gonio.MSI).some(v => v !== "");
+    const buildGonioHalf = (
+      pre: { MSD: Record<string, string>; MSI: Record<string, string> },
+      post: { MSD: Record<string, string>; MSI: Record<string, string> },
+      includePost: boolean
+    ) => {
+      const result: any = {};
+      (["MSD", "MSI"] as const).forEach(side => {
+        const hasPre = Object.values(pre[side]).some(v => v !== "");
+        const hasPost = includePost && Object.values(post[side]).some(v => v !== "");
+        if (hasPre || hasPost) result[side] = { pre: hasPre ? pre[side] : null, post: hasPost ? post[side] : null };
+      });
+      return Object.keys(result).length > 0 ? result : null;
+    };
+    const aromData = showArom ? buildGonioHalf(gonioAromPre, gonioAromPost, showAromPost) : null;
+    const promData = showProm ? buildGonioHalf(gonioPromPre, gonioPromPost, showPromPost) : null;
+    const gonioHasValues = !!(aromData || promData);
     const testsHasValues = Object.values(tests).some(v => v !== null);
 
-    const edemaCirc = buildEdemaPayload(edemaSano, edemaAfectado);
+    const edemaCirc = buildCircometriaPayload(edemaCircItems);
 
     const insertData: any = {
       patient_id: patientId, professional_id: userId,
       evaluation_date: form.evaluation_date,
       pain_score: painScore[0],
-      goniometry: gonioHasValues ? { MSD: { pre: gonio.MSD, post: null }, MSI: { pre: gonio.MSI, post: null } } : null,
+      goniometry: gonioHasValues ? { arom: aromData, prom: promData } : null,
       specific_tests: testsHasValues ? tests : null,
       edema_circummetry: edemaCirc,
       dynamometer_msd: buildDyn(dynMsdVals),
@@ -122,7 +176,7 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
     const textFields = [
       "pain_appearance", "pain_location", "pain_radiation", "pain_characteristics",
       "pain", "pain_aggravating_factors", "edema", "godet_test",
-      "arom", "prom", "kapandji", "muscle_strength",
+      "kapandji", "muscle_strength",
       "sensitivity_functional", "sensitivity_protective", "sensitivity",
       "trophic_state", "scar", "posture", "emotional_state", "notes",
     ];
@@ -178,10 +232,8 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
               <div className="space-y-2">
                 <Label className="text-xs font-semibold">Circometría</Label>
                 <EdemaCircometryTable
-                  mode="admission"
-                  sano={edemaSano}
-                  afectado={edemaAfectado}
-                  onChange={({ sano, afectado }) => { setEdemaSano(sano); setEdemaAfectado(afectado); }}
+                  items={edemaCircItems}
+                  onChange={setEdemaCircItems}
                 />
               </div>
               <div className="space-y-1"><Label className="text-xs">Test de Godet</Label>
@@ -202,41 +254,183 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
           {/* SECTION 3: Movilidad */}
           <AccordionItem value="movilidad">
             <AccordionTrigger className="text-sm font-semibold">Movilidad</AccordionTrigger>
-            <AccordionContent className="space-y-3 pt-2">
-              <div className="space-y-1"><Label className="text-xs">AROM (texto libre)</Label><Textarea value={form.arom} onChange={e => u("arom", e.target.value)} rows={2} placeholder="Rangos activos por articulación..." /></div>
-              <div className="space-y-1"><Label className="text-xs">PROM (texto libre)</Label><Textarea value={form.prom} onChange={e => u("prom", e.target.value)} rows={2} placeholder="Rangos pasivos por articulación..." /></div>
-              <div className="space-y-1"><Label className="text-xs">Kapandji</Label><Input value={form.kapandji} onChange={e => u("kapandji", e.target.value)} placeholder="Ej: 8/10, distancia al pliegue 2cm" /></div>
+            <AccordionContent className="space-y-4 pt-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Kapandji</Label>
+                <Input value={form.kapandji} onChange={e => u("kapandji", e.target.value)} placeholder="Ej: 8/10, distancia al pliegue 2cm" />
+              </div>
 
-              <div className="space-y-2 pt-2">
-                <Label className="text-xs font-semibold">Goniometría estructurada</Label>
-                <Tabs value={gonioSide} onValueChange={(v) => setGonioSide(v as "MSD" | "MSI")}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="MSD">MSD</TabsTrigger>
-                    <TabsTrigger value="MSI">MSI</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                {GONIOMETRY_GROUPS.map(group => (
-                  <div key={group.label} className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">{group.label}</p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {group.fields.map(f => {
-                        const key = `${group.label.toLowerCase().replace(/\s+/g, "_")}_${f}`;
-                        return (
-                          <div key={key} className="space-y-0.5">
-                            <Label className="text-[10px] text-muted-foreground">{fieldLabel(f)}</Label>
-                            <Input
-                              type="number"
-                              className="h-7 text-xs"
-                              placeholder="°"
-                              value={gonio[gonioSide][key] || ""}
-                              onChange={e => setGonio(prev => ({ ...prev, [gonioSide]: { ...prev[gonioSide], [key]: e.target.value } }))}
-                            />
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs font-semibold text-foreground">Goniometría</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              {/* AROM */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Switch id="arom-toggle" checked={showArom} onCheckedChange={setShowArom} />
+                  <Label htmlFor="arom-toggle" className="text-xs font-semibold cursor-pointer">AROM <span className="font-normal text-muted-foreground">— Movilidad activa</span></Label>
+                </div>
+                {showArom && (
+                  <div className="space-y-4 rounded-md border border-border/50 p-3">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-foreground">PRE sesión</p>
+                      <Tabs value={gonioAromSide} onValueChange={(v) => setGonioAromSide(v as "MSD" | "MSI")}>
+                        <TabsList className="grid w-full grid-cols-2 h-8">
+                          <TabsTrigger value="MSD" className="text-xs">MSD</TabsTrigger>
+                          <TabsTrigger value="MSI" className="text-xs">MSI</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                      <Tabs value={gonioAromPart} onValueChange={setGonioAromPart}>
+                        <TabsList className="grid w-full grid-cols-5 h-8">
+                          {JOINT_TABS.map(t => (
+                            <TabsTrigger key={t.key} value={t.key} className="text-xs">{t.label}</TabsTrigger>
+                          ))}
+                        </TabsList>
+                      </Tabs>
+                      {(JOINT_GROUPS[gonioAromPart] || []).map(group => (
+                        <div key={group.label} className="space-y-1">
+                          {(JOINT_GROUPS[gonioAromPart] || []).length > 1 && <p className="text-[10px] text-muted-foreground/70">{group.label}</p>}
+                          <div className="grid grid-cols-4 gap-2">
+                            {group.fields.map(f => {
+                              const key = `${group.label.toLowerCase().replace(/\s+/g, "_")}_${f}`;
+                              return (
+                                <div key={key} className="space-y-0.5">
+                                  <Label className="text-[10px] text-muted-foreground">{fieldLabel(f)}</Label>
+                                  <Input type="number" className="h-7 text-xs" placeholder="°" value={gonioAromPre[gonioAromSide][key] || ""} onChange={e => setGonioAromPre(prev => ({ ...prev, [gonioAromSide]: { ...prev[gonioAromSide], [key]: e.target.value } }))} />
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t border-border/40 pt-3 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox checked={showAromPost} onCheckedChange={(v) => setShowAromPost(!!v)} id="arom-post-toggle" />
+                        <Label htmlFor="arom-post-toggle" className="font-normal text-xs cursor-pointer">Registrar POST sesión</Label>
+                      </div>
+                      {showAromPost && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-foreground">POST sesión</p>
+                          <Tabs value={gonioAromSidePost} onValueChange={(v) => setGonioAromSidePost(v as "MSD" | "MSI")}>
+                            <TabsList className="grid w-full grid-cols-2 h-8">
+                              <TabsTrigger value="MSD" className="text-xs">MSD</TabsTrigger>
+                              <TabsTrigger value="MSI" className="text-xs">MSI</TabsTrigger>
+                            </TabsList>
+                          </Tabs>
+                          <Tabs value={gonioAromPartPost} onValueChange={setGonioAromPartPost}>
+                            <TabsList className="grid w-full grid-cols-5 h-8">
+                              {JOINT_TABS.map(t => (
+                                <TabsTrigger key={t.key} value={t.key} className="text-xs">{t.label}</TabsTrigger>
+                              ))}
+                            </TabsList>
+                          </Tabs>
+                          {(JOINT_GROUPS[gonioAromPartPost] || []).map(group => (
+                            <div key={group.label} className="space-y-1">
+                              {(JOINT_GROUPS[gonioAromPartPost] || []).length > 1 && <p className="text-[10px] text-muted-foreground/70">{group.label}</p>}
+                              <div className="grid grid-cols-4 gap-2">
+                                {group.fields.map(f => {
+                                  const key = `${group.label.toLowerCase().replace(/\s+/g, "_")}_${f}`;
+                                  return (
+                                    <div key={key} className="space-y-0.5">
+                                      <Label className="text-[10px] text-muted-foreground">{fieldLabel(f)}</Label>
+                                      <Input type="number" className="h-7 text-xs" placeholder="°" value={gonioAromPost[gonioAromSidePost][key] || ""} onChange={e => setGonioAromPost(prev => ({ ...prev, [gonioAromSidePost]: { ...prev[gonioAromSidePost], [key]: e.target.value } }))} />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/* PROM */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Switch id="prom-toggle" checked={showProm} onCheckedChange={setShowProm} />
+                  <Label htmlFor="prom-toggle" className="text-xs font-semibold cursor-pointer">PROM <span className="font-normal text-muted-foreground">— Movilidad pasiva</span></Label>
+                </div>
+                {showProm && (
+                  <div className="space-y-4 rounded-md border border-border/50 p-3">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-foreground">PRE sesión</p>
+                      <Tabs value={gonioPromSide} onValueChange={(v) => setGonioPromSide(v as "MSD" | "MSI")}>
+                        <TabsList className="grid w-full grid-cols-2 h-8">
+                          <TabsTrigger value="MSD" className="text-xs">MSD</TabsTrigger>
+                          <TabsTrigger value="MSI" className="text-xs">MSI</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                      <Tabs value={gonioPromPart} onValueChange={setGonioPromPart}>
+                        <TabsList className="grid w-full grid-cols-5 h-8">
+                          {JOINT_TABS.map(t => (
+                            <TabsTrigger key={t.key} value={t.key} className="text-xs">{t.label}</TabsTrigger>
+                          ))}
+                        </TabsList>
+                      </Tabs>
+                      {(JOINT_GROUPS[gonioPromPart] || []).map(group => (
+                        <div key={group.label} className="space-y-1">
+                          {(JOINT_GROUPS[gonioPromPart] || []).length > 1 && <p className="text-[10px] text-muted-foreground/70">{group.label}</p>}
+                          <div className="grid grid-cols-4 gap-2">
+                            {group.fields.map(f => {
+                              const key = `${group.label.toLowerCase().replace(/\s+/g, "_")}_${f}`;
+                              return (
+                                <div key={key} className="space-y-0.5">
+                                  <Label className="text-[10px] text-muted-foreground">{fieldLabel(f)}</Label>
+                                  <Input type="number" className="h-7 text-xs" placeholder="°" value={gonioPromPre[gonioPromSide][key] || ""} onChange={e => setGonioPromPre(prev => ({ ...prev, [gonioPromSide]: { ...prev[gonioPromSide], [key]: e.target.value } }))} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t border-border/40 pt-3 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox checked={showPromPost} onCheckedChange={(v) => setShowPromPost(!!v)} id="prom-post-toggle" />
+                        <Label htmlFor="prom-post-toggle" className="font-normal text-xs cursor-pointer">Registrar POST sesión</Label>
+                      </div>
+                      {showPromPost && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-foreground">POST sesión</p>
+                          <Tabs value={gonioPromSidePost} onValueChange={(v) => setGonioPromSidePost(v as "MSD" | "MSI")}>
+                            <TabsList className="grid w-full grid-cols-2 h-8">
+                              <TabsTrigger value="MSD" className="text-xs">MSD</TabsTrigger>
+                              <TabsTrigger value="MSI" className="text-xs">MSI</TabsTrigger>
+                            </TabsList>
+                          </Tabs>
+                          <Tabs value={gonioPromPartPost} onValueChange={setGonioPromPartPost}>
+                            <TabsList className="grid w-full grid-cols-5 h-8">
+                              {JOINT_TABS.map(t => (
+                                <TabsTrigger key={t.key} value={t.key} className="text-xs">{t.label}</TabsTrigger>
+                              ))}
+                            </TabsList>
+                          </Tabs>
+                          {(JOINT_GROUPS[gonioPromPartPost] || []).map(group => (
+                            <div key={group.label} className="space-y-1">
+                              {(JOINT_GROUPS[gonioPromPartPost] || []).length > 1 && <p className="text-[10px] text-muted-foreground/70">{group.label}</p>}
+                              <div className="grid grid-cols-4 gap-2">
+                                {group.fields.map(f => {
+                                  const key = `${group.label.toLowerCase().replace(/\s+/g, "_")}_${f}`;
+                                  return (
+                                    <div key={key} className="space-y-0.5">
+                                      <Label className="text-[10px] text-muted-foreground">{fieldLabel(f)}</Label>
+                                      <Input type="number" className="h-7 text-xs" placeholder="°" value={gonioPromPost[gonioPromSidePost][key] || ""} onChange={e => setGonioPromPost(prev => ({ ...prev, [gonioPromSidePost]: { ...prev[gonioPromSidePost], [key]: e.target.value } }))} />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -421,6 +615,38 @@ function AnalEvalDetailContent({ evaluation }: { evaluation: any }) {
           {(() => {
             const c: any = e.edema_circummetry;
             if (!c) return null;
+            if (isCircometriaFormat(c)) {
+              const items = normalizeCircometriaValue(c);
+              if (items.length === 0) return null;
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">Reparo anatómico</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">MSD</th>
+                        <th className="text-left py-1.5 px-2 font-medium text-muted-foreground">MSI</th>
+                        <th className="text-center py-1.5 px-2 font-medium text-muted-foreground">Dif.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item, i) => {
+                        const d = parseFloat(item.msd), s = parseFloat(item.msi);
+                        const dif = !isNaN(d) && !isNaN(s) ? `${(s - d) >= 0 ? "+" : ""}${(s - d).toFixed(1)}` : "—";
+                        return (
+                          <tr key={i} className="border-b border-border/50">
+                            <td className="py-1 px-2">{item.reparo || "—"}</td>
+                            <td className="py-1 px-2">{item.msd ? `${item.msd} cm` : "—"}</td>
+                            <td className="py-1 px-2">{item.msi ? `${item.msi} cm` : "—"}</td>
+                            <td className="py-1 px-2 text-center">{dif}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }
             if (isNewEdemaFormat(c)) {
               const norm = normalizeEdemaValue(c);
               const sanoEntries = EDEMA_POINTS.filter(p => norm.sano[p.key] != null && norm.sano[p.key] !== "");
@@ -440,8 +666,7 @@ function AnalEvalDetailContent({ evaluation }: { evaluation: any }) {
                     <tbody>
                       {EDEMA_POINTS.map(p => {
                         const s = norm.sano[p.key], a = norm.afectado[p.key];
-                        const has = (s != null && s !== "") || (a != null && a !== "");
-                        if (!has) return null;
+                        if ((s == null || s === "") && (a == null || a === "")) return null;
                         return (
                           <tr key={p.key} className="border-b border-border/50">
                             <td className="py-1 px-2">{p.label}</td>
@@ -469,71 +694,63 @@ function AnalEvalDetailContent({ evaluation }: { evaluation: any }) {
       <AccordionItem value="movilidad">
         <AccordionTrigger className="text-sm font-semibold">Movilidad</AccordionTrigger>
         <AccordionContent className="space-y-3 pt-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Row label="AROM" value={e.arom} />
-            <Row label="PROM" value={e.prom} />
-            <Row label="Kapandji" value={e.kapandji} />
-          </div>
+          <Row label="Kapandji" value={e.kapandji} />
           {(() => {
-            const partMap: Record<string, string> = {
-              shoulder: "Hombro", elbow: "Codo", wrist: "Muñeca", hand: "Mano", thumb: "Pulgar",
-            };
-
-            const renderPart = (data: any) => {
-              if (!data || !data.body_part) return null;
-              const partName = partMap[data.body_part] || data.body_part;
-              const values = data.values || {};
-              const entries = Object.entries(values).filter(([, v]) => v !== "" && v != null);
-              if (entries.length === 0) return null;
-              const valuesStr = entries.map(([k, v]) => `${k}: ${v}°`).join(" · ");
-              return <span key={data.body_part}>{partName}: {valuesStr}</span>;
-            };
-
-            const renderGroup = (group: any, label: string) => {
-              if (!group) return null;
-              if (Array.isArray(group)) {
-                const rendered = group.map(renderPart).filter(Boolean);
-                if (rendered.length === 0) return null;
-                return (
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                    <div className="text-sm space-y-0.5">{rendered.map((r, i) => <p key={i}>{r}</p>)}</div>
-                  </div>
-                );
-              }
-              if (group.body_part) {
-                const r = renderPart(group);
-                if (!r) return null;
-                return (
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                    <p className="text-sm">{r}</p>
-                  </div>
-                );
-              }
-              return null;
-            };
-
             if (!gonioData) return null;
 
-            const hasPre = gonioData && "pre" in gonioData && gonioData.pre;
-            const hasPost = gonioData && "post" in gonioData && gonioData.post;
-
-            if (hasPre || hasPost) {
+            const renderMoment = (vals: Record<string, string>, label: string) => {
+              const entries = Object.entries(vals).filter(([, v]) => v !== "" && v != null);
+              if (entries.length === 0) return null;
               return (
-                <div className="space-y-3">
-                  {renderGroup((gonioData as any).pre, "Goniometría PRE")}
-                  {renderGroup((gonioData as any).post, "Goniometría POST")}
+                <div className="space-y-1">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                    {entries.map(([key, val]) => (
+                      <div key={key} className="bg-muted/50 rounded px-2 py-1">
+                        <p className="text-[10px] text-muted-foreground leading-tight">{GONIO_KEY_LABEL[key] || key}</p>
+                        <p className="text-xs font-medium">{String(val)}°</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            };
+
+            const renderBlock = (blockData: any, title: string) => {
+              if (!blockData) return null;
+              const sides = (["MSD", "MSI"] as const).filter(s => blockData[s]);
+              if (sides.length === 0) return null;
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground">{title}</p>
+                  {sides.map(side => (
+                    <div key={side} className="space-y-2 rounded border border-border/40 p-2">
+                      <p className="text-xs font-medium text-muted-foreground">{side}</p>
+                      {blockData[side]?.pre && renderMoment(blockData[side].pre, "PRE sesión")}
+                      {blockData[side]?.post && renderMoment(blockData[side].post, "POST sesión")}
+                    </div>
+                  ))}
+                </div>
+              );
+            };
+
+            if (gonioData.arom || gonioData.prom) {
+              return (
+                <div className="space-y-4">
+                  {renderBlock(gonioData.arom, "AROM")}
+                  {renderBlock(gonioData.prom, "PROM")}
                 </div>
               );
             }
 
-            if (Object.values(gonioData).some(v => v !== "" && v != null && typeof v !== "object")) {
+            // legacy flat format
+            const entries = Object.entries(gonioData).filter(([, v]) => v !== "" && v != null && typeof v !== "object");
+            if (entries.length > 0) {
               return (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground">Goniometría</p>
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
-                    {Object.entries(gonioData).filter(([, v]) => v !== "" && v != null && typeof v !== "object").map(([key, val]) => (
+                    {entries.map(([key, val]) => (
                       <div key={key} className="bg-muted/50 rounded px-2 py-1">
                         <p className="text-[10px] text-muted-foreground">{key}</p>
                         <p className="text-xs font-medium">{String(val)}°</p>
