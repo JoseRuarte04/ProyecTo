@@ -16,6 +16,7 @@ import NewPatientForm from "./components/patients/NewPatientForm";
 import NotFound from "./pages/NotFound";
 import AnalyticalEvaluationPage from "./pages/AnalyticalEvaluationPage";
 import FunctionalEvaluationPage from "./pages/FunctionalEvaluationPage";
+import QuickDashPublicPage from "./pages/QuickDashPublicPage";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="appointments" element={<Appointments />} />
               <Route path="exercises" element={<Exercises />} />
             </Route>
+            <Route path="/q/:token" element={<QuickDashPublicPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

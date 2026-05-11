@@ -21,6 +21,8 @@ import {
   ArrowLeft,
   Loader2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Calendar,
   FileText,
   BarChart2,
@@ -45,7 +47,28 @@ import {
   calcFimTotal,
   calcBarthelTotal,
 } from "@/components/evaluations/FunctionalScales";
-import { EdemaCircometryTable, buildEdemaPayload, normalizeEdemaValue, isNewEdemaFormat, type EdemaSide } from "@/components/clinical/EdemaCircometryTable";
+import { EdemaCircometryTable, buildCircometriaPayload, normalizeCircometriaValue, isCircometriaFormat, type CircometriaItem } from "@/components/clinical/EdemaCircometryTable";
+import { QuickDashTokenManager } from "@/components/evaluations/QuickDashTokenManager";
+
+// ── Wizard steps ──
+type StepDef = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; sections: string[] };
+
+const STEPS_ADMISSION: StepDef[] = [
+  { id: "step-datos",       label: "Datos",                  icon: Calendar,      sections: ["sec-datos"] },
+  { id: "step-ficha",       label: "Ficha clínica",          icon: Stethoscope,   sections: ["sec-ficha"] },
+  { id: "step-ocupacional", label: "Perfil ocupacional",     icon: Briefcase,     sections: ["sec-ocupacional"] },
+  { id: "step-funcional",   label: "Eval. funcional",        icon: ClipboardList, sections: ["sec-funcional"] },
+  { id: "step-analitica",   label: "Eval. analítica",        icon: BarChart2,     sections: ["sec-analitica"] },
+  { id: "step-cierre",      label: "Intervenciones y notas", icon: MessageSquare, sections: ["sec-intervenciones", "sec-notas"] },
+];
+
+const STEPS_SESSION: StepDef[] = [
+  { id: "step-datos",       label: "Datos",                  icon: Calendar,      sections: ["sec-datos"] },
+  { id: "step-funcional",   label: "Eval. funcional",        icon: ClipboardList, sections: ["sec-funcional"] },
+  { id: "step-evolucion",   label: "Evolución",              icon: FileText,      sections: ["sec-evolucion"] },
+  { id: "step-analitica",   label: "Eval. analítica",        icon: BarChart2,     sections: ["sec-analitica"] },
+  { id: "step-cierre",      label: "Intervenciones y notas", icon: MessageSquare, sections: ["sec-intervenciones", "sec-notas"] },
+];
 
 // ── Goniometry config by body part ──
 const GONIO_PARTS = {
@@ -164,6 +187,16 @@ const VSS_OPTIONS = {
 };
 
 const SCAR_PLACEHOLDER = "No evaluado";
+
+const parseDyn = (v: any): [string, string, string] => {
+  if (v == null) return ["", "", ""];
+  if (typeof v === "object" && Array.isArray(v.values)) {
+    const a = v.values;
+    return [a[0] != null ? String(a[0]) : "", a[1] != null ? String(a[1]) : "", a[2] != null ? String(a[2]) : ""];
+  }
+  if (typeof v === "number") return [String(v), "", ""];
+  return ["", "", ""];
+};
 
 // ── Reusable wrappers ──
 function SectionCard({
@@ -356,8 +389,7 @@ export default function SessionForm() {
   const [saving, setSaving] = useState(false);
   const [editingFuncEval, setEditingFuncEval] = useState<any>(null);
   const [editingAnalEval, setEditingAnalEval] = useState<any>(null);
-  const [activeSection, setActiveSection] = useState("sec-datos");
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [currentStep, setCurrentStep] = useState(0);
 
   // Form state
   const [session_date, setSessionDate] = useState(new Date().toISOString().split("T")[0]);
@@ -410,16 +442,17 @@ export default function SessionForm() {
   const [editingOccId, setEditingOccId] = useState<string | null>(null);
 
   // Functional eval toggle (default on for admission, off for follow_up/discharge)
-  const [showFunctional, setShowFunctional] = useState(typeParam === "admission");
+  const [showFunctional, setShowFunctional] = useState(true);
 
   // Analytical evaluation (master toggle)
-  const [show_measurements, setShowMeasurements] = useState(false);
+  const [show_measurements, setShowMeasurements] = useState(true);
 
   // Per-subsection toggles
   const [showPain, setShowPain] = useState(true);
   const [showEdema, setShowEdema] = useState(false);
   const [showMobility, setShowMobility] = useState(false);
   const [showStrength, setShowStrength] = useState(false);
+  const [affected_side, setAffectedSide] = useState<"MSD" | "MSI" | "both" | null>(null);
   const [showSensitivity, setShowSensitivity] = useState(false);
   const [showCicatriz, setShowCicatriz] = useState(false);
   const [showSpecificTests, setShowSpecificTests] = useState(false);
@@ -440,10 +473,8 @@ export default function SessionForm() {
   const [edema_obs, setEdemaObs] = useState("");
   const [godet_test, setGodetTest] = useState("");
 
-  // Circometría (tabla MS Sano / MS Afectado)
-  const [edema_circ_sano, setEdemaCircSano] = useState<EdemaSide>({});
-  const [edema_circ_afectado, setEdemaCircAfectado] = useState<EdemaSide>({});
-  const [edema_baseline_sano, setEdemaBaselineSano] = useState<EdemaSide | null>(null);
+  // Circometría (reparos anatómicos con MSD / MSI)
+  const [edema_circ_items, setEdemaCircItems] = useState<CircometriaItem[]>([]);
 
   // Goniometry PRE/POST — por lado MSD/MSI, nested by part
   type GonioBySide = Record<"MSD" | "MSI", Record<GonioPartKey, Record<string, string>>>;
@@ -452,7 +483,16 @@ export default function SessionForm() {
   const [gonio_side, setGonioSide] = useState<"MSD" | "MSI">("MSD");
   const [gonio_part, setGonioPart] = useState<GonioPartKey>("wrist");
   const [all_pre_gonio, setAllPreGonio] = useState<GonioBySide>(emptyGonio);
-  const [show_post_gonio, setShowPostGonio] = useState(false);
+  const [show_arom, setShowArom] = useState(true);
+  const [show_arom_post, setShowAromPost] = useState(false);
+  const [gonio_side_arom_post, setGonioSideAromPost] = useState<"MSD" | "MSI">("MSD");
+  const [gonio_part_arom_post, setGonioPartAromPost] = useState<GonioPartKey>("wrist");
+  const [all_arom_post_gonio, setAllAromPostGonio] = useState<GonioBySide>(emptyGonio);
+  const [show_prom, setShowProm] = useState(false);
+  const [gonio_side_prom_pre, setGonioSidePromPre] = useState<"MSD" | "MSI">("MSD");
+  const [gonio_part_prom_pre, setGonioPartPromPre] = useState<GonioPartKey>("wrist");
+  const [all_prom_pre_gonio, setAllPromPreGonio] = useState<GonioBySide>(emptyGonio);
+  const [show_prom_post, setShowPromPost] = useState(false);
   const [gonio_side_post, setGonioSidePost] = useState<"MSD" | "MSI">("MSD");
   const [gonio_part_post, setGonioPartPost] = useState<GonioPartKey>("wrist");
   const [all_post_gonio, setAllPostGonio] = useState<GonioBySide>(emptyGonio);
@@ -586,10 +626,8 @@ export default function SessionForm() {
           setGodetTest(ae.godet_test || "");
           setShowEdema(!!(ae.edema || ae.godet_test || ae.edema_circummetry));
           const circ: any = ae.edema_circummetry;
-          if (isNewEdemaFormat(circ)) {
-            const norm = normalizeEdemaValue(circ);
-            setEdemaCircSano(norm.sano);
-            setEdemaCircAfectado(norm.afectado);
+          if (isCircometriaFormat(circ)) {
+            setEdemaCircItems(normalizeCircometriaValue(circ));
           }
           setShowMobility(!!(ae.goniometry || ae.arom || ae.prom || ae.kapandji));
           if (ae.goniometry && typeof ae.goniometry === "object") {
@@ -599,30 +637,47 @@ export default function SessionForm() {
               return base;
             };
             const g: any = ae.goniometry;
-            const hasNew = g.MSD || g.MSI;
-            if (hasNew) {
-              setAllPreGonio({ MSD: toGonio(g.MSD?.pre), MSI: toGonio(g.MSI?.pre) });
-              setAllPostGonio({ MSD: toGonio(g.MSD?.post), MSI: toGonio(g.MSI?.post) });
-              const hasPost = (Array.isArray(g.MSD?.post) && g.MSD.post.length) || (Array.isArray(g.MSI?.post) && g.MSI.post.length);
-              setShowPostGonio(!!hasPost);
+            if (g.arom !== undefined || g.prom !== undefined) {
+              const aromData = g.arom || {};
+              const promData = g.prom || {};
+              // AROM: detect new { pre, post } format vs old array-per-side
+              if (aromData.MSD?.pre !== undefined || aromData.MSD?.post !== undefined || aromData.MSI?.pre !== undefined) {
+                setAllPreGonio({ MSD: toGonio(aromData.MSD?.pre), MSI: toGonio(aromData.MSI?.pre) });
+                setAllAromPostGonio({ MSD: toGonio(aromData.MSD?.post), MSI: toGonio(aromData.MSI?.post) });
+                setShowAromPost(!!(aromData.MSD?.post || aromData.MSI?.post));
+              } else {
+                setAllPreGonio({ MSD: toGonio(aromData.MSD), MSI: toGonio(aromData.MSI) });
+              }
+              setShowArom(!!(aromData.MSD || aromData.MSI));
+              // PROM: detect new { pre, post } format vs old array-per-side
+              if (promData.MSD?.pre !== undefined || promData.MSD?.post !== undefined || promData.MSI?.pre !== undefined) {
+                setAllPromPreGonio({ MSD: toGonio(promData.MSD?.pre), MSI: toGonio(promData.MSI?.pre) });
+                setAllPostGonio({ MSD: toGonio(promData.MSD?.post), MSI: toGonio(promData.MSI?.post) });
+                setShowPromPost(!!(promData.MSD?.post || promData.MSI?.post));
+              } else {
+                setAllPostGonio({ MSD: toGonio(promData.MSD), MSI: toGonio(promData.MSI) });
+              }
+              setShowProm(!!(promData.MSD || promData.MSI));
             } else {
-              // Legacy { pre, post } → bajo MSD
-              setAllPreGonio({ MSD: toGonio(g.pre), MSI: emptySide() });
-              setAllPostGonio({ MSD: toGonio(g.post), MSI: emptySide() });
-              setShowPostGonio(Array.isArray(g.post) && g.post.length > 0);
+              const hasNew = g.MSD || g.MSI;
+              if (hasNew) {
+                setAllPreGonio({ MSD: toGonio(g.MSD?.pre), MSI: toGonio(g.MSI?.pre) });
+                setAllPostGonio({ MSD: toGonio(g.MSD?.post), MSI: toGonio(g.MSI?.post) });
+                const hasPost = (Array.isArray(g.MSD?.post) && g.MSD.post.length) || (Array.isArray(g.MSI?.post) && g.MSI.post.length);
+                setShowArom(true);
+                setShowProm(!!hasPost);
+              } else {
+                // Legacy { pre, post } → bajo MSD
+                setAllPreGonio({ MSD: toGonio(g.pre), MSI: emptySide() });
+                setAllPostGonio({ MSD: toGonio(g.post), MSI: emptySide() });
+                setShowArom(true);
+                setShowProm(Array.isArray(g.post) && g.post.length > 0);
+              }
             }
           }
           const kap = ae.kapandji || "";
           setKapandjiVal(kap.match(/^(\d+)/)?.[1] || "");
           setKapandjiPain(kap.includes("dolor"));
-          const parseDyn = (v: any): [string, string, string] => {
-            if (v == null) return ["", "", ""];
-            if (typeof v === "object" && Array.isArray(v.values)) {
-              const a = v.values; return [a[0]!=null?String(a[0]):"", a[1]!=null?String(a[1]):"", a[2]!=null?String(a[2]):""];
-            }
-            if (typeof v === "number") return [String(v), "", ""];
-            return ["", "", ""];
-          };
           setDynMsdVals(parseDyn(ae.dynamometer_msd));
           setDynMsiVals(parseDyn(ae.dynamometer_msi));
           setShowStrength(!!(ae.dynamometer_msd || ae.dynamometer_msi || ae.muscle_strength || ae.muscle_strength_daniels || ae.dppd_fingers));
@@ -727,22 +782,39 @@ export default function SessionForm() {
         setOccHealthManagement(occRow.health_management || "");
       }
 
-      // Cargar baseline MS Sano (de la sesión de admisión del episodio) para follow_up/discharge
-      if (!isAdmission && patientId) {
-        const q: any = (supabase as any).from("sessions").select("id").eq("patient_id", patientId).eq("session_type", "admission");
-        const { data: admSession } = epId
-          ? await q.eq("episode_id", epId).maybeSingle()
-          : await q.maybeSingle();
-        if (admSession?.id) {
-          const { data: admEval } = await supabase
-            .from("analytical_evaluations")
-            .select("edema_circummetry")
-            .eq("session_id", String(admSession.id))
+      // Cargar affected_side del episodio
+      if (activeEpisodeId) {
+        const { data: epRow } = await supabase
+          .from("treatment_episodes")
+          .select("affected_side")
+          .eq("id", activeEpisodeId)
+          .maybeSingle();
+        const affSide = (epRow?.affected_side as "MSD" | "MSI" | "both" | null) ?? null;
+        if (affSide) setAffectedSide(affSide);
+
+        // Pre-poblar lado NO afectado con valores de la sesión anterior (solo follow-up nuevo)
+        if (!sessionId && !isAdmission && affSide && affSide !== "both") {
+          const { data: lastSess } = await supabase
+            .from("therapy_sessions")
+            .select("id")
+            .eq("episode_id", activeEpisodeId)
+            .order("session_date", { ascending: false })
+            .limit(1)
             .maybeSingle();
-          const c: any = admEval?.edema_circummetry;
-          if (isNewEdemaFormat(c) && c.sano) setEdemaBaselineSano(c.sano);
+          if (lastSess) {
+            const { data: lastAe } = await supabase
+              .from("analytical_evaluations")
+              .select("dynamometer_msd, dynamometer_msi")
+              .eq("session_id", lastSess.id)
+              .maybeSingle();
+            if (lastAe) {
+              if (affSide === "MSI") setDynMsdVals(parseDyn(lastAe.dynamometer_msd));
+              if (affSide === "MSD") setDynMsiVals(parseDyn(lastAe.dynamometer_msi));
+            }
+          }
         }
       }
+
     })();
   }, [patientId, activeEpisodeId]);
 
@@ -836,18 +908,29 @@ export default function SessionForm() {
 
     // ── Edema circometría (gated) — JSONB tabla ──
     const edemaCirc = showEdema
-      ? buildEdemaPayload(edema_circ_sano, edema_circ_afectado)
+      ? buildCircometriaPayload(edema_circ_items)
       : null;
 
     // ── Mobility (gated) — por lado MSD/MSI ──
-    const buildSideJsonb = (allVals: GonioBySide) => {
-      const out: any = {};
+    const buildSideJsonb = () => {
+      const arom: any = {};
+      const prom: any = {};
       (["MSD", "MSI"] as const).forEach((side) => {
-        const pre = showMobility ? buildAllGonioJsonArray(allVals[side]) : null;
-        const post = showMobility && show_post_gonio ? buildAllGonioJsonArray(all_post_gonio[side]) : null;
-        if (pre || post) out[side] = { pre, post };
+        if (showMobility && show_arom) {
+          const pre = buildAllGonioJsonArray(all_pre_gonio[side]);
+          const post = show_arom_post ? buildAllGonioJsonArray(all_arom_post_gonio[side]) : null;
+          if (pre || post) arom[side] = { pre: pre ?? null, post: post ?? null };
+        }
+        if (showMobility && show_prom) {
+          const pre = buildAllGonioJsonArray(all_prom_pre_gonio[side]);
+          const post = show_prom_post ? buildAllGonioJsonArray(all_post_gonio[side]) : null;
+          if (pre || post) prom[side] = { pre: pre ?? null, post: post ?? null };
+        }
       });
-      return Object.keys(out).length > 0 ? out : null;
+      const hasArom = Object.keys(arom).length > 0;
+      const hasProm = Object.keys(prom).length > 0;
+      if (!hasArom && !hasProm) return null;
+      return { arom: hasArom ? arom : null, prom: hasProm ? prom : null };
     };
     const buildSideText = (allVals: GonioBySide) => {
       const parts: string[] = [];
@@ -857,9 +940,9 @@ export default function SessionForm() {
       });
       return parts.length > 0 ? parts.join(" ") : null;
     };
-    const aromVal = showMobility ? buildSideText(all_pre_gonio) : null;
-    const promVal = showMobility && show_post_gonio ? buildSideText(all_post_gonio) : null;
-    const gonioJsonb = showMobility ? buildSideJsonb(all_pre_gonio) : null;
+    const aromVal = showMobility && show_arom ? buildSideText(all_pre_gonio) : null;
+    const promVal = showMobility && show_prom ? buildSideText(all_prom_pre_gonio) : null;
+    const gonioJsonb = showMobility ? buildSideJsonb() : null;
     const kapandjiFinal = showMobility && kapandji_val ? `${kapandji_val}/10${kapandji_pain ? " con dolor" : ""}` : null;
 
     // ── Dinamometría: 3 mediciones + promedio ──
@@ -953,6 +1036,9 @@ export default function SessionForm() {
         pharmacological_treatment: cli_pharma.trim() || null,
         studies: cli_studies.trim() || null,
       };
+      if (activeEpisodeId) {
+        await supabase.from("treatment_episodes").update({ affected_side: affected_side ?? null }).eq("id", activeEpisodeId);
+      }
       if (editingClinicalId) {
         const { error: cliErr } = await supabase.from("patient_clinical_records").update(cliPayload).eq("id", editingClinicalId);
         if (cliErr) { setSaving(false); toast.error("Error al guardar ficha clínica: " + cliErr.message); return; }
@@ -1271,26 +1357,13 @@ export default function SessionForm() {
     "sec-notas": !!(notes || home_instructions_sent),
   };
 
-  const indexSections = [
-    { id: "sec-datos",         label: "Datos",          icon: Calendar,     show: true },
-    { id: "sec-ficha",         label: "Ficha clínica",  icon: Stethoscope,  show: isAdmission },
-    { id: "sec-ocupacional",   label: "Ocupacional",    icon: Briefcase,    show: isAdmission },
-    { id: "sec-funcional",     label: "Funcional",      icon: ClipboardList,show: true },
-    { id: "sec-evolucion",     label: "Evolución",      icon: FileText,     show: !isAdmission },
-    { id: "sec-analitica",     label: "Analítica",      icon: BarChart2,    show: true },
-    { id: "sec-intervenciones",label: "Intervenciones", icon: ClipboardList,show: true },
-    { id: "sec-notas",         label: "Notas",          icon: MessageSquare,show: true },
-  ].filter(s => s.show);
-
-  const scrollToSection = (sectionId: string) => {
-    const container = scrollContainerRef.current;
-    const el = document.getElementById(sectionId);
-    if (!container || !el) return;
-    const containerTop = container.getBoundingClientRect().top;
-    const elTop = el.getBoundingClientRect().top;
-    container.scrollTop += elTop - containerTop - 16;
-    setActiveSection(sectionId);
-  };
+  const steps = isAdmission ? STEPS_ADMISSION : STEPS_SESSION;
+  const goToStep = (idx: number) => setCurrentStep(Math.max(0, Math.min(steps.length - 1, idx)));
+  const prevStep = () => goToStep(currentStep - 1);
+  const nextStep = () => goToStep(currentStep + 1);
+  const isLastStep = currentStep === steps.length - 1;
+  const currentSections = steps[currentStep].sections;
+  const stepDone = (step: StepDef) => step.sections.every(sid => sectionDone[sid] ?? false);
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -1319,14 +1392,14 @@ export default function SessionForm() {
         {/* Index lateral sticky */}
         <aside className="w-44 shrink-0 border-r border-border hidden lg:flex flex-col overflow-y-auto bg-background">
           <nav className="p-3 pt-4 space-y-0.5">
-            {indexSections.map(s => {
-              const done = sectionDone[s.id];
-              const isActive = activeSection === s.id;
+            {steps.map((s, idx) => {
+              const done = stepDone(s);
+              const isActive = currentStep === idx;
               return (
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => scrollToSection(s.id)}
+                  onClick={() => goToStep(idx)}
                   className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-left text-xs transition-colors ${
                     isActive
                       ? "bg-primary/10 text-primary font-medium"
@@ -1348,10 +1421,32 @@ export default function SessionForm() {
         </aside>
 
         {/* Scrollable form content */}
-        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto">
+          {/* Mobile step indicator */}
+          <div className="lg:hidden flex items-center justify-between px-4 pt-4 pb-2 border-b border-border">
+            <button
+              type="button"
+              onClick={prevStep}
+              disabled={currentStep === 0}
+              className="flex items-center gap-1 text-xs text-muted-foreground disabled:opacity-40"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {currentStep > 0 ? steps[currentStep - 1].label : ""}
+            </button>
+            <span className="text-xs font-medium">{steps[currentStep].label} · {currentStep + 1}/{steps.length}</span>
+            <button
+              type="button"
+              onClick={nextStep}
+              disabled={isLastStep}
+              className="flex items-center gap-1 text-xs text-muted-foreground disabled:opacity-40"
+            >
+              {!isLastStep ? steps[currentStep + 1].label : ""}
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
           <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Card 1: Datos de la sesión */}
-        <SectionCard id="sec-datos" icon={Calendar} title="Datos de la sesión">
+        {currentSections.includes("sec-datos") && <SectionCard id="sec-datos" icon={Calendar} title="Datos de la sesión">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel>Fecha *</FieldLabel>
@@ -1415,10 +1510,10 @@ export default function SessionForm() {
               />
             </div>
           )}
-        </SectionCard>
+        </SectionCard>}
 
         {/* Ficha clínica (admission only) */}
-        {isAdmission && (
+        {isAdmission && currentSections.includes("sec-ficha") && (
           <SectionCard id="sec-ficha" icon={Stethoscope} title="Ficha clínica">
             <div className="space-y-4">
               <div>
@@ -1458,7 +1553,7 @@ export default function SessionForm() {
         )}
 
         {/* Perfil ocupacional (admission only, sin AVD/AIVD) */}
-        {isAdmission && (
+        {isAdmission && currentSections.includes("sec-ocupacional") && (
           <SectionCard id="sec-ocupacional" icon={Briefcase} title="Perfil ocupacional">
             <div className="space-y-4">
               <div>
@@ -1484,22 +1579,19 @@ export default function SessionForm() {
         )}
 
         {/* Functional eval */}
-        <SectionCard
+        {currentSections.includes("sec-funcional") && <SectionCard
           id="sec-funcional"
           icon={ClipboardList}
           title="Evaluación funcional"
-          toggle={{ checked: showFunctional, onChange: setShowFunctional }}
-          badge={showFunctional ? (
+          action={
             <div className="flex gap-1">
               {(() => { const s = calcQuickDashScore(qd_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">QuickDASH {s.toFixed(0)}/100</Badge> : null; })()}
               {(() => { const s = calcFimTotal(fim_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">FIM {s}/126</Badge> : null; })()}
               {(() => { const s = calcBarthelTotal(barthel_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">Barthel {s}/100</Badge> : null; })()}
             </div>
-          ) : null}
+          }
         >
           <div className="space-y-5">
-            <QuickDashSection items={qd_items} onChange={setQdItems} />
-            <BarthelSection items={barthel_items} onChange={setBarthelItems} />
             <div className="space-y-2">
               <Label>AVD — Actividades de la vida diaria</Label>
               <Textarea rows={3} value={func_avd} onChange={(e) => setFuncAvd(e.target.value)} />
@@ -1508,12 +1600,17 @@ export default function SessionForm() {
               <Label>AIVD — Actividades instrumentales</Label>
               <Textarea rows={3} value={func_aivd} onChange={(e) => setFuncAivd(e.target.value)} />
             </div>
+            <BarthelSection items={barthel_items} onChange={setBarthelItems} />
             <FimSection items={fim_items} onChange={setFimItems} />
+            {isEditMode
+              ? <QuickDashTokenManager sessionId={sessionId!} patientId={patientId!} items={qd_items} onChange={setQdItems} />
+              : <QuickDashSection items={qd_items} onChange={setQdItems} />
+            }
           </div>
-        </SectionCard>
+        </SectionCard>}
 
         {/* Card 2: Evolución (no en admisión) */}
-        {!isAdmission && (
+        {!isAdmission && currentSections.includes("sec-evolucion") && (
         <SectionCard id="sec-evolucion" icon={FileText} title="Evolución">
           <div className="space-y-4">
             <div>
@@ -1549,11 +1646,10 @@ export default function SessionForm() {
         )}
 
         {/* Card 3: Evaluación analítica */}
-        <SectionCard
+        {currentSections.includes("sec-analitica") && <SectionCard
           id="sec-analitica"
           icon={BarChart2}
           title="Evaluación analítica"
-          toggle={{ checked: show_measurements, onChange: setShowMeasurements, label: "Incluir evaluación analítica" }}
         >
           {/* Dolor */}
           <SubSection title="Dolor" checked={showPain} onChange={setShowPain} withDivider={false}>
@@ -1648,8 +1744,11 @@ export default function SessionForm() {
           {/* Edema */}
           <SubSection title="Edema" checked={showEdema} onChange={setShowEdema}>
             <div>
-              <Label>Observación</Label>
-              <Textarea rows={2} value={edema_obs} onChange={(e) => setEdemaObs(e.target.value)} className={textareaClass} />
+              <h4 className="text-xs font-medium text-muted-foreground mb-2">Circometría</h4>
+              <EdemaCircometryTable
+                items={edema_circ_items}
+                onChange={setEdemaCircItems}
+              />
             </div>
             <div>
               <Label>Test de Godet</Label>
@@ -1668,51 +1767,115 @@ export default function SessionForm() {
               </Select>
             </div>
             <div>
-              <h4 className="text-xs font-medium text-muted-foreground mb-2">Circometría</h4>
-              <EdemaCircometryTable
-                mode={isAdmission ? "admission" : "follow_up"}
-                baselineSano={edema_baseline_sano}
-                sano={edema_circ_sano}
-                afectado={edema_circ_afectado}
-                onChange={({ sano, afectado }) => { setEdemaCircSano(sano); setEdemaCircAfectado(afectado); }}
-              />
+              <Label>Observación</Label>
+              <Textarea rows={2} value={edema_obs} onChange={(e) => setEdemaObs(e.target.value)} className={textareaClass} />
             </div>
           </SubSection>
 
           {/* Movilidad */}
           <SubSection title="Movilidad" checked={showMobility} onChange={setShowMobility}>
-            <Tabs value={gonio_side} onValueChange={(v) => { setGonioSide(v as "MSD" | "MSI"); setGonioSidePost(v as "MSD" | "MSI"); }} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="MSD">MSD</TabsTrigger>
-                <TabsTrigger value="MSI">MSI</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div>
-              <h4 className="text-xs font-medium text-muted-foreground mb-2">Goniometría PRE — {gonio_side}</h4>
-              <GonioPartSelector value={gonio_part} onChange={setGonioPart} allValues={all_pre_gonio[gonio_side]} />
-              <GonioGrid
-                partKey={gonio_part}
-                values={all_pre_gonio[gonio_side][gonio_part]}
-                setValues={(v) => setAllPreGonio((prev) => ({ ...prev, [gonio_side]: { ...prev[gonio_side], [gonio_part]: v } }))}
-              />
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-sm font-semibold text-foreground">Goniometría</span>
+              <div className="flex-1 h-px bg-border" />
             </div>
-            <div className="pt-2">
-              <div className="flex items-center gap-2 mb-2">
-                <Checkbox checked={show_post_gonio} onCheckedChange={(v) => setShowPostGonio(!!v)} id="post-gonio-sf" />
-                <Label htmlFor="post-gonio-sf" className="font-normal text-sm cursor-pointer">
-                  Registrar goniometría POST
-                </Label>
+
+            {/* AROM */}
+            <div className="space-y-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Switch checked={show_arom} onCheckedChange={setShowArom} id="arom-sf" />
+                <Label htmlFor="arom-sf" className="font-normal text-sm cursor-pointer">AROM <span className="font-normal text-muted-foreground text-xs">— Movilidad activa</span></Label>
               </div>
-              {show_post_gonio && (
-                <>
-                  <h4 className="text-xs font-medium text-muted-foreground mb-2">Goniometría POST — {gonio_side}</h4>
-                  <GonioPartSelector value={gonio_part_post} onChange={setGonioPartPost} allValues={all_post_gonio[gonio_side]} />
-                  <GonioGrid
-                    partKey={gonio_part_post}
-                    values={all_post_gonio[gonio_side][gonio_part_post]}
-                    setValues={(v) => setAllPostGonio((prev) => ({ ...prev, [gonio_side]: { ...prev[gonio_side], [gonio_part_post]: v } }))}
-                  />
-                </>
+              {show_arom && (
+                <div className="space-y-4 rounded-md border border-border/50 p-3">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold">PRE sesión</p>
+                    <Tabs value={gonio_side} onValueChange={(v) => setGonioSide(v as "MSD" | "MSI")} className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="MSD">MSD</TabsTrigger>
+                        <TabsTrigger value="MSI">MSI</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    <GonioPartSelector value={gonio_part} onChange={setGonioPart} allValues={all_pre_gonio[gonio_side]} />
+                    <GonioGrid
+                      partKey={gonio_part}
+                      values={all_pre_gonio[gonio_side][gonio_part]}
+                      setValues={(v) => setAllPreGonio((prev) => ({ ...prev, [gonio_side]: { ...prev[gonio_side], [gonio_part]: v } }))}
+                    />
+                  </div>
+                  <div className="border-t border-border/40 pt-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={show_arom_post} onCheckedChange={(v) => setShowAromPost(!!v)} id="arom-post-sf" />
+                      <Label htmlFor="arom-post-sf" className="font-normal text-sm cursor-pointer">Registrar POST sesión</Label>
+                    </div>
+                    {show_arom_post && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold">POST sesión</p>
+                        <Tabs value={gonio_side_arom_post} onValueChange={(v) => setGonioSideAromPost(v as "MSD" | "MSI")} className="w-full">
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="MSD">MSD</TabsTrigger>
+                            <TabsTrigger value="MSI">MSI</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                        <GonioPartSelector value={gonio_part_arom_post} onChange={setGonioPartAromPost} allValues={all_arom_post_gonio[gonio_side_arom_post]} />
+                        <GonioGrid
+                          partKey={gonio_part_arom_post}
+                          values={all_arom_post_gonio[gonio_side_arom_post][gonio_part_arom_post]}
+                          setValues={(v) => setAllAromPostGonio((prev) => ({ ...prev, [gonio_side_arom_post]: { ...prev[gonio_side_arom_post], [gonio_part_arom_post]: v } }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* PROM */}
+            <div className="space-y-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Switch checked={show_prom} onCheckedChange={setShowProm} id="prom-sf" />
+                <Label htmlFor="prom-sf" className="font-normal text-sm cursor-pointer">PROM <span className="font-normal text-muted-foreground text-xs">— Movilidad pasiva</span></Label>
+              </div>
+              {show_prom && (
+                <div className="space-y-4 rounded-md border border-border/50 p-3">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold">PRE sesión</p>
+                    <Tabs value={gonio_side_prom_pre} onValueChange={(v) => setGonioSidePromPre(v as "MSD" | "MSI")} className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="MSD">MSD</TabsTrigger>
+                        <TabsTrigger value="MSI">MSI</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    <GonioPartSelector value={gonio_part_prom_pre} onChange={setGonioPartPromPre} allValues={all_prom_pre_gonio[gonio_side_prom_pre]} />
+                    <GonioGrid
+                      partKey={gonio_part_prom_pre}
+                      values={all_prom_pre_gonio[gonio_side_prom_pre][gonio_part_prom_pre]}
+                      setValues={(v) => setAllPromPreGonio((prev) => ({ ...prev, [gonio_side_prom_pre]: { ...prev[gonio_side_prom_pre], [gonio_part_prom_pre]: v } }))}
+                    />
+                  </div>
+                  <div className="border-t border-border/40 pt-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={show_prom_post} onCheckedChange={(v) => setShowPromPost(!!v)} id="prom-post-sf" />
+                      <Label htmlFor="prom-post-sf" className="font-normal text-sm cursor-pointer">Registrar POST sesión</Label>
+                    </div>
+                    {show_prom_post && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold">POST sesión</p>
+                        <Tabs value={gonio_side_post} onValueChange={(v) => setGonioSidePost(v as "MSD" | "MSI")} className="w-full">
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="MSD">MSD</TabsTrigger>
+                            <TabsTrigger value="MSI">MSI</TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                        <GonioPartSelector value={gonio_part_post} onChange={setGonioPartPost} allValues={all_post_gonio[gonio_side_post]} />
+                        <GonioGrid
+                          partKey={gonio_part_post}
+                          values={all_post_gonio[gonio_side_post][gonio_part_post]}
+                          setValues={(v) => setAllPostGonio((prev) => ({ ...prev, [gonio_side_post]: { ...prev[gonio_side_post], [gonio_part_post]: v } }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1749,14 +1912,50 @@ export default function SessionForm() {
 
           {/* Fuerza */}
           <SubSection title="Fuerza muscular" checked={showStrength} onChange={setShowStrength}>
+            {isAdmission ? (
+              <div className="mb-3">
+                <Label className="text-sm">Lado(s) afectado(s)</Label>
+                <div className="flex gap-4 mt-1.5">
+                  {(["MSD", "MSI"] as const).map((s) => {
+                    const checked = affected_side === s || affected_side === "both";
+                    return (
+                      <div key={s} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`aff-${s}`}
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const other = s === "MSD" ? "MSI" : "MSD";
+                            const otherChecked = affected_side === other || affected_side === "both";
+                            if (v) setAffectedSide(otherChecked ? "both" : s);
+                            else setAffectedSide(otherChecked ? other : null);
+                          }}
+                        />
+                        <Label htmlFor={`aff-${s}`} className="font-normal cursor-pointer">{s}</Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : affected_side ? (
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Lado afectado:</span>
+                <Badge variant="outline" className="text-xs font-medium">
+                  {affected_side === "both" ? "MSD + MSI" : affected_side}
+                </Badge>
+              </div>
+            ) : null}
             {(["MSD", "MSI"] as const).map((side) => {
               const vals = side === "MSD" ? dyn_msd_vals : dyn_msi_vals;
               const setVals = side === "MSD" ? setDynMsdVals : setDynMsiVals;
               const nums = vals.map((v) => v.trim()).filter(Boolean).map(Number).filter((n) => !isNaN(n));
               const avg = nums.length > 0 ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : "";
+              const isAffected = affected_side === side || affected_side === "both";
               return (
                 <div key={side}>
-                  <Label>Dinamómetro {side} (kgf)</Label>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Label>Dinamómetro {side} (kgf)</Label>
+                    {isAffected && <Badge variant="destructive" className="text-[10px] py-0">Afectado</Badge>}
+                  </div>
                   <div className="grid grid-cols-4 gap-2 mt-1">
                     {[0, 1, 2].map((i) => (
                       <Input
@@ -1950,10 +2149,6 @@ export default function SessionForm() {
                   </Select>
                 </div>
               </div>
-              <div className="mt-3">
-                <Label>Observaciones</Label>
-                <Textarea rows={2} value={scar_observaciones} onChange={(e) => setScarObservaciones(e.target.value)} className={textareaClass} />
-              </div>
             </div>
 
             <div className="pt-3">
@@ -1999,6 +2194,11 @@ export default function SessionForm() {
                   </Select>
                 </div>
               </div>
+            </div>
+
+            <div>
+              <Label>Observaciones</Label>
+              <Textarea rows={2} value={scar_observaciones} onChange={(e) => setScarObservaciones(e.target.value)} className={textareaClass} />
             </div>
           </SubSection>
 
@@ -2047,16 +2247,16 @@ export default function SessionForm() {
               <Textarea rows={2} value={emotional_state} onChange={(e) => setEmotionalState(e.target.value)} className={textareaClass} />
             </div>
           </SubSection>
-        </SectionCard>
+        </SectionCard>}
 
         {/* Card 4: Intervenciones */}
-        <SectionCard id="sec-intervenciones" icon={ClipboardList} title="Intervenciones">
+        {currentSections.includes("sec-intervenciones") && <SectionCard id="sec-intervenciones" icon={ClipboardList} title="Intervenciones">
           <FieldLabel>En el día de hoy se abordó</FieldLabel>
           <Textarea rows={5} value={interventions} onChange={(e) => setInterventions(e.target.value)} className={textareaClass} />
-        </SectionCard>
+        </SectionCard>}
 
         {/* Card 5: Indicaciones y notas */}
-        <SectionCard id="sec-notas" icon={MessageSquare} title="Indicaciones y notas">
+        {currentSections.includes("sec-notas") && <SectionCard id="sec-notas" icon={MessageSquare} title="Indicaciones y notas">
           <div className="space-y-4">
             <div>
               <FieldLabel>Indicaciones enviadas al paciente</FieldLabel>
@@ -2068,36 +2268,31 @@ export default function SessionForm() {
               <p className="text-xs text-muted-foreground mt-1">Campo interno, no visible en el resumen clínico</p>
             </div>
           </div>
-        </SectionCard>
+        </SectionCard>}
 
-        {/* Anterior / Siguiente navigation */}
-        {(() => {
-          const idx = indexSections.findIndex(s => s.id === activeSection);
-          const hasPrev = idx > 0;
-          const hasNext = idx < indexSections.length - 1;
-          return (
-            <div className="flex justify-between items-center pt-2 pb-8 px-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!hasPrev}
-                onClick={() => hasPrev && scrollToSection(indexSections[idx - 1].id)}
-                className="text-muted-foreground gap-1"
-              >
-                ← {hasPrev ? indexSections[idx - 1].label : ""}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!hasNext}
-                onClick={() => hasNext && scrollToSection(indexSections[idx + 1].id)}
-                className="text-muted-foreground gap-1"
-              >
-                {hasNext ? indexSections[idx + 1].label : ""} →
-              </Button>
-            </div>
-          );
-        })()}
+        {/* Step navigation */}
+        <div className="flex justify-between items-center pt-2 pb-8 px-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={currentStep === 0}
+            onClick={prevStep}
+            className="text-muted-foreground gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            {currentStep > 0 ? steps[currentStep - 1].label : ""}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={isLastStep}
+            onClick={nextStep}
+            className="text-muted-foreground gap-1"
+          >
+            {!isLastStep ? steps[currentStep + 1].label : ""}
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
           </div>
         </main>
       </div>

@@ -1094,6 +1094,7 @@ export type Database = {
       treatment_episodes: {
         Row: {
           admission_date: string
+          affected_side: "MSD" | "MSI" | "both" | null
           created_at: string
           deleted_at: string | null
           diagnosis: string | null
@@ -1109,6 +1110,7 @@ export type Database = {
         }
         Insert: {
           admission_date?: string
+          affected_side?: "MSD" | "MSI" | "both" | null
           created_at?: string
           deleted_at?: string | null
           diagnosis?: string | null
@@ -1124,6 +1126,7 @@ export type Database = {
         }
         Update: {
           admission_date?: string
+          affected_side?: "MSD" | "MSI" | "both" | null
           created_at?: string
           deleted_at?: string | null
           diagnosis?: string | null
@@ -1302,6 +1305,67 @@ export type Database = {
           },
         ]
       }
+      quickdash_tokens: {
+        Row: {
+          id: string
+          token: string
+          patient_id: string
+          session_id: string
+          created_by: string
+          created_at: string
+          expires_at: string
+          completed_at: string | null
+          completed_by: "patient" | "therapist" | null
+          result: Json | null
+        }
+        Insert: {
+          id?: string
+          token?: string
+          patient_id: string
+          session_id: string
+          created_by: string
+          created_at?: string
+          expires_at: string
+          completed_at?: string | null
+          completed_by?: "patient" | "therapist" | null
+          result?: Json | null
+        }
+        Update: {
+          id?: string
+          token?: string
+          patient_id?: string
+          session_id?: string
+          created_by?: string
+          created_at?: string
+          expires_at?: string
+          completed_at?: string | null
+          completed_by?: "patient" | "therapist" | null
+          result?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quickdash_tokens_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quickdash_tokens_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "therapy_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quickdash_tokens_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1330,6 +1394,22 @@ export type Database = {
           description: string
           rank: number
         }[]
+      }
+      get_quickdash_token: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+      complete_quickdash_token: {
+        Args: { p_token: string; p_items: Json; p_score: number }
+        Returns: undefined
+      }
+      create_quickdash_token: {
+        Args: { p_session_id: string; p_patient_id: string; p_expires_at: string }
+        Returns: string
+      }
+      soft_delete_session: {
+        Args: { p_session_id: string }
+        Returns: undefined
       }
     }
     Enums: {
