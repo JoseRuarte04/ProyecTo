@@ -1310,7 +1310,8 @@ export type Database = {
           id: string
           token: string
           patient_id: string
-          session_id: string
+          session_id: string | null
+          episode_id: string | null
           created_by: string
           created_at: string
           expires_at: string
@@ -1322,7 +1323,8 @@ export type Database = {
           id?: string
           token?: string
           patient_id: string
-          session_id: string
+          session_id?: string | null
+          episode_id?: string | null
           created_by: string
           created_at?: string
           expires_at: string
@@ -1334,7 +1336,8 @@ export type Database = {
           id?: string
           token?: string
           patient_id?: string
-          session_id?: string
+          session_id?: string | null
+          episode_id?: string | null
           created_by?: string
           created_at?: string
           expires_at?: string
@@ -1355,6 +1358,13 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "therapy_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quickdash_tokens_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_episodes"
             referencedColumns: ["id"]
           },
           {
@@ -1404,7 +1414,7 @@ export type Database = {
         Returns: undefined
       }
       create_quickdash_token: {
-        Args: { p_session_id: string; p_patient_id: string; p_expires_at: string }
+        Args: { p_episode_id: string; p_patient_id: string; p_expires_at: string }
         Returns: string
       }
       soft_delete_session: {

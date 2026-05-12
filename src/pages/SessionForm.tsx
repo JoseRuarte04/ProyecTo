@@ -37,18 +37,14 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import {
-  QuickDashSection,
   FimSection,
   BarthelSection,
-  emptyQuickDash,
   emptyFim,
   emptyBarthel,
-  calcQuickDashScore,
   calcFimTotal,
   calcBarthelTotal,
 } from "@/components/evaluations/FunctionalScales";
 import { EdemaCircometryTable, buildCircometriaPayload, normalizeCircometriaValue, isCircometriaFormat, type CircometriaItem } from "@/components/clinical/EdemaCircometryTable";
-import { QuickDashTokenManager } from "@/components/evaluations/QuickDashTokenManager";
 
 // ── Wizard steps ──
 type StepDef = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; sections: string[] };
@@ -408,7 +404,6 @@ export default function SessionForm() {
   const [func_aivd, setFuncAivd] = useState("");
   const [func_sleep, setFuncSleep] = useState("");
   const [func_health, setFuncHealth] = useState("");
-  const [qd_items, setQdItems] = useState<(number | null)[]>(emptyQuickDash());
   const [fim_items, setFimItems] = useState<Record<string, number | null>>(emptyFim());
   const [barthel_items, setBarthelItems] = useState<Record<string, number | null>>(emptyBarthel());
 
@@ -605,7 +600,6 @@ export default function SessionForm() {
           setFuncAivd(fe.aivd || "");
           setFuncSleep(fe.sleep_rest || "");
           setFuncHealth(fe.health_management || "");
-          if (Array.isArray(fe.quickdash_items)) setQdItems(fe.quickdash_items as any);
           if (fe.fim_items && typeof fe.fim_items === "object") setFimItems(fe.fim_items as any);
           if (fe.barthel_items && typeof fe.barthel_items === "object") setBarthelItems(fe.barthel_items as any);
         }
@@ -1071,12 +1065,11 @@ export default function SessionForm() {
       }
     }
 
-    const qd_answered = qd_items.some((v) => v !== null);
     const fim_answered = Object.values(fim_items).some((v) => v !== null);
     const barthel_answered = Object.values(barthel_items).some((v) => v !== null);
     const hasFunctionalData =
       showFunctional &&
-      ([func_dominance, func_avd, func_aivd, func_sleep, func_health].some((v) => v) || qd_answered || fim_answered || barthel_answered);
+      ([func_dominance, func_avd, func_aivd, func_sleep, func_health].some((v) => v) || fim_answered || barthel_answered);
 
     const functionalPayload = {
       patient_id: patientId!,
@@ -1089,8 +1082,6 @@ export default function SessionForm() {
       aivd: func_aivd || null,
       sleep_rest: func_sleep || null,
       health_management: func_health || null,
-      quickdash_items: qd_answered ? (qd_items as any) : null,
-      quickdash_score: qd_answered ? (calcQuickDashScore(qd_items) as any) : null,
       fim_items: fim_answered ? (fim_items as any) : null,
       fim_score: fim_answered ? calcFimTotal(fim_items) : null,
       barthel_items: barthel_answered ? (barthel_items as any) : null,
@@ -1350,7 +1341,7 @@ export default function SessionForm() {
     "sec-datos": !!session_date,
     "sec-ficha": !!cli_diagnosis,
     "sec-ocupacional": !!(occ_job || occ_dominance),
-    "sec-funcional": showFunctional && qd_items.some(x => x !== null),
+    "sec-funcional": showFunctional && (Object.values(fim_items).some(v => v !== null) || Object.values(barthel_items).some(v => v !== null)),
     "sec-evolucion": !!general_observations,
     "sec-analitica": show_measurements && (showPain || showEdema || showMobility || showStrength),
     "sec-intervenciones": !!interventions,
@@ -1585,7 +1576,6 @@ export default function SessionForm() {
           title="Evaluación funcional"
           action={
             <div className="flex gap-1">
-              {(() => { const s = calcQuickDashScore(qd_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">QuickDASH {s.toFixed(0)}/100</Badge> : null; })()}
               {(() => { const s = calcFimTotal(fim_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">FIM {s}/126</Badge> : null; })()}
               {(() => { const s = calcBarthelTotal(barthel_items); return s !== null ? <Badge variant="secondary" className="text-[10px]">Barthel {s}/100</Badge> : null; })()}
             </div>
@@ -1602,10 +1592,6 @@ export default function SessionForm() {
             </div>
             <BarthelSection items={barthel_items} onChange={setBarthelItems} />
             <FimSection items={fim_items} onChange={setFimItems} />
-            {isEditMode
-              ? <QuickDashTokenManager sessionId={sessionId!} patientId={patientId!} items={qd_items} onChange={setQdItems} />
-              : <QuickDashSection items={qd_items} onChange={setQdItems} />
-            }
           </div>
         </SectionCard>}
 

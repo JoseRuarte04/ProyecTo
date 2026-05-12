@@ -30,6 +30,7 @@ import { QUICKDASH_QUESTIONS, FIM_MOTOR, FIM_COGNITIVE } from "@/components/eval
 import { DischargeReportModal } from "@/components/patients/DischargeReportModal";
 import { useDischargeReport } from "@/hooks/useDischargeReport";
 import { EvolucionTab } from "@/components/patients/EvolucionTab";
+import { QuickDashEpisodeSection } from "@/components/evaluations/QuickDashEpisodeSection";
 
 const ALLOWED_CLINICAL_FILE_TYPES = [
   "image/jpeg",
@@ -56,6 +57,7 @@ export default function PatientProfile() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [funcEvals, setFuncEvals] = useState<any[]>([]);
   const [analEvals, setAnalEvals] = useState<any[]>([]);
+  const [quickdashTokens, setQuickdashTokens] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [clinicalFiles, setClinicalFiles] = useState<any[]>([]);
@@ -123,6 +125,7 @@ export default function PatientProfile() {
       setAnalEvals(ae.data || []);
       setPlans(pl.data || []);
       setAppointments(ap.data || []);
+      setQuickdashTokens([]);
       const files = cf.data || [];
       setClinicalFiles(files);
       setLoading(false);
@@ -130,7 +133,7 @@ export default function PatientProfile() {
       return;
     }
 
-    const [c, s, fe, ae, pl, cf, ap] = await Promise.all([
+    const [c, s, fe, ae, pl, cf, ap, qt] = await Promise.all([
       supabase.from("patient_clinical_records").select("*").eq("patient_id", id).eq("episode_id", episodeId).maybeSingle(),
       supabase.from("therapy_sessions").select("*").eq("patient_id", id).eq("episode_id", episodeId).eq("is_deleted", false).order("session_date", { ascending: false }),
       supabase.from("functional_evaluations").select("*").eq("patient_id", id).eq("episode_id", episodeId).order("evaluation_date", { ascending: false }),
@@ -138,6 +141,7 @@ export default function PatientProfile() {
       supabase.from("treatment_plans").select("*").eq("patient_id", id).eq("episode_id", episodeId).eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("clinical_files").select("*").eq("patient_id", id).eq("is_deleted", false).order("photo_date", { ascending: false }),
       apptPromise,
+      supabase.from("quickdash_tokens").select("completed_at, result").eq("episode_id", episodeId).not("result", "is", null).order("completed_at", { ascending: true }),
     ]);
     setClinical(c.data);
     setSessions(s.data || []);
@@ -145,6 +149,7 @@ export default function PatientProfile() {
     setAnalEvals(ae.data || []);
     setPlans(pl.data || []);
     setAppointments(ap.data || []);
+    setQuickdashTokens(qt.data || []);
     const files = cf.data || [];
     setClinicalFiles(files);
     setLoading(false);
@@ -479,7 +484,7 @@ export default function PatientProfile() {
         <TabsContent value="evaluaciones" className="space-y-4">
           <div className="flex items-center justify-between border-b border-border">
             <div className="flex">
-              {[{ value: "functional", label: "Funcional" }, { value: "analytical", label: "Analítica" }].map(t => (
+              {[{ value: "functional", label: "Funcional" }, { value: "analytical", label: "Analítica" }, { value: "quickdash", label: "QuickDASH" }].map(t => (
                 <button
                   key={t.value}
                   onClick={() => setEvalSubTab(t.value)}
@@ -509,6 +514,11 @@ export default function PatientProfile() {
                 <p className="text-xs text-muted-foreground text-center py-8">Las evaluaciones analíticas se registran desde Sesiones.</p>
               )}
             </>
+          )}
+          {evalSubTab === "quickdash" && (
+            activeEpisodeId
+              ? <QuickDashEpisodeSection episodeId={activeEpisodeId} patientId={id!} />
+              : <p className="text-sm text-muted-foreground text-center py-8">Sin episodio activo. Creá un episodio para registrar QuickDASH.</p>
           )}
         </TabsContent>
 
@@ -624,6 +634,7 @@ export default function PatientProfile() {
             sessions={sessions}
             episode={activeEpisode ?? null}
             patientId={id!}
+            quickdashTokens={quickdashTokens}
           />
         </TabsContent>
 

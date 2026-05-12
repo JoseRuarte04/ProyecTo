@@ -31,7 +31,7 @@ type ManagerMode =
   | "manual";
 
 interface QuickDashTokenManagerProps {
-  sessionId: string;
+  episodeId: string;
   patientId: string;
   items: (number | null)[];
   onChange: (items: (number | null)[]) => void;
@@ -66,7 +66,7 @@ function deriveInitialMode(
 // ── Component ──
 
 export function QuickDashTokenManager({
-  sessionId,
+  episodeId,
   patientId,
   items,
   onChange,
@@ -88,7 +88,7 @@ export function QuickDashTokenManager({
     supabase
       .from("quickdash_tokens")
       .select(TOKEN_SELECT)
-      .eq("session_id", sessionId)
+      .eq("episode_id", episodeId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -99,7 +99,7 @@ export function QuickDashTokenManager({
       });
   // items only used at mount to determine initial mode — intentional
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [episodeId]);
 
   // ── Poll when pending (cada 15s) ──
   useEffect(() => {
@@ -127,7 +127,7 @@ export function QuickDashTokenManager({
       : addHours(new Date(), selectedHours);
 
     const { data: newToken, error } = await supabase.rpc("create_quickdash_token", {
-      p_session_id: sessionId,
+      p_episode_id: episodeId,
       p_patient_id: patientId,
       p_expires_at: expiresAt.toISOString(),
     });
