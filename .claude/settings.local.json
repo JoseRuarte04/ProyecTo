@@ -13,7 +13,8 @@
       "Bash(code -r \"C:\\\\Users\\\\jojor\\\\OneDrive\\\\Escritorio\\\\Proyecto T.O\\\\ProyectiTO\" \"C:\\\\Users\\\\jojor\\\\OneDrive\\\\Escritorio\\\\Proyecto T.O\\\\ProyectiTO\\\\_bmad-output\\\\implementation-artifacts\\\\spec-vista-sesiones-evaluaciones.md)",
       "Bash(python3 *)",
       "WebSearch",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "mcp__claude_ai_Supabase__apply_migration"
     ]
   }
 }

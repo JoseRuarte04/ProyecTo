@@ -8,9 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface TeamOption {
+  id: string;
+  name: string;
+}
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -183,12 +189,125 @@ function SummaryRow({ label, value }: { label: string; value: string | null | un
   );
 }
 
+// ── CIE-10 autocomplete ──
+function Cie10Autocomplete({ value, onChange, placeholder, className }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [results, setResults] = useState<Array<{ code: string; description: string }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [rect, setRect] = useState({ top: 0, left: 0, width: 0, height: 0 });
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const updateRect = () => {
+    if (wrapperRef.current) {
+      const r = wrapperRef.current.getBoundingClientRect();
+      setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    }
+  };
+
+  useEffect(() => {
+    const term = value.trim();
+    if (term.length < 2) { setResults([]); setOpen(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc('search_cie10', { search_input: term, max_results: 10 });
+      if (cancelled) return;
+      setResults(data || []);
+      updateRect();
+      setOpen(true);
+      setLoading(false);
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); setLoading(false); };
+  }, [value]);
+
+  useEffect(() => {
+    if (!open) return;
+    updateRect();
+    const onResize = () => updateRect();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onResize, true);
+    return () => { window.removeEventListener("resize", onResize); window.removeEventListener("scroll", onResize, true); };
+  }, [open]);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (wrapperRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
+  }, []);
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => { if (results.length > 0) { updateRect(); setOpen(true); } }}
+        placeholder={placeholder}
+        className={className}
+        autoComplete="off"
+      />
+      {loading && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
+      {open && results.length > 0 && createPortal(
+        <div
+          ref={panelRef}
+          style={{ position: "fixed", top: rect.top + rect.height + 4, left: rect.left, width: rect.width, zIndex: 60 }}
+          className="max-h-64 overflow-auto rounded-md border bg-popover shadow-md"
+        >
+          {results.map((r) => (
+            <button
+              key={r.code}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onChange(`${r.code} — ${r.description}`); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+            >
+              <span className="font-medium">{r.code}</span> — {r.description}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 export default function NewPatientForm() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+
+  // Selector de contexto de equipo
+  const [teams, setTeams]               = useState<TeamOption[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(true);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("personal");
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("team_members")
+      .select("team_id, teams!inner(id, name, is_active)")
+      .eq("user_id", user.id)
+      .eq("teams.is_active", true)
+      .then(({ data }) => {
+        const opts = (data || []).map((r: any) => ({
+          id:   r.teams.id   as string,
+          name: r.teams.name as string,
+        }));
+        setTeams(opts);
+        setTeamsLoading(false);
+      });
+  }, [user]);
 
   // Step 1 — Datos personales
   const [lastName, setLastName] = useState("");
@@ -263,6 +382,7 @@ export default function NewPatientForm() {
           emergency_contact_phone: or(emergencyPhone),
           emergency_contact_relation: or(emergencyRelation),
           professional_id: user!.id,
+          team_id: selectedTeamId === "personal" ? null : selectedTeamId,
         })
         .select("id")
         .single();
@@ -285,14 +405,18 @@ export default function NewPatientForm() {
           episode_id: episode.id,
           diagnosis: or(diagnosis),
           doctor_name: or(doctorName),
-          notes: or(referralReason),
+          referral_reason: or(referralReason),
         });
       }
 
       toast.success("Paciente registrado correctamente");
       navigate(`/patients/${pid}`);
     } catch (err: any) {
-      toast.error("Error al registrar al paciente", { description: err.message });
+      const isDuplicateDni = err?.code === "23505" || err?.message?.includes("uq_patients_dni_professional");
+      toast.error(
+        isDuplicateDni ? "Ya tenés un paciente activo con ese DNI" : "Error al registrar al paciente",
+        { description: isDuplicateDni ? undefined : err.message }
+      );
     } finally {
       setSaving(false);
     }
@@ -331,6 +455,39 @@ export default function NewPatientForm() {
               <h2 className="font-serif text-xl font-semibold text-foreground mb-1">Datos personales</h2>
               <p className="text-sm text-muted-foreground">Información básica del paciente.</p>
             </div>
+
+            {/* Selector de contexto — solo si tiene equipos */}
+            {teamsLoading && (
+              <div className="h-12 rounded-lg border border-border bg-muted/20 animate-pulse" />
+            )}
+            {!teamsLoading && teams.length > 0 && (
+              <div className="p-4 rounded-lg border border-border bg-muted/20">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                  ¿A quién pertenece este paciente?
+                </p>
+                <RadioGroup
+                  value={selectedTeamId}
+                  onValueChange={setSelectedTeamId}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <RadioGroupItem value="personal" id="ctx-personal" />
+                    <label htmlFor="ctx-personal" className="text-sm cursor-pointer">
+                      Paciente personal
+                    </label>
+                  </div>
+                  {teams.map((t) => (
+                    <div key={t.id} className="flex items-center gap-2.5">
+                      <RadioGroupItem value={t.id} id={`ctx-${t.id}`} />
+                      <label htmlFor={`ctx-${t.id}`} className="text-sm cursor-pointer">
+                        Paciente de <span className="font-medium">{t.name}</span>
+                      </label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel required>Apellido</FieldLabel>
@@ -401,7 +558,7 @@ export default function NewPatientForm() {
               </div>
               <div className="sm:col-span-2">
                 <FieldLabel>Diagnóstico de derivación</FieldLabel>
-                <Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} placeholder="Ej: Fractura de radio distal, Síndrome de túnel carpiano…" className={inputClass} />
+                <Cie10Autocomplete value={diagnosis} onChange={setDiagnosis} placeholder="Buscar por código o nombre CIE-10…" className={inputClass} />
               </div>
               <div className="sm:col-span-2">
                 <FieldLabel>Motivo de consulta</FieldLabel>

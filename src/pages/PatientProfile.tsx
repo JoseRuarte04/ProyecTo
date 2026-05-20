@@ -30,6 +30,7 @@ import { QUICKDASH_QUESTIONS, FIM_MOTOR, FIM_COGNITIVE } from "@/components/eval
 import { DischargeReportModal } from "@/components/patients/DischargeReportModal";
 import { useDischargeReport } from "@/hooks/useDischargeReport";
 import { EvolucionTab } from "@/components/patients/EvolucionTab";
+import { EjerciciosTab } from "@/components/patients/EjerciciosTab";
 import { QuickDashEpisodeSection } from "@/components/evaluations/QuickDashEpisodeSection";
 
 const ALLOWED_CLINICAL_FILE_TYPES = [
@@ -343,14 +344,14 @@ export default function PatientProfile() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-7">
-          <Tabs defaultValue="sessions" className="space-y-4">
+          <Tabs defaultValue="clinica" className="space-y-4">
             <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 gap-0">
+              <TabsTrigger value="clinica" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Ficha Clínica</TabsTrigger>
               <TabsTrigger value="sessions" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Sesiones</TabsTrigger>
-              <TabsTrigger value="clinica" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Clínica</TabsTrigger>
-              <TabsTrigger value="evaluaciones" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Evaluaciones</TabsTrigger>
               <TabsTrigger value="evolucion" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Evolución</TabsTrigger>
+              <TabsTrigger value="evaluaciones" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Evaluaciones</TabsTrigger>
+              <TabsTrigger value="ejercicios" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Ejercicios</TabsTrigger>
               <TabsTrigger value="archivos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Archivos</TabsTrigger>
-              <TabsTrigger value="admin" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">Administración</TabsTrigger>
             </TabsList>
 
         {/* FICHA */}
@@ -425,14 +426,14 @@ export default function PatientProfile() {
                   {(patient as any).emergency_contact_name && (
                     <Field
                       label="Contacto de emergencia"
-                      value={`${(patient as any).emergency_contact_name}${(patient as any).emergency_contact_phone ? " · " + (patient as any).emergency_contact_phone : ""}${(patient as any).emergency_contact_relation ? " (" + (patient as any).emergency_contact_relation + ")" : ""}`}
+                      value={`${(patient as any).emergency_contact_name}${(patient as any).emergency_contact_phone ? " · " + (patient as any).emergency_contact_phone : ""}${(patient as any).emergency_contact_relation ? " (" + ({ parent: "Padre / Madre", spouse: "Cónyuge / Pareja", sibling: "Hermano/a", child: "Hijo/a", friend: "Amigo/a", other: "Otro" }[(patient as any).emergency_contact_relation as string] ?? (patient as any).emergency_contact_relation) + ")" : ""}`}
                       full
                     />
                   )}
                 </Section>
 
                 {/* Datos clínicos */}
-                {clinical && (clinical.injury_date || clinical.surgery_date || clinical.symptom_start_date || clinical.injury_mechanism || clinical.treatment_type || clinical.immobilization_type || clinical.studies || clinical.weeks_post_injury || clinical.weeks_post_surgery || clinical.immobilization_weeks || clinical.diagnosis) && (
+                {clinical && (clinical.injury_date || clinical.surgery_date || clinical.symptom_start_date || clinical.injury_mechanism || clinical.treatment_type || clinical.immobilization_type || clinical.studies || clinical.weeks_post_injury || clinical.weeks_post_surgery || clinical.immobilization_weeks || clinical.diagnosis || clinical.referral_reason) && (
                   <Section title="Datos clínicos" icon={<Stethoscope className="h-4 w-4" />}>
                     <Field label="Fecha de lesión" value={fmtDate(clinical.injury_date)} />
                     <Field label="Fecha de cirugía" value={fmtDate(clinical.surgery_date)} showEmpty />
@@ -448,7 +449,8 @@ export default function PatientProfile() {
                     <Field label="Tratamiento actual" value={clinical.current_treatment} full />
                     <Field label="Tratamiento farmacológico" value={clinical.pharmacological_treatment} full />
                     <Field label="Antecedentes personales" value={clinical.medical_history} full />
-                    <Field label="Notas" value={clinical.notes} full />
+                    <Field label="Motivo de consulta" value={clinical.referral_reason} full />
+                    <Field label="Notas clínicas" value={clinical.notes} full />
                   </Section>
                 )}
 
@@ -638,6 +640,10 @@ export default function PatientProfile() {
           />
         </TabsContent>
 
+        <TabsContent value="ejercicios">
+          <EjerciciosTab patientId={id!} />
+        </TabsContent>
+
         <TabsContent value="archivos" className="space-y-6">
           {/* Archivos clínicos */}
           <div className="space-y-1">
@@ -729,59 +735,6 @@ export default function PatientProfile() {
               );
             })()}
           </div>
-        </TabsContent>
-
-        {/* APPOINTMENTS */}
-        <TabsContent value="appointments" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="font-semibold text-foreground">Turnos</h2>
-            <Button onClick={() => setShowNewAppt(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Nuevo Turno</Button>
-          </div>
-          {appointments.length === 0 ? <p className="text-muted-foreground text-sm text-center py-8">Sin turnos.</p> : (
-            <div className="space-y-2">
-              {appointments.map((a) => (
-                <Card key={a.id} className="border-border/50">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm text-foreground">
-                        {format(new Date(a.appointment_date), "dd/MM/yyyy HH:mm")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{appointmentTypeMap[a.type] || a.type}</p>
-                    </div>
-                    <StatusBadge status={a.status} />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ADMINISTRACIÓN — Archivos + Turnos */}
-        <TabsContent value="admin" className="space-y-6">
-          {/* Turnos */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <h3 className="font-semibold text-foreground">Turnos</h3>
-              <Button onClick={() => setShowNewAppt(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Nuevo Turno</Button>
-            </div>
-            {appointments.length === 0 ? <p className="text-muted-foreground text-sm text-center py-4">Sin turnos.</p> : (
-              <div className="space-y-2">
-                {appointments.slice(0, 10).map((a) => (
-                  <Card key={a.id} className="border-border/50">
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-sm text-foreground">
-                          {format(new Date(a.appointment_date), "dd/MM/yyyy HH:mm")}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{appointmentTypeMap[a.type] || a.type}</p>
-                      </div>
-                      <StatusBadge status={a.status} />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
           <div className="border-t border-border/50" />
           {/* Informe de Alta */}
           <div className="space-y-3">
@@ -806,6 +759,7 @@ export default function PatientProfile() {
             )}
           </div>
         </TabsContent>
+
           </Tabs>
           </div>{/* closes inner scroll div */}
         </div>{/* closes center panel */}
@@ -912,6 +866,7 @@ function EditFichaDialog({ open, onClose, patient, clinical, occupational, activ
       immobilization_weeks: clinical?.immobilization_weeks ?? "",
       immobilization_days: clinical?.immobilization_days ?? "",
       next_oyt_appointment: clinical?.next_oyt_appointment || "",
+      referral_reason: clinical?.referral_reason || "",
       clinical_notes: clinical?.notes || "",
       dominance: occupational?.dominance || "",
       job: occupational?.job || "",
@@ -965,6 +920,7 @@ function EditFichaDialog({ open, onClose, patient, clinical, occupational, activ
       immobilization_weeks: numberOrNull(form.immobilization_weeks),
       immobilization_days: numberOrNull(form.immobilization_days),
       next_oyt_appointment: emptyToNull(form.next_oyt_appointment),
+      referral_reason: emptyToNull(form.referral_reason),
       notes: emptyToNull(form.clinical_notes),
     } as any;
     const occupationalPayload = {
@@ -1049,6 +1005,7 @@ function EditFichaDialog({ open, onClose, patient, clinical, occupational, activ
               <div className="sm:col-span-2"><Label>Tratamiento farmacológico</Label><Textarea value={form.pharmacological_treatment || ""} onChange={(e) => u("pharmacological_treatment", e.target.value)} /></div>
               <div className="sm:col-span-2"><Label>Antecedentes</Label><Textarea value={form.medical_history || ""} onChange={(e) => u("medical_history", e.target.value)} /></div>
               <div className="sm:col-span-2"><Label>Estudios</Label><Textarea value={form.studies || ""} onChange={(e) => u("studies", e.target.value)} /></div>
+              <div className="sm:col-span-2"><Label>Motivo de consulta</Label><Textarea value={form.referral_reason || ""} onChange={(e) => u("referral_reason", e.target.value)} /></div>
               <div className="sm:col-span-2"><Label>Notas clínicas</Label><Textarea value={form.clinical_notes || ""} onChange={(e) => u("clinical_notes", e.target.value)} /></div>
             </div>
           </div>

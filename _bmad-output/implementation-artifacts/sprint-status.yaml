@@ -1,0 +1,96 @@
+# generated: 2026-05-18
+# last_updated: 2026-05-18
+# project: RehabOT
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+#
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories are worked sequentially by default (Epic 2 depends on Epic 1, Epic 3 on Epic 2)
+# - Dev moves story to 'review', then runs code-review (fresh context recommended)
+
+generated: 2026-05-18
+last_updated: 2026-05-18
+project: RehabOT
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # ── Epic 1: Biblioteca de Ejercicios Rediseñada ──────────────────────────
+  epic-1: done
+  1-1-gestion-de-apartados-de-la-biblioteca: done
+  1-2-nuevos-campos-clinicos-en-el-formulario-de-ejercicio: done
+  1-3-nueva-ui-de-la-biblioteca-con-panel-de-apartados-y-tabs-por-tipo: done
+  1-4-exportacion-pdf-con-nuevos-campos-clinicos: done
+  epic-1-retrospective: optional
+
+  # ── Epic 2: Plan de Ejercicios del Paciente ──────────────────────────────
+  epic-2: done
+  2-1-estructura-de-datos-y-vista-base-del-plan: done
+  2-2-gestion-de-ejercicios-en-el-plan: done
+  2-3-reordenamiento-de-ejercicios-en-el-plan: done
+  epic-2-retrospective: optional
+
+  # ── Epic 3: Link Compartible del Plan ────────────────────────────────────
+  epic-3: done
+  3-1-generacion-y-gestion-de-links-del-plan: done
+  3-2-pagina-publica-del-plan-de-ejercicios: done
+  epic-3-retrospective: optional
+
+  # ── Epic 4: Roles, Equipos y Panel de Administración ─────────────────────
+  epic-4: done
+
+  # Fase 1 — Infraestructura de datos (tablas nuevas + extensiones de esquema)
+  4-1-tablas-base-equipos-admin: done
+  4-2-extensiones-schema-existente: done
+
+  # Fase 2 — Funciones helper y RLS actualizado
+  4-3-funciones-helper-rls: done
+  4-4-politicas-rls-pacientes-y-sesiones: done
+  4-5-politicas-rls-evaluaciones-y-planes: done
+  4-6-politicas-rls-tablas-nuevas: done
+
+  # Fase 3 — Auditoría extendida con triggers
+  4-7-auditoria-extendida-triggers: done
+
+  # Fase 4 — RPCs de admin y actualizaciones de RPCs existentes
+  4-8-rpcs-admin-terapistas: done
+  4-9-rpcs-admin-equipos: done
+  4-10-rpcs-gestion-equipo: done
+  4-11-actualizacion-rpcs-existentes: done
+
+  # Fase 5 — Frontend
+  4-12-admin-guard-y-layout: done
+  4-13-admin-dashboard-terapistas: done
+  4-14-admin-crud-terapistas: done
+  4-15-admin-gestion-equipos: done
+  4-16-mi-equipo-gestion-miembros: done
+  4-17-selector-contexto-nuevo-paciente: done
+  4-18-diferenciacion-visual-pacientes-equipo: done
+
+  epic-4-retrospective: optional

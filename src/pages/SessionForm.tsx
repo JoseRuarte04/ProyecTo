@@ -443,7 +443,7 @@ export default function SessionForm() {
   const [show_measurements, setShowMeasurements] = useState(true);
 
   // Per-subsection toggles
-  const [showPain, setShowPain] = useState(true);
+  const [showPain, setShowPain] = useState(false);
   const [showEdema, setShowEdema] = useState(false);
   const [showMobility, setShowMobility] = useState(false);
   const [showStrength, setShowStrength] = useState(false);
@@ -555,7 +555,7 @@ export default function SessionForm() {
     const load = async () => {
       const [p, c, sc] = await Promise.all([
         supabase.from("patients").select("*").eq("id", patientId).single(),
-        supabase.from("patient_clinical_records").select("*").eq("patient_id", patientId).single(),
+        supabase.from("patient_clinical_records").select("*").eq("patient_id", patientId).maybeSingle(),
         supabase
           .from("therapy_sessions")
           .select("id", { count: "exact", head: true })

@@ -17,6 +17,14 @@ import NotFound from "./pages/NotFound";
 import AnalyticalEvaluationPage from "./pages/AnalyticalEvaluationPage";
 import FunctionalEvaluationPage from "./pages/FunctionalEvaluationPage";
 import QuickDashPublicPage from "./pages/QuickDashPublicPage";
+import PlanPublicPage from "./pages/PlanPublicPage";
+import { AdminLayout } from "@/components/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminTherapists from "./pages/admin/AdminTherapists";
+import AdminTeams from "./pages/admin/AdminTeams";
+import AdminTeamDetail from "./pages/admin/AdminTeamDetail";
+import AdminActivity from "./pages/admin/AdminActivity";
+import MiEquipo from "./pages/MiEquipo";
 
 const queryClient = new QueryClient();
 
@@ -41,8 +49,18 @@ const App = () => (
               <Route path="patients/:patientId/evaluations/functional/:evalId" element={<FunctionalEvaluationPage />} />
               <Route path="appointments" element={<Appointments />} />
               <Route path="exercises" element={<Exercises />} />
+              <Route path="mi-equipo" element={<MiEquipo />} />
             </Route>
             <Route path="/q/:token" element={<QuickDashPublicPage />} />
+            <Route path="/plan/:token" element={<PlanPublicPage />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard"  element={<AdminDashboard />} />
+              <Route path="therapists" element={<AdminTherapists />} />
+              <Route path="teams"      element={<AdminTeams />} />
+              <Route path="teams/:id"  element={<AdminTeamDetail />} />
+              <Route path="activity"   element={<AdminActivity />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

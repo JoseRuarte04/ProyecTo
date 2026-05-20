@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_users: {
+        Row: { created_at: string; user_id: string }
+        Insert: { created_at?: string; user_id: string }
+        Update: { created_at?: string; user_id?: string }
+        Relationships: []
+      }
       analytical_evaluations: {
         Row: {
           arom: string | null
@@ -257,6 +263,7 @@ export type Database = {
         Row: {
           action: Database["public"]["Enums"]["audit_action"]
           action_context: Database["public"]["Enums"]["audit_context"]
+          changes: Json | null
           created_at: string
           description: string | null
           id: string
@@ -267,6 +274,7 @@ export type Database = {
         Insert: {
           action: Database["public"]["Enums"]["audit_action"]
           action_context?: Database["public"]["Enums"]["audit_context"]
+          changes?: Json | null
           created_at?: string
           description?: string | null
           id?: string
@@ -277,6 +285,7 @@ export type Database = {
         Update: {
           action?: Database["public"]["Enums"]["audit_action"]
           action_context?: Database["public"]["Enums"]["audit_context"]
+          changes?: Json | null
           created_at?: string
           description?: string | null
           id?: string
@@ -401,6 +410,35 @@ export type Database = {
           },
         ]
       }
+      exercise_body_regions: {
+        Row: {
+          id: string
+          name: string
+          professional_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          professional_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          professional_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_body_regions_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_categories: {
         Row: {
           category: Database["public"]["Enums"]["exercise_category"]
@@ -498,7 +536,14 @@ export type Database = {
       exercise_library: {
         Row: {
           body_region: string | null
+          body_region_id: string | null
           created_at: string
+          equipment: string | null
+          exercise_type: string | null
+          precautions: string | null
+          starting_position: string | null
+          suggested_reps: number | null
+          suggested_sets: number | null
           default_duration: string | null
           default_frequency: string | null
           default_repetitions: number | null
@@ -514,7 +559,14 @@ export type Database = {
         }
         Insert: {
           body_region?: string | null
+          body_region_id?: string | null
           created_at?: string
+          equipment?: string | null
+          exercise_type?: string | null
+          precautions?: string | null
+          starting_position?: string | null
+          suggested_reps?: number | null
+          suggested_sets?: number | null
           default_duration?: string | null
           default_frequency?: string | null
           default_repetitions?: number | null
@@ -530,7 +582,14 @@ export type Database = {
         }
         Update: {
           body_region?: string | null
+          body_region_id?: string | null
           created_at?: string
+          equipment?: string | null
+          exercise_type?: string | null
+          precautions?: string | null
+          starting_position?: string | null
+          suggested_reps?: number | null
+          suggested_sets?: number | null
           default_duration?: string | null
           default_frequency?: string | null
           default_repetitions?: number | null
@@ -547,6 +606,154 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "exercise_library_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_library_body_region_id_fkey"
+            columns: ["body_region_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_body_regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercise_plan_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          patient_id: string
+          plan_id: string
+          professional_id: string
+          revoked_at: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          patient_id: string
+          plan_id: string
+          professional_id: string
+          revoked_at?: string | null
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          patient_id?: string
+          plan_id?: string
+          professional_id?: string
+          revoked_at?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_plan_tokens_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_plan_tokens_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercise_plan_items: {
+        Row: {
+          assigned_reps: number | null
+          assigned_sets: number | null
+          created_at: string
+          exercise_id: string
+          frequency: string | null
+          id: string
+          notes: string | null
+          order_index: number
+          plan_id: string
+        }
+        Insert: {
+          assigned_reps?: number | null
+          assigned_sets?: number | null
+          created_at?: string
+          exercise_id: string
+          frequency?: string | null
+          id?: string
+          notes?: string | null
+          order_index?: number
+          plan_id: string
+        }
+        Update: {
+          assigned_reps?: number | null
+          assigned_sets?: number | null
+          created_at?: string
+          exercise_id?: string
+          frequency?: string | null
+          id?: string
+          notes?: string | null
+          order_index?: number
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_plan_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_plan_items_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_library"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercise_plans: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          patient_id: string
+          professional_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          patient_id: string
+          professional_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          professional_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_plans_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_plans_professional_id_fkey"
             columns: ["professional_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -702,6 +909,7 @@ export type Database = {
           notes: string | null
           patient_id: string
           pharmacological_treatment: string | null
+          referral_reason: string | null
           studies: string | null
           surgery_date: string | null
           symptom_start_date: string | null
@@ -729,6 +937,7 @@ export type Database = {
           notes?: string | null
           patient_id: string
           pharmacological_treatment?: string | null
+          referral_reason?: string | null
           studies?: string | null
           surgery_date?: string | null
           symptom_start_date?: string | null
@@ -756,6 +965,7 @@ export type Database = {
           notes?: string | null
           patient_id?: string
           pharmacological_treatment?: string | null
+          referral_reason?: string | null
           studies?: string | null
           surgery_date?: string | null
           symptom_start_date?: string | null
@@ -872,6 +1082,7 @@ export type Database = {
           phone: string | null
           professional_id: string
           status: Database["public"]["Enums"]["patient_status"]
+          team_id: string | null
           updated_at: string
           user_profile_id: string | null
         }
@@ -900,6 +1111,7 @@ export type Database = {
           phone?: string | null
           professional_id: string
           status?: Database["public"]["Enums"]["patient_status"]
+          team_id?: string | null
           updated_at?: string
           user_profile_id?: string | null
         }
@@ -928,6 +1140,7 @@ export type Database = {
           phone?: string | null
           professional_id?: string
           status?: Database["public"]["Enums"]["patient_status"]
+          team_id?: string | null
           updated_at?: string
           user_profile_id?: string | null
         }
@@ -951,6 +1164,13 @@ export type Database = {
             columns: ["user_profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -993,6 +1213,135 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      team_invitations: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          status: string
+          team_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          status?: string
+          team_id: string
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          status?: string
+          team_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_invitations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      team_members: {
+        Row: {
+          invited_by: string | null
+          joined_at: string
+          role: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          invited_by?: string | null
+          joined_at?: string
+          role: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          invited_by?: string | null
+          joined_at?: string
+          role?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          member_limit: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          member_limit?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          member_limit?: number
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       therapy_sessions: {
         Row: {

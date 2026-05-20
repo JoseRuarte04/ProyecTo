@@ -1,6 +1,8 @@
-import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut, Users2 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -18,18 +20,34 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Pacientes", url: "/patients", icon: Users },
-  { title: "Turnos", url: "/appointments", icon: Calendar },
-  { title: "Ejercicios", url: "/exercises", icon: Dumbbell },
+const baseNavItems = [
+  { title: "Dashboard",  url: "/dashboard",    icon: LayoutDashboard },
+  { title: "Pacientes",  url: "/patients",     icon: Users },
+  { title: "Turnos",     url: "/appointments", icon: Calendar },
+  { title: "Ejercicios", url: "/exercises",    icon: Dumbbell },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
+  const [isTeamAdmin, setIsTeamAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("team_members")
+      .select("team_id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .then(({ count }) => setIsTeamAdmin((count ?? 0) > 0));
+  }, [user]);
+
+  const navItems = [
+    ...baseNavItems,
+    ...(isTeamAdmin ? [{ title: "Mi equipo", url: "/mi-equipo", icon: Users2 }] : []),
+  ];
 
   const initials = profile?.full_name
     ?.split(" ")

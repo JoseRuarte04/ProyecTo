@@ -1,21 +1,24 @@
 import { Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Loader2 } from "lucide-react";
 
+const spinner = (
+  <div className="flex min-h-screen items-center justify-center bg-background">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
+
 export function AppLayout() {
   const { session, loading } = useAuth();
+  const isAdmin = useIsAdmin();
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+  if (loading) return spinner;
   if (!session) return <Navigate to="/login" replace />;
+  if (isAdmin === null) return spinner;
+  if (isAdmin) return <Navigate to="/admin" replace />;
 
   return (
     <SidebarProvider>
