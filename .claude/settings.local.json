@@ -1,20 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "mcp__claude_ai_Supabase__list_projects",
-      "mcp__claude_ai_Supabase__execute_sql",
-      "mcp__claude_ai_Supabase__get_logs",
-      "Bash(npx tsc:*)",
-      "Bash(python3 \"C:\\\\Users\\\\jojor\\\\OneDrive\\\\Escritorio\\\\Proyecto T.O\\\\ProyectiTO/_bmad/scripts/resolve_customization.py\" --skill \"C:\\\\Users\\\\jojor\\\\OneDrive\\\\Escritorio\\\\Proyecto T.O\\\\ProyectiTO/.claude/skills/bmad-generate-project-context\" --key workflow2)",
-      "Bash(python3 _bmad/scripts/resolve_customization.py --skill \".claude/skills/bmad-quick-dev\" --key workflow)",
-      "mcp__claude_ai_Supabase__list_tables",
-      "mcp__claude_ai_Supabase__get_advisors",
-      "Bash(npm run:*)",
-      "Bash(code -r \"C:\\\\Users\\\\jojor\\\\OneDrive\\\\Escritorio\\\\Proyecto T.O\\\\ProyectiTO\" \"C:\\\\Users\\\\jojor\\\\OneDrive\\\\Escritorio\\\\Proyecto T.O\\\\ProyectiTO\\\\_bmad-output\\\\implementation-artifacts\\\\spec-vista-sesiones-evaluaciones.md)",
-      "Bash(python3 *)",
-      "WebSearch",
-      "Bash(npx vite *)",
-      "mcp__claude_ai_Supabase__apply_migration"
-    ]
+  "Bash(npx tsc*)",
+  "Bash(npm run*)",
+  "Bash(git status*)",
+  "Bash(git log*)",
+  "Bash(git diff*)",
+  "Bash(grep*)",
+  "Bash(find*)",
+  "Bash(cat*)",
+  "Bash(ls*)",
+  "Bash(for*)",
+  "WebSearch",
+  "mcp__claude_ai_Supabase__list_projects",
+  "mcp__claude_ai_Supabase__list_tables",
+  "mcp__claude_ai_Supabase__list_migrations",
+  "mcp__claude_ai_Supabase__get_project",
+  "mcp__claude_ai_Supabase__get_advisors",
+  "mcp__claude_ai_Supabase__execute_sql",
+  "mcp__claude_ai_Supabase__get_logs"
+]
   }
 }
+

@@ -63,6 +63,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspaceState] = useState<Workspace>({ type: "personal" });
   const [loading, setLoading] = useState(true);
 
+  const loadTeams = async (userId: string) => {
+    const { data } = await supabase
+      .from("team_members")
+      .select("role, teams(id, name)")
+      .eq("user_id", userId);
+    const loaded: TeamOption[] = (data || []).map((r: any) => ({
+      id: r.teams.id,
+      name: r.teams.name,
+      isAdmin: r.role === "admin",
+    }));
+    setTeams(loaded);
+    const stored = readStored();
+    setWorkspaceState(resolveWorkspace(stored, loaded));
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (!user) {
       setTeams([]);
@@ -72,21 +88,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     setLoading(true);
-    supabase
-      .from("team_members")
-      .select("role, teams(id, name)")
-      .eq("user_id", user.id)
-      .then(({ data }) => {
-        const loaded: TeamOption[] = (data || []).map((r: any) => ({
-          id: r.teams.id,
-          name: r.teams.name,
-          isAdmin: r.role === "admin",
-        }));
-        setTeams(loaded);
-        const stored = readStored();
-        setWorkspaceState(resolveWorkspace(stored, loaded));
-        setLoading(false);
-      });
+    loadTeams(user.id);
+
+    const channel = supabase
+      .channel(`workspace_member_${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "team_members",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => loadTeams(user.id)
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const setWorkspace = (ws: StoredWorkspace) => {
