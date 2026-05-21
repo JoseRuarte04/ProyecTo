@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { Loader2, Users2, UserX, RefreshCw } from "lucide-react";
+import { Loader2, Users2, UserX, RefreshCw, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ActivityItem {
@@ -148,6 +148,15 @@ function TeamCard({ team, onReload }: { team: MyTeam; onReload: () => void }) {
     onReload();
   };
 
+  const handleCancel = async (invitationId: string, invEmail: string) => {
+    setActionLoading(invitationId + "_cancel");
+    const { error } = await supabase.rpc("cancel_invitation", { p_invitation_id: invitationId });
+    setActionLoading(null);
+    if (error) { toast.error("Error: " + error.message); return; }
+    toast.success(`Invitación a ${invEmail} cancelada`);
+    onReload();
+  };
+
   const adminCount = team.members.filter((m) => m.role === "admin").length;
 
   return (
@@ -222,6 +231,9 @@ function TeamCard({ team, onReload }: { team: MyTeam; onReload: () => void }) {
             {team.invitations.map((inv) => {
               const expires = parseISO(inv.expires_at);
               const expired = expires < new Date();
+              const isResending = actionLoading === inv.id;
+              const isCancelling = actionLoading === inv.id + "_cancel";
+              const isBusy = isResending || isCancelling;
               return (
                 <div key={inv.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -230,18 +242,32 @@ function TeamCard({ team, onReload }: { team: MyTeam; onReload: () => void }) {
                       {expired ? "Vencida" : `Vence ${format(expires, "d MMM", { locale: es })}`}
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[11px] gap-1 shrink-0"
-                    disabled={actionLoading === inv.id}
-                    onClick={() => handleResend(inv.id, inv.email)}
-                  >
-                    {actionLoading === inv.id
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <RefreshCw className="h-3.5 w-3.5" />}
-                    Reenviar
-                  </Button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1"
+                      disabled={isBusy}
+                      onClick={() => handleResend(inv.id, inv.email)}
+                    >
+                      {isResending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RefreshCw className="h-3.5 w-3.5" />}
+                      Reenviar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1 text-destructive hover:text-destructive"
+                      disabled={isBusy}
+                      onClick={() => handleCancel(inv.id, inv.email)}
+                    >
+                      {isCancelling
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <X className="h-3.5 w-3.5" />}
+                      Cancelar
+                    </Button>
+                  </div>
                 </div>
               );
             })}

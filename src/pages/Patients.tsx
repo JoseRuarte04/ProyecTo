@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "./Dashboard";
@@ -10,32 +11,38 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type FilterStatus = "all" | "active" | "paused" | "discharged";
-type TeamFilter = "all" | "personal" | string;
 
 const statusTabs: { label: string; value: FilterStatus }[] = [
-  { label: "Todos", value: "all" },
-  { label: "Activos", value: "active" },
+  { label: "Todos",    value: "all" },
+  { label: "Activos",  value: "active" },
   { label: "Pausados", value: "paused" },
-  { label: "Alta", value: "discharged" },
+  { label: "Alta",     value: "discharged" },
 ];
 
 export default function Patients() {
   const { user } = useAuth();
+  const { workspace } = useWorkspace();
   const navigate = useNavigate();
   const [patients, setPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
-  const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
-  const [userTeams, setUserTeams] = useState<{ id: string; name: string }[]>([]);
 
   const fetchPatients = async () => {
+    if (!user) return;
     setLoading(true);
+
     let query = supabase
       .from("patients")
-      .select("id, first_name, last_name, dni, status, insurance, admission_date, team_id, teams(name), therapy_sessions(session_date, is_deleted)")
+      .select("id, first_name, last_name, dni, status, insurance, admission_date, therapy_sessions(session_date, is_deleted)")
       .eq("is_deleted", false)
       .order("last_name", { ascending: true });
+
+    if (workspace.type === "personal") {
+      query = query.eq("professional_id", user.id);
+    } else {
+      query = query.eq("team_id", workspace.teamId);
+    }
 
     if (filter !== "all") query = query.eq("status", filter);
 
@@ -44,32 +51,23 @@ export default function Patients() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchPatients(); }, [filter]);
-
   useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("team_members")
-      .select("team_id, teams(id, name)")
-      .eq("user_id", user.id)
-      .then(({ data }) => {
-        setUserTeams(
-          (data || []).map((r: any) => ({ id: r.teams.id, name: r.teams.name }))
-        );
-      });
-  }, [user]);
+    fetchPatients();
+  }, [filter, workspace]);
+
+  // Resetear filtros al cambiar de workspace
+  useEffect(() => {
+    setSearch("");
+    setFilter("all");
+  }, [workspace]);
 
   const filtered = patients.filter((p) => {
-    if (teamFilter === "personal" && p.team_id !== null) return false;
-    if (teamFilter !== "all" && teamFilter !== "personal" && p.team_id !== teamFilter) return false;
     if (!search) return true;
     const term = search.toLowerCase();
-    const teamName = (p.teams as { name: string } | null)?.name?.toLowerCase() ?? "";
     return (
       p.first_name?.toLowerCase().includes(term) ||
       p.last_name?.toLowerCase().includes(term) ||
-      p.dni?.toLowerCase().includes(term) ||
-      teamName.includes(term)
+      p.dni?.toLowerCase().includes(term)
     );
   });
 
@@ -80,11 +78,14 @@ export default function Patients() {
     return sorted[0].session_date;
   };
 
+  const pageTitle =
+    workspace.type === "personal" ? "Mis Pacientes" : `Pacientes — ${workspace.teamName}`;
+
   return (
     <div className="space-y-0">
       {/* Header */}
       <div className="flex items-center justify-between pb-6">
-        <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">Mis Pacientes</h1>
+        <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">{pageTitle}</h1>
         <Button onClick={() => navigate("/patients/new")} size="sm" className="gap-2">
           <Plus className="h-4 w-4" /> Nuevo Paciente
         </Button>
@@ -119,30 +120,6 @@ export default function Patients() {
             </button>
           ))}
         </div>
-
-        {/* Tabs de equipo — solo si el usuario pertenece a algún equipo */}
-        {userTeams.length > 0 && (
-          <div className="flex gap-1.5 pt-2 pb-1 flex-wrap">
-            {([
-              { id: "all",      label: "Todos" },
-              { id: "personal", label: "Personales" },
-              ...userTeams.map((t) => ({ id: t.id, label: t.name })),
-            ] as { id: TeamFilter; label: string }[]).map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTeamFilter(t.id)}
-                className={cn(
-                  "px-3 py-1 rounded-full text-[12px] font-medium border transition-colors",
-                  teamFilter === t.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-transparent text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Lista */}
@@ -178,16 +155,9 @@ export default function Patients() {
                 >
                   {/* Nombre + DNI */}
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-sm text-foreground truncate">
-                        {p.last_name}, {p.first_name}
-                      </p>
-                      {p.teams && (
-                        <span className="inline-flex items-center text-[10px] font-medium text-primary/80 bg-primary/8 border border-primary/20 rounded-full px-2 py-0.5">
-                          {(p.teams as { name: string }).name}
-                        </span>
-                      )}
-                    </div>
+                    <p className="font-semibold text-sm text-foreground truncate">
+                      {p.last_name}, {p.first_name}
+                    </p>
                     <p className="text-xs text-muted-foreground">DNI {p.dni}</p>
                   </div>
 
@@ -203,10 +173,8 @@ export default function Patients() {
                   <p className="text-xs text-muted-foreground tabular-nums text-right">
                     {lastSessionDate
                       ? format(new Date(lastSessionDate + "T12:00:00"), "dd/MM/yy")
-                      : "—"
-                    }
+                      : "—"}
                   </p>
-
                 </div>
               );
             })}

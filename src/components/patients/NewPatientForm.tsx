@@ -3,20 +3,15 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Check } from "lucide-react";
+import { Loader2, ArrowLeft, Check, User, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface TeamOption {
-  id: string;
-  name: string;
-}
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -282,32 +277,11 @@ function Cie10Autocomplete({ value, onChange, placeholder, className }: {
 
 export default function NewPatientForm() {
   const { user } = useAuth();
+  const { workspace } = useWorkspace();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-
-  // Selector de contexto de equipo
-  const [teams, setTeams]               = useState<TeamOption[]>([]);
-  const [teamsLoading, setTeamsLoading] = useState(true);
-  const [selectedTeamId, setSelectedTeamId] = useState<string>("personal");
-
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("team_members")
-      .select("team_id, teams!inner(id, name, is_active)")
-      .eq("user_id", user.id)
-      .eq("teams.is_active", true)
-      .then(({ data }) => {
-        const opts = (data || []).map((r: any) => ({
-          id:   r.teams.id   as string,
-          name: r.teams.name as string,
-        }));
-        setTeams(opts);
-        setTeamsLoading(false);
-      });
-  }, [user]);
 
   // Step 1 — Datos personales
   const [lastName, setLastName] = useState("");
@@ -382,7 +356,7 @@ export default function NewPatientForm() {
           emergency_contact_phone: or(emergencyPhone),
           emergency_contact_relation: or(emergencyRelation),
           professional_id: user!.id,
-          team_id: selectedTeamId === "personal" ? null : selectedTeamId,
+          team_id: workspace.type === "team" ? workspace.teamId : null,
         })
         .select("id")
         .single();
@@ -412,7 +386,10 @@ export default function NewPatientForm() {
       toast.success("Paciente registrado correctamente");
       navigate(`/patients/${pid}`);
     } catch (err: any) {
-      const isDuplicateDni = err?.code === "23505" || err?.message?.includes("uq_patients_dni_professional");
+      const isDuplicateDni = err?.code === "23505" && (
+        err?.message?.includes("uq_patients_dni_personal_active") ||
+        err?.message?.includes("uq_patients_dni_team_active")
+      );
       toast.error(
         isDuplicateDni ? "Ya tenés un paciente activo con ese DNI" : "Error al registrar al paciente",
         { description: isDuplicateDni ? undefined : err.message }
@@ -456,37 +433,26 @@ export default function NewPatientForm() {
               <p className="text-sm text-muted-foreground">Información básica del paciente.</p>
             </div>
 
-            {/* Selector de contexto — solo si tiene equipos */}
-            {teamsLoading && (
-              <div className="h-12 rounded-lg border border-border bg-muted/20 animate-pulse" />
-            )}
-            {!teamsLoading && teams.length > 0 && (
-              <div className="p-4 rounded-lg border border-border bg-muted/20">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                  ¿A quién pertenece este paciente?
-                </p>
-                <RadioGroup
-                  value={selectedTeamId}
-                  onValueChange={setSelectedTeamId}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <RadioGroupItem value="personal" id="ctx-personal" />
-                    <label htmlFor="ctx-personal" className="text-sm cursor-pointer">
-                      Paciente personal
-                    </label>
-                  </div>
-                  {teams.map((t) => (
-                    <div key={t.id} className="flex items-center gap-2.5">
-                      <RadioGroupItem value={t.id} id={`ctx-${t.id}`} />
-                      <label htmlFor={`ctx-${t.id}`} className="text-sm cursor-pointer">
-                        Paciente de <span className="font-medium">{t.name}</span>
-                      </label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-            )}
+            {/* Indicador de workspace activo */}
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-md bg-muted/50 border border-border text-xs text-muted-foreground">
+              {workspace.type === "personal" ? (
+                <>
+                  <User className="h-3.5 w-3.5 shrink-0" />
+                  <span>Paciente <span className="font-medium text-foreground">personal</span></span>
+                </>
+              ) : (
+                <>
+                  <Building2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span>
+                    Paciente del equipo{" "}
+                    <span className="font-medium text-foreground">{workspace.teamName}</span>
+                  </span>
+                </>
+              )}
+              <span className="ml-auto text-[10px] text-muted-foreground/60">
+                Cambiá el workspace desde el menú lateral
+              </span>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -626,6 +592,10 @@ export default function NewPatientForm() {
               <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Resumen</p>
               <div className="space-y-2">
                 <SummaryRow label="Paciente" value={`${lastName}, ${firstName}`} />
+                <SummaryRow
+                  label="Contexto"
+                  value={workspace.type === "personal" ? "Personal" : `Equipo: ${workspace.teamName}`}
+                />
                 <SummaryRow label="DNI" value={dni} />
                 <SummaryRow label="Nacimiento" value={birthDate} />
                 {gender && <SummaryRow label="Género" value={{ female: "Femenino", male: "Masculino", other: "Otro", no_data: "Prefiero no decir" }[gender] ?? gender} />}

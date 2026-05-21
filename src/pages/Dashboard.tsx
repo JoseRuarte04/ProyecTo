@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ChevronLeft, ChevronRight, Search, Plus, CalendarCheck, Clock } from "lucide-react";
@@ -75,7 +76,8 @@ const sessionTypeMap: Record<string, string> = {
 };
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const { workspace } = useWorkspace();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [agendaDate, setAgendaDate] = useState(new Date());
@@ -85,16 +87,18 @@ export default function Dashboard() {
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [stalePatients, setStalePatients] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchAgenda(agendaDate);
-    fetchActivePatients();
-    fetchRecentSessions();
-    fetchStalePatients();
-  }, []);
-
+  // Agenda: por profesional, sin workspace (turnos son del profesional)
   useEffect(() => {
     fetchAgenda(agendaDate);
   }, [agendaDate]);
+
+  // Stats: refetch al cambiar workspace o usuario
+  useEffect(() => {
+    if (!user) return;
+    fetchActivePatients();
+    fetchRecentSessions();
+    fetchStalePatients();
+  }, [workspace, user]);
 
   const fetchAgenda = async (date: Date) => {
     const dayStart = startOfDay(date).toISOString();
@@ -112,7 +116,7 @@ export default function Dashboard() {
   };
 
   const fetchActivePatients = async () => {
-    const { data, count } = await supabase
+    let query = supabase
       .from("patients")
       .select("id, first_name, last_name, admission_date", { count: "exact" })
       .eq("status", "active")
@@ -120,39 +124,67 @@ export default function Dashboard() {
       .order("admission_date", { ascending: false })
       .limit(3);
 
+    if (workspace.type === "personal") {
+      query = query.eq("professional_id", user!.id);
+    } else {
+      query = query.eq("team_id", workspace.teamId);
+    }
+
+    const { data, count } = await query;
     setActivePatients(data || []);
     setActivePatientsCount(count || 0);
   };
 
   const fetchRecentSessions = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("therapy_sessions")
-      .select("id, session_date, session_type, session_number, patient_id, patients(first_name, last_name)")
+      .select("id, session_date, session_type, session_number, patient_id, patients!inner(first_name, last_name, professional_id, team_id)")
       .eq("is_deleted", false)
       .order("session_date", { ascending: false })
       .limit(3);
 
+    if (workspace.type === "personal") {
+      query = query.eq("patients.professional_id", user!.id);
+    } else {
+      query = query.eq("patients.team_id", workspace.teamId);
+    }
+
+    const { data } = await query;
     setRecentSessions(data || []);
   };
 
   const fetchStalePatients = async () => {
     const cutoff = subDays(new Date(), 14).toISOString().split("T")[0];
 
-    // Pacientes con sesión reciente
-    const { data: recentData } = await supabase
+    // Pacientes del workspace con sesión reciente
+    let recentQuery = supabase
       .from("therapy_sessions")
-      .select("patient_id")
+      .select("patient_id, patients!inner(professional_id, team_id)")
       .gte("session_date", cutoff)
       .eq("is_deleted", false);
 
+    if (workspace.type === "personal") {
+      recentQuery = recentQuery.eq("patients.professional_id", user!.id);
+    } else {
+      recentQuery = recentQuery.eq("patients.team_id", workspace.teamId);
+    }
+
+    const { data: recentData } = await recentQuery;
     const recentIds = [...new Set((recentData || []).map((r: any) => r.patient_id))];
 
+    // Pacientes del workspace sin sesión reciente
     let query = supabase
       .from("patients")
       .select("id, first_name, last_name")
       .eq("status", "active")
       .eq("is_deleted", false)
       .limit(4);
+
+    if (workspace.type === "personal") {
+      query = query.eq("professional_id", user!.id);
+    } else {
+      query = query.eq("team_id", workspace.teamId);
+    }
 
     if (recentIds.length > 0) {
       query = query.not("id", "in", `(${recentIds.join(",")})`);

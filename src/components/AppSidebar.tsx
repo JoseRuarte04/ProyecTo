@@ -1,8 +1,7 @@
-import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut, Users2 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut, Users2, ChevronDown, User, Building2 } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +18,13 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const baseNavItems = [
   { title: "Dashboard",  url: "/dashboard",    icon: LayoutDashboard },
@@ -31,30 +37,32 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { pathname } = useLocation();
-  const { profile, signOut, user } = useAuth();
-  const [isTeamAdmin, setIsTeamAdmin] = useState(false);
+  const navigate = useNavigate();
+  const { profile, signOut } = useAuth();
+  const { workspace, teams, setWorkspace } = useWorkspace();
 
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("team_members")
-      .select("team_id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .then(({ count }) => setIsTeamAdmin((count ?? 0) > 0));
-  }, [user]);
+  const isTeamAdmin = workspace.type === "team" && workspace.isAdmin;
 
   const navItems = [
     ...baseNavItems,
     ...(isTeamAdmin ? [{ title: "Mi equipo", url: "/mi-equipo", icon: Users2 }] : []),
   ];
 
-  const initials = profile?.full_name
-    ?.split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "TO";
+  const handleSetWorkspace = (ws: { type: "personal" } | { type: "team"; teamId: string }) => {
+    setWorkspace(ws);
+    navigate("/dashboard");
+  };
+
+  const workspaceLabel =
+    workspace.type === "personal" ? "Personal" : workspace.teamName;
+
+  const initials =
+    profile?.full_name
+      ?.split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "TO";
 
   const isActive = (url: string) => {
     if (url === "/dashboard") return pathname === "/dashboard" || pathname === "/";
@@ -65,12 +73,58 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         {!collapsed ? (
-          <div className="flex items-center px-5 py-6">
-            <div className="flex-1 min-w-0">
-              <p className="font-serif text-xl font-semibold text-foreground tracking-tight">RehabOT</p>
-              <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground mt-0.5">Clínica · Terapia Ocupacional</p>
+          <div className="px-5 pt-6 pb-3">
+            {/* Logo row */}
+            <div className="flex items-center mb-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-serif text-xl font-semibold text-foreground tracking-tight">RehabOT</p>
+                <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground mt-0.5">
+                  Clínica · Terapia Ocupacional
+                </p>
+              </div>
+              <SidebarTrigger className="ml-2 shrink-0 text-muted-foreground hover:text-foreground" />
             </div>
-            <SidebarTrigger className="ml-2 shrink-0 text-muted-foreground hover:text-foreground" />
+
+            {/* Workspace switcher — solo si pertenece a al menos un equipo */}
+            {teams.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted transition-colors text-foreground">
+                    {workspace.type === "personal" ? (
+                      <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                    )}
+                    <span className="flex-1 text-left truncate">{workspaceLabel}</span>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52">
+                  <DropdownMenuItem
+                    onClick={() => handleSetWorkspace({ type: "personal" })}
+                    className={workspace.type === "personal" ? "font-semibold" : ""}
+                  >
+                    <User className="h-4 w-4 mr-2 shrink-0" />
+                    Personal
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {teams.map((team) => (
+                    <DropdownMenuItem
+                      key={team.id}
+                      onClick={() => handleSetWorkspace({ type: "team", teamId: team.id })}
+                      className={
+                        workspace.type === "team" && workspace.teamId === team.id
+                          ? "font-semibold"
+                          : ""
+                      }
+                    >
+                      <Building2 className="h-4 w-4 mr-2 shrink-0" />
+                      {team.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 py-4">
@@ -99,9 +153,10 @@ export function AppSidebar() {
                         className={`relative flex items-center rounded-lg text-[13px] transition-colors ${
                           collapsed
                             ? `justify-center p-0 ${active ? "text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent/60"}`
-                            : `gap-3 px-3 py-3 ${active
-                                ? "border-l-[3px] border-l-primary text-foreground font-semibold"
-                                : "border-l-[3px] border-l-transparent text-sidebar-foreground font-normal hover:bg-sidebar-accent/60"
+                            : `gap-3 px-3 py-3 ${
+                                active
+                                  ? "border-l-[3px] border-l-primary text-foreground font-semibold"
+                                  : "border-l-[3px] border-l-transparent text-sidebar-foreground font-normal hover:bg-sidebar-accent/60"
                               }`
                         }`}
                       >
@@ -126,9 +181,7 @@ export function AppSidebar() {
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {profile.full_name}
-              </p>
+              <p className="text-sm font-medium text-foreground truncate">{profile.full_name}</p>
               <p className="text-[11px] text-muted-foreground truncate">
                 {profile.specialty || "T. Ocupacional"}
               </p>
