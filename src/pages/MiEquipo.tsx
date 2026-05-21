@@ -91,7 +91,7 @@ function TeamActivity({ teamId }: { teamId: string }) {
 }
 
 function TeamCard({ team, onReload }: { team: MyTeam; onReload: () => void }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [email, setEmail]                 = useState("");
   const [inviting, setInviting]           = useState(false);
   const [removeTarget, setRemoveTarget]   = useState<TeamMemberWithProfile | null>(null);
@@ -104,13 +104,45 @@ function TeamCard({ team, onReload }: { team: MyTeam; onReload: () => void }) {
       p_team_id: team.id,
       p_email:   email.trim(),
     });
-    setInviting(false);
-    if (error) { toast.error("Error: " + error.message); return; }
-    const res = data as { result: string; limit?: number };
-    if (res.result === "added")               { toast.success("Miembro agregado directamente"); setEmail(""); onReload(); }
-    else if (res.result === "invited")         { toast.success(`Invitación enviada a ${email.trim()}`); setEmail(""); onReload(); }
-    else if (res.result === "already_member")  toast.warning("Ya es miembro del equipo");
-    else if (res.result === "limit_reached")   toast.error(`Límite de ${res.limit} miembros alcanzado`);
+    if (error) { setInviting(false); toast.error("Error: " + error.message); return; }
+    const res = data as { result: string; token?: string; limit?: number };
+
+    if (res.result === "added") {
+      setInviting(false);
+      toast.success("Miembro agregado directamente");
+      setEmail("");
+      onReload();
+    } else if (res.result === "invited" && res.token) {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-team-invitation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            token:       res.token,
+            email:       email.trim(),
+            teamName:    team.name,
+            inviterName: profile?.full_name || user?.email || "Un terapista",
+          }),
+        }
+      );
+      setInviting(false);
+      toast.success(`Invitación enviada a ${email.trim()}`);
+      setEmail("");
+      onReload();
+    } else if (res.result === "already_member") {
+      setInviting(false);
+      toast.warning("Ya es miembro del equipo");
+    } else if (res.result === "limit_reached") {
+      setInviting(false);
+      toast.error(`Límite de ${res.limit} miembros alcanzado`);
+    } else {
+      setInviting(false);
+    }
   };
 
   const handleRemove = async (m: TeamMemberWithProfile) => {

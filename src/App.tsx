@@ -26,6 +26,7 @@ import AdminTeams from "./pages/admin/AdminTeams";
 import AdminTeamDetail from "./pages/admin/AdminTeamDetail";
 import AdminActivity from "./pages/admin/AdminActivity";
 import MiEquipo from "./pages/MiEquipo";
+import InvitationRegister from "./pages/InvitationRegister";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ const App = () => (
                 <Route path="exercises" element={<Exercises />} />
                 <Route path="mi-equipo" element={<MiEquipo />} />
               </Route>
+              <Route path="/registro" element={<InvitationRegister />} />
               <Route path="/q/:token" element={<QuickDashPublicPage />} />
               <Route path="/plan/:token" element={<PlanPublicPage />} />
               <Route path="/admin" element={<AdminLayout />}>

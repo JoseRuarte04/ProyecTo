@@ -1,7 +1,8 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Building2, ArrowLeft, Activity } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { LayoutDashboard, Users, Building2, LogOut, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const adminNavItems = [
   { title: "Dashboard",  url: "/admin/dashboard",  icon: LayoutDashboard },
@@ -11,7 +12,7 @@ const adminNavItems = [
 ];
 
 export function AdminSidebar() {
-  const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   return (
     <aside className="w-60 shrink-0 border-r border-border bg-card min-h-screen flex flex-col">
@@ -44,11 +45,11 @@ export function AdminSidebar() {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start text-muted-foreground text-[13px]"
-          onClick={() => navigate("/dashboard")}
+          className="w-full justify-start text-muted-foreground text-[13px] hover:text-destructive hover:bg-destructive/10"
+          onClick={() => signOut()}
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver a la app
+          <LogOut className="h-4 w-4 mr-2" />
+          Cerrar sesión
         </Button>
       </div>
     </aside>
