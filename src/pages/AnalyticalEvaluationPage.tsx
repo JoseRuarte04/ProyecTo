@@ -172,10 +172,41 @@ export default function AnalyticalEvaluationPage() {
       return tables;
     }
 
-    // New Format B with pre/post: { MSD: { pre: flat, post: flat }, MSI: { ... } } (AnalyticalEvalForm)
+    // Format B with pre/post: { MSD: { pre: ?, post: ? }, MSI: { ... } }
+    // pre/post can be either:
+    //   - array of { body_part, values }  → SessionForm
+    //   - flat object { hombro_flexion: "180", ... } → AnalyticalEvalForm
     const msdHasPrePost = msd && typeof msd === "object" && !Array.isArray(msd) && ("pre" in msd || "post" in msd);
     const msiHasPrePost = msi && typeof msi === "object" && !Array.isArray(msi) && ("pre" in msi || "post" in msi);
     if (msdHasPrePost || msiHasPrePost) {
+      // Detectar si pre/post son arrays (SessionForm) o flat objects (AnalyticalEvalForm)
+      const preIsArray =
+        Array.isArray(msd?.pre) || Array.isArray(msi?.pre) ||
+        Array.isArray(msd?.post) || Array.isArray(msi?.post);
+
+      if (preIsArray) {
+        // SessionForm: pre/post son arrays de { body_part, values }
+        const tables: JointTable[] = [];
+        for (const part of JOINT_CONFIG_A) {
+          const pp = getPartVals(msd?.pre, part.key);
+          const pq = getPartVals(msd?.post, part.key);
+          const rp = getPartVals(msi?.pre, part.key);
+          const rq = getPartVals(msi?.post, part.key);
+          const rows: MovRow[] = [];
+          for (const m of part.movements) {
+            const a = pp[m.key] != null ? Number(pp[m.key]) : null;
+            const b = pq[m.key] != null ? Number(pq[m.key]) : null;
+            const c = rp[m.key] != null ? Number(rp[m.key]) : null;
+            const d = rq[m.key] != null ? Number(rq[m.key]) : null;
+            if (a != null || b != null || c != null || d != null)
+              rows.push({ mov: m.label, msdPre: a, msdPost: b, msiPre: c, msiPost: d });
+          }
+          if (rows.length > 0) tables.push({ joint: part.label, rows });
+        }
+        return tables;
+      }
+
+      // AnalyticalEvalForm: pre/post son flat objects con claves prefijadas
       const JOINT_ORDER = ["Hombro", "Codo", "Muñeca", "Mano", "Pulgar"];
       const mpMap = flatToJointMap(msd?.pre), mqMap = flatToJointMap(msd?.post);
       const rpMap = flatToJointMap(msi?.pre), rqMap = flatToJointMap(msi?.post);
@@ -584,23 +615,38 @@ export default function AnalyticalEvaluationPage() {
       <Section title="Movilidad">
         {hasGonioTables ? (
           isNewGonioFormat ? (
-            <div className="space-y-5">
+            <div className="space-y-6">
               {gonioResult.arom.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">AROM</p>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-foreground">AROM</span>
+                      <span className="text-xs text-muted-foreground font-normal">— Movilidad activa</span>
+                    </div>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
                   {renderGonioTables(gonioResult.arom)}
                 </div>
               )}
               {gonioResult.prom.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">PROM</p>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-foreground">PROM</span>
+                      <span className="text-xs text-muted-foreground font-normal">— Movilidad pasiva</span>
+                    </div>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
                   {renderGonioTables(gonioResult.prom)}
                 </div>
               )}
             </div>
           ) : (
             <>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Goniometría</p>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-sm font-bold text-foreground">Goniometría</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
               {renderGonioTables(gonioResult.arom)}
             </>
           )
