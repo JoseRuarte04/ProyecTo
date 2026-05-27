@@ -194,6 +194,15 @@ const parseDyn = (v: any): [string, string, string] => {
   return ["", "", ""];
 };
 
+// ── Validation helper — devuelve mensaje de error o null si el campo es válido ──
+function numFieldErr(v: string, min: number, max: number, unit: string): string | null {
+  if (!v.trim()) return null;
+  const n = parseFloat(v);
+  if (isNaN(n)) return "Solo se admiten números";
+  if (n < min || n > max) return `Debe estar entre ${min} y ${max}${unit ? " " + unit : ""}`;
+  return null;
+}
+
 // ── Reusable wrappers ──
 function SectionCard({
   id,
@@ -886,8 +895,37 @@ export default function SessionForm() {
     (vss_flexibilidad ? parseInt(vss_flexibilidad) : 0) +
     (vss_altura ? parseInt(vss_altura) : 0);
 
+  // ── Validación de campos numéricos clínicos ──
+  const validateNumerics = (): boolean => {
+    const kap   = numFieldErr(kapandji_val, 0, 10, "");
+    const dyns  = [...dyn_msd_vals, ...dyn_msi_vals].map(v => numFieldErr(v, 0, 200, "kgf"));
+    const dppds = [dppd_pulgar, dppd_indice, dppd_medio, dppd_anular, dppd_menique].map(v => numFieldErr(v, 0, 30, "cm"));
+
+    const checkGonioSide = (allVals: GonioBySide) =>
+      (["MSD", "MSI"] as const).some(side =>
+        Object.values(allVals[side]).some((partVals) =>
+          Object.values(partVals as Record<string, string>).some(v => v.trim() && !!numFieldErr(v, 0, 360, "°"))
+        )
+      );
+
+    const hasErrors =
+      !!kap ||
+      dyns.some(Boolean) ||
+      dppds.some(Boolean) ||
+      checkGonioSide(all_pre_gonio) ||
+      checkGonioSide(all_arom_post_gonio) ||
+      checkGonioSide(all_prom_pre_gonio) ||
+      checkGonioSide(all_post_gonio);
+
+    return !hasErrors;
+  };
+
   const handleSave = async () => {
     if (!session_date || !user) return;
+    if (!validateNumerics()) {
+      toast.error("Hay campos numéricos con valores inválidos. Revisá las secciones marcadas antes de guardar.");
+      return;
+    }
     setSaving(true);
 
     // ── Pain (gated) ──
@@ -1274,18 +1312,25 @@ export default function SessionForm() {
     const fields = GONIO_PARTS[partKey].fields;
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {fields.map((f) => (
-          <div key={f.key}>
-            <FieldLabel>{f.label} °</FieldLabel>
-            <Input
-              type="number"
-              placeholder={f.norm}
-              value={values[f.key] || ""}
-              onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-        ))}
+        {fields.map((f) => {
+          const raw = values[f.key] || "";
+          const err = numFieldErr(raw, 0, 360, "°");
+          return (
+            <div key={f.key}>
+              <FieldLabel>{f.label} °</FieldLabel>
+              <Input
+                type="number"
+                min={0}
+                max={360}
+                placeholder={f.norm}
+                value={raw}
+                onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+                className={cn(inputClass, err ? "border-destructive ring-1 ring-destructive" : "")}
+              />
+              {err && <p className="text-xs text-destructive mt-1">{err}</p>}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -1874,7 +1919,7 @@ export default function SessionForm() {
                     max={10}
                     value={kapandji_val}
                     onChange={(e) => setKapandjiVal(e.target.value)}
-                    className={inputClass}
+                    className={cn(inputClass, numFieldErr(kapandji_val, 0, 10, "") ? "border-destructive ring-1 ring-destructive" : "")}
                   />
                   <div className="flex items-center gap-2 shrink-0">
                     <Checkbox checked={kapandji_pain} onCheckedChange={(v) => setKapandjiPain(!!v)} id="kap-pain-sf" />
@@ -1883,6 +1928,9 @@ export default function SessionForm() {
                     </Label>
                   </div>
                 </div>
+                {numFieldErr(kapandji_val, 0, 10, "") && (
+                  <p className="text-xs text-destructive mt-1">{numFieldErr(kapandji_val, 0, 10, "")}</p>
+                )}
               </div>
               <div>
                 <Label>Cierre de puño</Label>
@@ -1942,22 +1990,28 @@ export default function SessionForm() {
                     <Label>Dinamómetro {side} (kgf)</Label>
                     {isAffected && <Badge variant="destructive" className="text-[10px] py-0">Afectado</Badge>}
                   </div>
-                  <div className="grid grid-cols-4 gap-2 mt-1">
-                    {[0, 1, 2].map((i) => (
-                      <Input
-                        key={i}
-                        type="number"
-                        step="0.1"
-                        placeholder={`Med. ${i + 1}`}
-                        value={vals[i]}
-                        onChange={(e) => {
-                          const next = [...vals] as [string, string, string];
-                          next[i] = e.target.value;
-                          setVals(next);
-                        }}
-                        className={inputClass}
-                      />
-                    ))}
+                  <div className="grid grid-cols-4 gap-2 mt-1 items-start">
+                    {[0, 1, 2].map((i) => {
+                      const err = numFieldErr(vals[i], 0, 200, "kgf");
+                      return (
+                        <div key={i}>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min={0}
+                            placeholder={`Med. ${i + 1}`}
+                            value={vals[i]}
+                            onChange={(e) => {
+                              const next = [...vals] as [string, string, string];
+                              next[i] = e.target.value;
+                              setVals(next);
+                            }}
+                            className={cn(inputClass, err ? "border-destructive ring-1 ring-destructive" : "")}
+                          />
+                          {err && <p className="text-[11px] text-destructive mt-0.5 leading-tight">{err}</p>}
+                        </div>
+                      );
+                    })}
                     <Input
                       type="text"
                       readOnly
@@ -1972,27 +2026,31 @@ export default function SessionForm() {
             })}
             <div>
               <Label>DPPD (cm) — distancia pulpejo-pliegue distal</Label>
-              <div className="grid grid-cols-5 gap-2">
-                <div>
-                  <Label className="text-xs">Pulgar</Label>
-                  <Input type="number" step="0.1" value={dppd_pulgar} onChange={(e) => setDppdPulgar(e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <Label className="text-xs">Índice</Label>
-                  <Input type="number" step="0.1" value={dppd_indice} onChange={(e) => setDppdIndice(e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <Label className="text-xs">Medio</Label>
-                  <Input type="number" step="0.1" value={dppd_medio} onChange={(e) => setDppdMedio(e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <Label className="text-xs">Anular</Label>
-                  <Input type="number" step="0.1" value={dppd_anular} onChange={(e) => setDppdAnular(e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <Label className="text-xs">Meñique</Label>
-                  <Input type="number" step="0.1" value={dppd_menique} onChange={(e) => setDppdMenique(e.target.value)} className={inputClass} />
-                </div>
+              <div className="grid grid-cols-5 gap-2 items-start">
+                {([
+                  { label: "Pulgar",  value: dppd_pulgar,  set: setDppdPulgar  },
+                  { label: "Índice",  value: dppd_indice,  set: setDppdIndice  },
+                  { label: "Medio",   value: dppd_medio,   set: setDppdMedio   },
+                  { label: "Anular",  value: dppd_anular,  set: setDppdAnular  },
+                  { label: "Meñique", value: dppd_menique, set: setDppdMenique },
+                ] as const).map(({ label, value, set }) => {
+                  const err = numFieldErr(value, 0, 30, "cm");
+                  return (
+                    <div key={label}>
+                      <Label className="text-xs">{label}</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min={0}
+                        max={30}
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
+                        className={cn(inputClass, err ? "border-destructive ring-1 ring-destructive" : "")}
+                      />
+                      {err && <p className="text-[11px] text-destructive mt-0.5 leading-tight">{err}</p>}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div>

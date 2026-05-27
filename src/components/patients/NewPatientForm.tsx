@@ -281,7 +281,7 @@ export default function NewPatientForm() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Step 1 — Datos personales
   const [lastName, setLastName] = useState("");
@@ -309,13 +309,43 @@ export default function NewPatientForm() {
 
   const or = (v: string) => v.trim() || null;
 
+  // ── Validation helpers ──
+  const isNumericOnly = (v: string) => /^\d+$/.test(v.trim());
+  const isValidName   = (v: string) => !v.trim() || /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s'\-]+$/.test(v.trim());
+  const isValidPhone  = (v: string) => !v.trim() || /^[+\d][\d\s\-()+]*$/.test(v.trim());
+  const isValidEmail  = (v: string) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
   const validateStep1 = () => {
-    const errs: Record<string, boolean> = {};
-    if (!lastName.trim()) errs.lastName = true;
-    if (!firstName.trim()) errs.firstName = true;
-    if (!dni.trim()) errs.dni = true;
-    if (!birthDate) errs.birthDate = true;
-    if (!admissionDate) errs.admissionDate = true;
+    const errs: Record<string, string> = {};
+    if (!lastName.trim()) {
+      errs.lastName = "Este campo es obligatorio";
+    } else if (!isValidName(lastName)) {
+      errs.lastName = "El apellido solo puede contener letras";
+    }
+    if (!firstName.trim()) {
+      errs.firstName = "Este campo es obligatorio";
+    } else if (!isValidName(firstName)) {
+      errs.firstName = "El nombre solo puede contener letras";
+    }
+    if (!dni.trim()) {
+      errs.dni = "El DNI es obligatorio";
+    } else if (!isNumericOnly(dni)) {
+      errs.dni = "El DNI debe contener solo números, sin letras ni símbolos";
+    }
+    if (!birthDate)    errs.birthDate    = "Este campo es obligatorio";
+    if (!admissionDate) errs.admissionDate = "Este campo es obligatorio";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const validateStep3 = () => {
+    const errs: Record<string, string> = {};
+    if (phone && !isValidPhone(phone))
+      errs.phone = "El teléfono solo puede contener números y el signo + (ej: +54 11 1234-5678)";
+    if (email && !isValidEmail(email))
+      errs.email = "Ingresá un email válido (ej: nombre@dominio.com)";
+    if (emergencyPhone && !isValidPhone(emergencyPhone))
+      errs.emergencyPhone = "El teléfono solo puede contener números y el signo + (ej: +54 11 1234-5678)";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -335,6 +365,10 @@ export default function NewPatientForm() {
   };
 
   const handleSave = async () => {
+    if (!validateStep3()) {
+      toast.error("Corregí los campos con error antes de guardar");
+      return;
+    }
     setSaving(true);
     try {
       const { data: patient, error: patErr } = await supabase
@@ -401,7 +435,7 @@ export default function NewPatientForm() {
 
   const fieldCls = (k: string) => errors[k] ? "border-destructive ring-1 ring-destructive" : "";
   const ErrMsg = ({ field }: { field: string }) =>
-    errors[field] ? <p className="text-xs text-destructive mt-1">Campo obligatorio</p> : null;
+    errors[field] ? <p className="text-xs text-destructive mt-1">{errors[field]}</p> : null;
 
   const STEP_LABELS = ["Datos personales", "Info clínica", "Contacto"];
 
@@ -544,11 +578,13 @@ export default function NewPatientForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel>Teléfono</FieldLabel>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="+54 11 1234-5678" />
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} className={cn(inputClass, fieldCls("phone"))} placeholder="+54 11 1234-5678" />
+                <ErrMsg field="phone" />
               </div>
               <div>
                 <FieldLabel>Email</FieldLabel>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={cn(inputClass, fieldCls("email"))} />
+                <ErrMsg field="email" />
               </div>
               <div className="sm:col-span-2">
                 <FieldLabel>Domicilio</FieldLabel>
@@ -566,7 +602,8 @@ export default function NewPatientForm() {
                 </div>
                 <div>
                   <FieldLabel>Teléfono</FieldLabel>
-                  <Input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} className={inputClass} />
+                  <Input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} className={cn(inputClass, fieldCls("emergencyPhone"))} />
+                  <ErrMsg field="emergencyPhone" />
                 </div>
                 <div>
                   <FieldLabel>Relación</FieldLabel>

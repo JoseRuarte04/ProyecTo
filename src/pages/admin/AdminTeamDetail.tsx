@@ -91,13 +91,13 @@ export default function AdminTeamDetail() {
         </Button>
         <div>
           <h2 className="font-serif text-xl font-semibold text-foreground">{team.name}</h2>
-          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+          <div className="text-sm text-muted-foreground flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" />
             {members.length} de {team.member_limit} miembros
             <Badge variant={team.is_active ? "default" : "secondary"} className="text-[11px] ml-1">
               {team.is_active ? "Activo" : "Inactivo"}
             </Badge>
-          </p>
+          </div>
         </div>
       </div>
 

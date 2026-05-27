@@ -24,18 +24,26 @@ interface Props {
   onSaved: (updated: Pick<Therapist, "id" | "full_name" | "email" | "specialty" | "license_number">) => void;
 }
 
+const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
 export function TherapistEditDialog({ therapist, open, onClose, onSaved }: Props) {
   const [fullName, setFullName]   = useState(therapist.full_name);
   const [email, setEmail]         = useState(therapist.email);
   const [specialty, setSpecialty] = useState(therapist.specialty ?? "");
   const [license, setLicense]     = useState(therapist.license_number ?? "");
   const [saving, setSaving]       = useState(false);
+  const [errors, setErrors]       = useState<Record<string, string>>({});
 
   const handleSave = async () => {
-    if (!fullName.trim() || !email.trim()) {
-      toast.error("Nombre y email son obligatorios");
-      return;
+    const errs: Record<string, string> = {};
+    if (!fullName.trim()) errs.fullName = "El nombre es obligatorio";
+    if (!email.trim()) {
+      errs.email = "El email es obligatorio";
+    } else if (!isValidEmail(email)) {
+      errs.email = "Ingresá un email válido (ej: nombre@dominio.com)";
     }
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
     setSaving(true);
     const { error } = await supabase.rpc("admin_upsert_therapist", {
       p_user_id:   therapist.id,
@@ -70,11 +78,22 @@ export function TherapistEditDialog({ therapist, open, onClose, onSaved }: Props
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label className="text-xs">Nombre completo *</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="h-9 text-sm" />
+            <Input
+              value={fullName}
+              onChange={(e) => { setFullName(e.target.value); if (errors.fullName) setErrors(prev => ({ ...prev, fullName: "" })); }}
+              className={`h-9 text-sm${errors.fullName ? " border-destructive ring-1 ring-destructive" : ""}`}
+            />
+            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Email *</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-9 text-sm" />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors(prev => ({ ...prev, email: "" })); }}
+              className={`h-9 text-sm${errors.email ? " border-destructive ring-1 ring-destructive" : ""}`}
+            />
+            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Especialidad</Label>

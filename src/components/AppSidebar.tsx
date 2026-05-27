@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut, Users2, ChevronDown, User, Building2 } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut, Users2, User, Building2, ChevronsUpDown } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 const baseNavItems = [
   { title: "Dashboard",  url: "/dashboard",    icon: LayoutDashboard },
@@ -41,7 +42,8 @@ export function AppSidebar() {
   const { profile, signOut } = useAuth();
   const { workspace, teams, setWorkspace } = useWorkspace();
 
-  const isTeamAdmin = workspace.type === "team" && workspace.isAdmin;
+  const isTeamMode = workspace.type === "team";
+  const isTeamAdmin = isTeamMode && (workspace as { type: "team"; isAdmin: boolean }).isAdmin;
 
   const navItems = [
     ...baseNavItems,
@@ -50,11 +52,20 @@ export function AppSidebar() {
 
   const handleSetWorkspace = (ws: { type: "personal" } | { type: "team"; teamId: string }) => {
     setWorkspace(ws);
+    sessionStorage.setItem("workspace_chosen", "1");
     navigate("/dashboard");
   };
 
+  const handleChangePicker = () => {
+    // Limpiar la elección para volver a mostrar el picker
+    sessionStorage.removeItem("workspace_chosen");
+    navigate("/workspace-picker");
+  };
+
   const workspaceLabel =
-    workspace.type === "personal" ? "Personal" : workspace.teamName;
+    workspace.type === "personal"
+      ? "Personal"
+      : (workspace as { type: "team"; teamName: string }).teamName;
 
   const initials =
     profile?.full_name
@@ -75,7 +86,7 @@ export function AppSidebar() {
         {!collapsed ? (
           <div className="px-5 pt-6 pb-3">
             {/* Logo row */}
-            <div className="flex items-center mb-3">
+            <div className="flex items-center mb-4">
               <div className="flex-1 min-w-0">
                 <p className="font-serif text-xl font-semibold text-foreground tracking-tight">RehabOT</p>
                 <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground mt-0.5">
@@ -89,39 +100,59 @@ export function AppSidebar() {
             {teams.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted transition-colors text-foreground">
-                    {workspace.type === "personal" ? (
-                      <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <button
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors border",
+                      isTeamMode
+                        ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/15"
+                        : "bg-muted/60 border-transparent text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {isTeamMode ? (
+                      <Building2 className="h-3.5 w-3.5 shrink-0" />
                     ) : (
-                      <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     )}
                     <span className="flex-1 text-left truncate">{workspaceLabel}</span>
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-52">
                   <DropdownMenuItem
                     onClick={() => handleSetWorkspace({ type: "personal" })}
-                    className={workspace.type === "personal" ? "font-semibold" : ""}
+                    className={cn(
+                      "gap-2",
+                      workspace.type === "personal" ? "font-semibold" : ""
+                    )}
                   >
-                    <User className="h-4 w-4 mr-2 shrink-0" />
+                    <User className="h-4 w-4 shrink-0" />
                     Personal
+                    {workspace.type === "personal" && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">activo</span>
+                    )}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {teams.map((team) => (
-                    <DropdownMenuItem
-                      key={team.id}
-                      onClick={() => handleSetWorkspace({ type: "team", teamId: team.id })}
-                      className={
-                        workspace.type === "team" && workspace.teamId === team.id
-                          ? "font-semibold"
-                          : ""
-                      }
-                    >
-                      <Building2 className="h-4 w-4 mr-2 shrink-0" />
-                      {team.name}
-                    </DropdownMenuItem>
-                  ))}
+                  {teams.map((team) => {
+                    const active = workspace.type === "team" && (workspace as { teamId: string }).teamId === team.id;
+                    return (
+                      <DropdownMenuItem
+                        key={team.id}
+                        onClick={() => handleSetWorkspace({ type: "team", teamId: team.id })}
+                        className={cn("gap-2", active ? "font-semibold" : "")}
+                      >
+                        <Building2 className="h-4 w-4 shrink-0 text-primary" />
+                        {team.name}
+                        {active && (
+                          <span className="ml-auto text-[10px] text-muted-foreground">activo</span>
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleChangePicker} className="gap-2 text-muted-foreground">
+                    <ChevronsUpDown className="h-4 w-4 shrink-0" />
+                    Cambiar perfil...
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -129,6 +160,9 @@ export function AppSidebar() {
         ) : (
           <div className="flex flex-col items-center gap-2 py-4">
             <p className="font-serif text-lg font-semibold text-foreground">R</p>
+            {isTeamMode && (
+              <div className="h-2 w-2 rounded-full bg-primary" title={workspaceLabel} />
+            )}
             <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
           </div>
         )}

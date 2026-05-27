@@ -19,12 +19,14 @@ import AnalyticalEvaluationPage from "./pages/AnalyticalEvaluationPage";
 import FunctionalEvaluationPage from "./pages/FunctionalEvaluationPage";
 import QuickDashPublicPage from "./pages/QuickDashPublicPage";
 import PlanPublicPage from "./pages/PlanPublicPage";
+import WorkspacePicker from "./pages/WorkspacePicker";
 import { AdminLayout } from "@/components/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTherapists from "./pages/admin/AdminTherapists";
 import AdminTeams from "./pages/admin/AdminTeams";
 import AdminTeamDetail from "./pages/admin/AdminTeamDetail";
 import AdminActivity from "./pages/admin/AdminActivity";
+import AdminPatients from "./pages/admin/AdminPatients";
 import MiEquipo from "./pages/MiEquipo";
 import InvitationRegister from "./pages/InvitationRegister";
 
@@ -40,6 +42,8 @@ const App = () => (
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
               <Route path="/login" element={<Login />} />
+              {/* Selector de workspace — requiere auth, no requiere AppLayout */}
+              <Route path="/workspace-picker" element={<WorkspacePicker />} />
               <Route path="/" element={<AppLayout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
@@ -63,6 +67,7 @@ const App = () => (
                 <Route path="therapists" element={<AdminTherapists />} />
                 <Route path="teams"      element={<AdminTeams />} />
                 <Route path="teams/:id"  element={<AdminTeamDetail />} />
+                <Route path="patients"   element={<AdminPatients />} />
                 <Route path="activity"   element={<AdminActivity />} />
               </Route>
               <Route path="*" element={<NotFound />} />

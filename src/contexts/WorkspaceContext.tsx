@@ -84,6 +84,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setTeams([]);
       setWorkspaceState({ type: "personal" });
       setLoading(false);
+      // Limpiar la elección de sesión para que el próximo login muestre el picker
+      sessionStorage.removeItem("workspace_chosen");
       return;
     }
 
