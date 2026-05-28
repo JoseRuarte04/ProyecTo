@@ -611,6 +611,22 @@ export default function AnalyticalEvaluationPage() {
         </div>
       </Section>
 
+      {/* Edema */}
+      {hasEdema && (
+        <Section title="Edema">
+          {edemaNode && (
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Circometría</p>
+              {edemaNode}
+            </div>
+          )}
+          <div className="space-y-3">
+            {nn(e.godet_test) && <DataCell label="Test de Godet" value={e.godet_test} />}
+            {edemaObservation && <DataCell label="Observación" value={edemaObservation} />}
+          </div>
+        </Section>
+      )}
+
       {/* Movilidad */}
       <Section title="Movilidad">
         {hasGonioTables ? (
@@ -766,29 +782,6 @@ export default function AnalyticalEvaluationPage() {
         </Section>
       )}
 
-      {/* Edema */}
-      {hasEdema && (
-        <Section title="Edema">
-          <div className="space-y-3">
-            {edemaObservation && <DataCell label="Observación" value={edemaObservation} />}
-            {nn(e.godet_test) && <DataCell label="Test de Godet" value={e.godet_test} />}
-          </div>
-          {edemaNode && (
-            <div className="mt-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Circometría</p>
-              {edemaNode}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* Pruebas específicas */}
-      {testsNode && (
-        <Section title="Pruebas específicas">
-          {testsNode}
-        </Section>
-      )}
-
       {/* Cicatriz */}
       {hasCicatriz && (
         <Section title="Cicatriz">
@@ -818,6 +811,13 @@ export default function AnalyticalEvaluationPage() {
               </div>
             )}
           </div>
+        </Section>
+      )}
+
+      {/* Pruebas específicas */}
+      {testsNode && (
+        <Section title="Pruebas específicas">
+          {testsNode}
         </Section>
       )}
 

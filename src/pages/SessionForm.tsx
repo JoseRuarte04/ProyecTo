@@ -661,6 +661,7 @@ export default function SessionForm() {
           setPainFree(ae.pain || "");
           if (ae.pain_radiation === "No irradia") setPainRadiatesChoice("no");
           else if (ae.pain_radiation) { setPainRadiatesChoice("si"); setPainRadiation(ae.pain_radiation); }
+          setShowPain(!!(ae.pain_score != null || ae.pain_appearance || ae.pain_location || ae.pain_characteristics || ae.pain_aggravating_factors || ae.pain || ae.pain_radiation));
           setEdemaObs(ae.edema || "");
           setGodetTest(ae.godet_test || "");
           setShowEdema(!!(ae.edema || ae.godet_test || ae.edema_circummetry));
