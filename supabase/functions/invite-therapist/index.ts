@@ -4,6 +4,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const SUPABASE_URL            = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY       = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SITE_URL                = Deno.env.get("APP_URL") ?? "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -58,6 +59,7 @@ Deno.serve(async (req: Request) => {
           specialty:      specialty?.trim() || null,
           license_number: license_number?.trim() || null,
         },
+        redirectTo: `${SITE_URL}/accept-invite`,
       }
     );
 

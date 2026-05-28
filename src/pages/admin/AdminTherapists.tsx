@@ -10,7 +10,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Search, MoreHorizontal, Pencil, UserX, UserCheck, UserPlus, MailX, Clock } from "lucide-react";
+import { Loader2, Search, MoreHorizontal, Pencil, UserX, UserCheck, UserPlus, MailX, Clock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -152,6 +152,48 @@ export default function AdminTherapists() {
       }
     } catch {
       toast.error("Error de red al cancelar la invitación");
+    }
+    setActionLoading(null);
+  };
+
+  const handleResendInvitation = async (inv: PendingInvitation) => {
+    setActionLoading(inv.user_id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session?.access_token}`,
+      };
+
+      // Paso 1: cancelar invitación existente
+      const cancelRes = await fetch(`${supabaseUrl}/functions/v1/cancel-therapist-invitation`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ user_id: inv.user_id }),
+      });
+      if (!cancelRes.ok) {
+        const json = await cancelRes.json();
+        toast.error(json.error ?? "Error al reenviar la invitación");
+        setActionLoading(null);
+        return;
+      }
+
+      // Paso 2: volver a invitar con el mismo email y nombre
+      const inviteRes = await fetch(`${supabaseUrl}/functions/v1/invite-therapist`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ email: inv.email, full_name: inv.full_name || null }),
+      });
+      const json = await inviteRes.json();
+      if (!inviteRes.ok || json.error) {
+        toast.error(json.error ?? "Error al reenviar la invitación");
+      } else {
+        toast.success(`Invitación reenviada a ${inv.email}`);
+        loadPending();
+      }
+    } catch {
+      toast.error("Error de red al reenviar la invitación");
     }
     setActionLoading(null);
   };
@@ -386,18 +428,30 @@ export default function AdminTherapists() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-[11px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          disabled={actionLoading === inv.user_id}
-                          onClick={() => setCancelTarget(inv)}
-                        >
-                          {actionLoading === inv.user_id
-                            ? <Loader2 className="h-3 w-3 animate-spin" />
-                            : <MailX className="h-3.5 w-3.5" />}
-                          Cancelar
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-[11px] gap-1"
+                            disabled={actionLoading === inv.user_id}
+                            onClick={() => handleResendInvitation(inv)}
+                          >
+                            {actionLoading === inv.user_id
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <RefreshCw className="h-3.5 w-3.5" />}
+                            Reenviar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-[11px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            disabled={actionLoading === inv.user_id}
+                            onClick={() => setCancelTarget(inv)}
+                          >
+                            <MailX className="h-3.5 w-3.5" />
+                            Cancelar
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
