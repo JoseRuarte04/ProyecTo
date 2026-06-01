@@ -138,6 +138,26 @@ const SPECIFIC_TESTS = [
 
 type TestResult = "positive" | "negative" | null;
 
+// ── Pain entry (multi-dolor) ──
+type PainTipo = "reposo" | "actividad" | "reposo_y_actividad" | "";
+type PainEntry = {
+  id: number;
+  localizacion: string;
+  eva: number;
+  evaTouched: boolean;
+  tipo: PainTipo;
+  aparicion: string;
+  irradia: "no" | "si" | "";
+  irradia_hacia: string;
+  caracteristicas: string;
+  agravantes: string;
+  observaciones: string;
+};
+const emptyPain = (id: number): PainEntry => ({
+  id, localizacion: "", eva: 0, evaTouched: false, tipo: "",
+  aparicion: "", irradia: "", irradia_hacia: "", caracteristicas: "", agravantes: "", observaciones: "",
+});
+
 // ── Daniels grades ──
 const DANIELS_FULL_GRADES = ["0", "1", "1+", "2-", "2", "2+", "3-", "3", "3+", "4-", "4", "4+", "5"];
 
@@ -265,7 +285,7 @@ function SubSection({
           {badge}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{checked ? "Incluido" : "Incluir"}</span>
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Mostrar en evaluación</span>
           <Switch checked={checked} onCheckedChange={onChange} />
         </div>
       </div>
@@ -481,37 +501,36 @@ export default function SessionForm() {
   const [occ_health_management, setOccHealthManagement] = useState("");
   const [editingOccId, setEditingOccId] = useState<string | null>(null);
 
+  // Fecha de derivación (en treatment_episodes)
+  const [referral_date, setReferralDate] = useState("");
+
   // Functional eval toggle (default on for admission, off for follow_up/discharge)
   const [showFunctional, setShowFunctional] = useState(true);
 
   // Analytical evaluation (master toggle)
   const [show_measurements, setShowMeasurements] = useState(true);
 
-  // Per-subsection toggles
-  const [showPain, setShowPain] = useState(false);
-  const [showEdema, setShowEdema] = useState(false);
-  const [showMobility, setShowMobility] = useState(false);
-  const [showStrength, setShowStrength] = useState(false);
+  // Per-subsection toggles — all ON by default for new evaluations
+  const [showPain, setShowPain] = useState(true);
+  const [showEdema, setShowEdema] = useState(true);
+  const [showMobility, setShowMobility] = useState(true);
+  const [showStrength, setShowStrength] = useState(true);
   const [affected_side, setAffectedSide] = useState<"MSD" | "MSI" | "both" | null>(null);
-  const [showSensitivity, setShowSensitivity] = useState(false);
-  const [showCicatriz, setShowCicatriz] = useState(false);
-  const [showSpecificTests, setShowSpecificTests] = useState(false);
-  const [showOtros, setShowOtros] = useState(false);
+  const [showSensitivity, setShowSensitivity] = useState(true);
+  const [showCicatriz, setShowCicatriz] = useState(true);
+  const [showSpecificTests, setShowSpecificTests] = useState(true);
+  const [showOtros, setShowOtros] = useState(true);
 
-  // Pain
-  const [pain_touched, setPainTouched] = useState(false);
-  const [pain_score, setPainScore] = useState(0);
-  const [pain_location, setPainLocation] = useState("");
-  const [pain_characteristics, setPainCharacteristics] = useState("");
-  const [pain_aggravating_factors, setPainAggravatingFactors] = useState("");
-  const [pain_radiates_choice, setPainRadiatesChoice] = useState<"" | "no" | "si">("");
-  const [pain_radiation, setPainRadiation] = useState("");
-  const [pain_appearance, setPainAppearance] = useState("");
-  const [pain_free, setPainFree] = useState("");
+  // Pain — multi-dolor
+  const [pains, setPains] = useState<PainEntry[]>([emptyPain(1)]);
+  const painsNextId = useRef(2);
 
   // Edema
   const [edema_obs, setEdemaObs] = useState("");
   const [godet_test, setGodetTest] = useState("");
+
+  // Movilidad — observaciones
+  const [mobility_observations, setMobilityObservations] = useState("");
 
   // Circometría (reparos anatómicos con MSD / MSI)
   const [edema_circ_items, setEdemaCircItems] = useState<CircometriaItem[]>([]);
@@ -595,6 +614,167 @@ export default function SessionForm() {
   const [home_instructions_sent, setHomeInstructionsSent] = useState("");
   const [notes, setNotes] = useState("");
 
+  // ── Draft persistence ────────────────────────────────────────────────────────
+  const draftKey = `sf-draft-${patientId}-${sessionId ?? "new"}`;
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [secondaryLoaded, setSecondaryLoaded] = useState(false);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestStateRef = useRef<Record<string, any>>({});
+  latestStateRef.current = {
+    session_date, session_type, session_number, week_at_session,
+    general_observations, symptom_changes, clinical_changes, discharge_summary, avd_followup,
+    func_dominance, func_avd, func_aivd, func_sleep, func_health, fim_items, barthel_items,
+    cli_diagnosis, cli_doctor_name, cli_injury_date, cli_surgery_date, cli_injury_mechanism,
+    cli_treatment_type, cli_immob_weeks, cli_immob_days, cli_immob_type, cli_medical_history, cli_pharma, cli_studies,
+    occ_dominance, occ_support_network, occ_education, occ_job, occ_leisure, occ_physical_activity, occ_sleep_rest, occ_health_management,
+    showFunctional, show_measurements,
+    showPain, showEdema, showMobility, showStrength, affected_side, showSensitivity, showCicatriz, showSpecificTests, showOtros,
+    pains,
+    referral_date,
+    edema_obs, godet_test, edema_circ_items,
+    mobility_observations,
+    all_pre_gonio, show_arom, show_arom_post, all_arom_post_gonio,
+    show_prom, all_prom_pre_gonio, show_prom_post, all_post_gonio,
+    fist_closure, dyn_msd_vals, dyn_msi_vals, kapandji_val, kapandji_pain,
+    dppd_pulgar, dppd_indice, dppd_medio, dppd_anular, dppd_menique, danielsRows,
+    specificTests,
+    sensitivity, sensitivity_tacto_ligero, sensitivity_dos_puntos, sensitivity_picking_up,
+    sensitivity_semmes_weinstein, sensitivity_toco_pincho, sensitivity_temperatura,
+    trophic_state, scar_localizacion, scar_longitud, scar_vascularizacion, scar_pigmentacion,
+    scar_flexibilidad, scar_sensibilidad, scar_relieve, scar_temperatura, scar_observaciones,
+    vss_pigmentacion, vss_vascularizacion, vss_flexibilidad, vss_altura,
+    posture, emotional_state,
+    interventions, home_instructions_sent, notes,
+    currentStep,
+  };
+
+  // Auto-save: debounced, sólo después de que el borrador fue procesado
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!draftRestored) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      sessionStorage.setItem(draftKey, JSON.stringify(latestStateRef.current));
+    }, 800);
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+  }); // sin deps: se ejecuta en cada render, el debounce lo controla
+
+  const clearDraft = () => sessionStorage.removeItem(draftKey);
+
+  // Restore draft once both main and secondary loads are complete
+  useEffect(() => {
+    if (loading || !secondaryLoaded || draftRestored) return;
+    const raw = sessionStorage.getItem(draftKey);
+    if (raw) {
+      try {
+        const d = JSON.parse(raw);
+        if (d.session_date !== undefined) setSessionDate(d.session_date);
+        if (d.session_type !== undefined) setSessionType(d.session_type);
+        if (d.session_number !== undefined) setSessionNumber(d.session_number);
+        if (d.week_at_session !== undefined) setWeekAtSession(d.week_at_session);
+        if (d.general_observations !== undefined) setGeneralObservations(d.general_observations);
+        if (d.symptom_changes !== undefined) setSymptomChanges(d.symptom_changes);
+        if (d.clinical_changes !== undefined) setClinicalChanges(d.clinical_changes);
+        if (d.discharge_summary !== undefined) setDischargeSummary(d.discharge_summary);
+        if (d.avd_followup !== undefined) setAvdFollowup(d.avd_followup);
+        if (d.func_dominance !== undefined) setFuncDominance(d.func_dominance);
+        if (d.func_avd !== undefined) setFuncAvd(d.func_avd);
+        if (d.func_aivd !== undefined) setFuncAivd(d.func_aivd);
+        if (d.func_sleep !== undefined) setFuncSleep(d.func_sleep);
+        if (d.func_health !== undefined) setFuncHealth(d.func_health);
+        if (d.fim_items !== undefined) setFimItems(d.fim_items);
+        if (d.barthel_items !== undefined) setBarthelItems(d.barthel_items);
+        if (d.cli_diagnosis !== undefined) setCliDiagnosis(d.cli_diagnosis);
+        if (d.cli_doctor_name !== undefined) setCliDoctorName(d.cli_doctor_name);
+        if (d.cli_injury_date !== undefined) setCliInjuryDate(d.cli_injury_date);
+        if (d.cli_surgery_date !== undefined) setCliSurgeryDate(d.cli_surgery_date);
+        if (d.cli_injury_mechanism !== undefined) setCliInjuryMechanism(d.cli_injury_mechanism);
+        if (d.cli_treatment_type !== undefined) setCliTreatmentType(d.cli_treatment_type);
+        if (d.cli_immob_weeks !== undefined) setCliImmobWeeks(d.cli_immob_weeks);
+        if (d.cli_immob_days !== undefined) setCliImmobDays(d.cli_immob_days);
+        if (d.cli_immob_type !== undefined) setCliImmobType(d.cli_immob_type);
+        if (d.cli_medical_history !== undefined) setCliMedicalHistory(d.cli_medical_history);
+        if (d.cli_pharma !== undefined) setCliPharma(d.cli_pharma);
+        if (d.cli_studies !== undefined) setCliStudies(d.cli_studies);
+        if (d.occ_dominance !== undefined) setOccDominance(d.occ_dominance);
+        if (d.occ_support_network !== undefined) setOccSupportNetwork(d.occ_support_network);
+        if (d.occ_education !== undefined) setOccEducation(d.occ_education);
+        if (d.occ_job !== undefined) setOccJob(d.occ_job);
+        if (d.occ_leisure !== undefined) setOccLeisure(d.occ_leisure);
+        if (d.occ_physical_activity !== undefined) setOccPhysicalActivity(d.occ_physical_activity);
+        if (d.occ_sleep_rest !== undefined) setOccSleepRest(d.occ_sleep_rest);
+        if (d.occ_health_management !== undefined) setOccHealthManagement(d.occ_health_management);
+        if (d.showFunctional !== undefined) setShowFunctional(d.showFunctional);
+        if (d.show_measurements !== undefined) setShowMeasurements(d.show_measurements);
+        if (d.showPain !== undefined) setShowPain(d.showPain);
+        if (d.showEdema !== undefined) setShowEdema(d.showEdema);
+        if (d.showMobility !== undefined) setShowMobility(d.showMobility);
+        if (d.showStrength !== undefined) setShowStrength(d.showStrength);
+        if (d.affected_side !== undefined) setAffectedSide(d.affected_side);
+        if (d.showSensitivity !== undefined) setShowSensitivity(d.showSensitivity);
+        if (d.showCicatriz !== undefined) setShowCicatriz(d.showCicatriz);
+        if (d.showSpecificTests !== undefined) setShowSpecificTests(d.showSpecificTests);
+        if (d.showOtros !== undefined) setShowOtros(d.showOtros);
+        if (d.pains !== undefined && Array.isArray(d.pains)) { setPains(d.pains); painsNextId.current = d.pains.reduce((m: number, p: PainEntry) => Math.max(m, p.id + 1), 2); }
+        if (d.referral_date !== undefined) setReferralDate(d.referral_date);
+        if (d.mobility_observations !== undefined) setMobilityObservations(d.mobility_observations);
+        if (d.edema_obs !== undefined) setEdemaObs(d.edema_obs);
+        if (d.godet_test !== undefined) setGodetTest(d.godet_test);
+        if (d.edema_circ_items !== undefined) setEdemaCircItems(d.edema_circ_items);
+        if (d.all_pre_gonio !== undefined) setAllPreGonio(d.all_pre_gonio);
+        if (d.show_arom !== undefined) setShowArom(d.show_arom);
+        if (d.show_arom_post !== undefined) setShowAromPost(d.show_arom_post);
+        if (d.all_arom_post_gonio !== undefined) setAllAromPostGonio(d.all_arom_post_gonio);
+        if (d.show_prom !== undefined) setShowProm(d.show_prom);
+        if (d.all_prom_pre_gonio !== undefined) setAllPromPreGonio(d.all_prom_pre_gonio);
+        if (d.show_prom_post !== undefined) setShowPromPost(d.show_prom_post);
+        if (d.all_post_gonio !== undefined) setAllPostGonio(d.all_post_gonio);
+        if (d.fist_closure !== undefined) setFistClosure(d.fist_closure);
+        if (d.dyn_msd_vals !== undefined) setDynMsdVals(d.dyn_msd_vals);
+        if (d.dyn_msi_vals !== undefined) setDynMsiVals(d.dyn_msi_vals);
+        if (d.kapandji_val !== undefined) setKapandjiVal(d.kapandji_val);
+        if (d.kapandji_pain !== undefined) setKapandjiPain(d.kapandji_pain);
+        if (d.dppd_pulgar !== undefined) setDppdPulgar(d.dppd_pulgar);
+        if (d.dppd_indice !== undefined) setDppdIndice(d.dppd_indice);
+        if (d.dppd_medio !== undefined) setDppdMedio(d.dppd_medio);
+        if (d.dppd_anular !== undefined) setDppdAnular(d.dppd_anular);
+        if (d.dppd_menique !== undefined) setDppdMenique(d.dppd_menique);
+        if (d.danielsRows !== undefined) setDanielsRows(d.danielsRows);
+        if (d.specificTests !== undefined) setSpecificTests(d.specificTests);
+        if (d.sensitivity !== undefined) setSensitivity(d.sensitivity);
+        if (d.sensitivity_tacto_ligero !== undefined) setSensitivityTactoLigero(d.sensitivity_tacto_ligero);
+        if (d.sensitivity_dos_puntos !== undefined) setSensitivityDosPuntos(d.sensitivity_dos_puntos);
+        if (d.sensitivity_picking_up !== undefined) setSensitivityPickingUp(d.sensitivity_picking_up);
+        if (d.sensitivity_semmes_weinstein !== undefined) setSensitivitySemmesWeinstein(d.sensitivity_semmes_weinstein);
+        if (d.sensitivity_toco_pincho !== undefined) setSensitivityTocoPincho(d.sensitivity_toco_pincho);
+        if (d.sensitivity_temperatura !== undefined) setSensitivityTemperatura(d.sensitivity_temperatura);
+        if (d.trophic_state !== undefined) setTrophicState(d.trophic_state);
+        if (d.scar_localizacion !== undefined) setScarLocalizacion(d.scar_localizacion);
+        if (d.scar_longitud !== undefined) setScarLongitud(d.scar_longitud);
+        if (d.scar_vascularizacion !== undefined) setScarVascularizacion(d.scar_vascularizacion);
+        if (d.scar_pigmentacion !== undefined) setScarPigmentacion(d.scar_pigmentacion);
+        if (d.scar_flexibilidad !== undefined) setScarFlexibilidad(d.scar_flexibilidad);
+        if (d.scar_sensibilidad !== undefined) setScarSensibilidad(d.scar_sensibilidad);
+        if (d.scar_relieve !== undefined) setScarRelieve(d.scar_relieve);
+        if (d.scar_temperatura !== undefined) setScarTemperatura(d.scar_temperatura);
+        if (d.scar_observaciones !== undefined) setScarObservaciones(d.scar_observaciones);
+        if (d.vss_pigmentacion !== undefined) setVssPigmentacion(d.vss_pigmentacion);
+        if (d.vss_vascularizacion !== undefined) setVssVascularizacion(d.vss_vascularizacion);
+        if (d.vss_flexibilidad !== undefined) setVssFlexibilidad(d.vss_flexibilidad);
+        if (d.vss_altura !== undefined) setVssAltura(d.vss_altura);
+        if (d.posture !== undefined) setPosture(d.posture);
+        if (d.emotional_state !== undefined) setEmotionalState(d.emotional_state);
+        if (d.interventions !== undefined) setInterventions(d.interventions);
+        if (d.home_instructions_sent !== undefined) setHomeInstructionsSent(d.home_instructions_sent);
+        if (d.notes !== undefined) setNotes(d.notes);
+        if (d.currentStep !== undefined) setCurrentStep(d.currentStep);
+        toast.info("Se restauró un borrador guardado", { duration: 4000 });
+      } catch { /* ignore corrupt draft */ }
+    }
+    setDraftRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, secondaryLoaded, draftRestored]);
+
   useEffect(() => {
     if (!patientId) return;
     const load = async () => {
@@ -652,24 +832,63 @@ export default function SessionForm() {
         const ae = analRes.data;
         if (ae) {
           setShowMeasurements(true);
-          setPainTouched(ae.pain_score != null);
-          setPainScore(ae.pain_score || 0);
-          setPainAppearance(ae.pain_appearance || "");
-          setPainLocation((ae.pain_location || "").replace(/ — Irradia a:.*/, ""));
-          setPainCharacteristics(ae.pain_characteristics || "");
-          setPainAggravatingFactors(ae.pain_aggravating_factors || "");
-          setPainFree(ae.pain || "");
-          if (ae.pain_radiation === "No irradia") setPainRadiatesChoice("no");
-          else if (ae.pain_radiation) { setPainRadiatesChoice("si"); setPainRadiation(ae.pain_radiation); }
-          setShowPain(!!(ae.pain_score != null || ae.pain_appearance || ae.pain_location || ae.pain_characteristics || ae.pain_aggravating_factors || ae.pain || ae.pain_radiation));
+
+          // ── sections_config: si existe usar; si no, inferir de presencia de datos ──
+          const cfg = (ae as any).sections_config;
+          const hasCfg = cfg && typeof cfg === "object";
+          const hasPainsData = !!(ae.pain_score != null || ae.pain_appearance || ae.pain_location || ae.pain_characteristics || ae.pain_aggravating_factors || (ae as any).pain || ae.pain_radiation || (Array.isArray((ae as any).pains) && (ae as any).pains.length > 0));
+          setShowPain(hasCfg ? !!cfg.pain : hasPainsData);
+          setShowEdema(hasCfg ? !!cfg.edema : !!(ae.edema || ae.godet_test || ae.edema_circummetry));
+          setShowMobility(hasCfg ? !!cfg.mobility : !!(ae.goniometry || ae.arom || ae.prom || ae.kapandji));
+          setShowStrength(hasCfg ? !!cfg.strength : !!(ae.dynamometer_msd || ae.dynamometer_msi || ae.muscle_strength || ae.muscle_strength_daniels || ae.dppd_fingers));
+          setShowSensitivity(hasCfg ? !!cfg.sensitivity : !!(ae.sensitivity || ae.sensitivity_tacto_ligero || ae.sensitivity_dos_puntos || ae.sensitivity_picking_up || ae.sensitivity_semmes_weinstein || ae.sensitivity_toco_pincho || ae.sensitivity_temperatura));
+          setShowCicatriz(hasCfg ? !!cfg.cicatriz : !!(ae.scar || ae.scar_evaluation || ae.vancouver_score));
+          setShowSpecificTests(hasCfg ? !!cfg.specific_tests : !!(ae.specific_tests && Object.values(ae.specific_tests as any).some((v: any) => v !== null)));
+          setShowOtros(hasCfg ? !!cfg.otros : !!(ae.trophic_state || ae.posture || ae.emotional_state));
+
+          // ── Pain: usar array pains si existe; sino construir desde campos legacy ──
+          const rawPains = (ae as any).pains;
+          if (Array.isArray(rawPains) && rawPains.length > 0) {
+            const loaded = rawPains.map((p: any, i: number) => ({
+              id: i + 1,
+              localizacion: p.localizacion || "",
+              eva: p.eva ?? 0,
+              evaTouched: p.eva != null,
+              tipo: p.tipo || "" as PainTipo,
+              aparicion: p.aparicion || "",
+              irradia: p.irradia || "" as "no" | "si" | "",
+              irradia_hacia: p.irradia_hacia || "",
+              caracteristicas: p.caracteristicas || "",
+              agravantes: p.agravantes || "",
+              observaciones: p.observaciones || "",
+            }));
+            setPains(loaded);
+            painsNextId.current = loaded.length + 1;
+          } else if (hasPainsData) {
+            const legacyIrradia = ae.pain_radiation === "No irradia" ? "no" : ae.pain_radiation ? "si" : "" as "no" | "si" | "";
+            setPains([{
+              id: 1,
+              localizacion: (ae.pain_location || "").replace(/ — Irradia a:.*/, ""),
+              eva: ae.pain_score || 0,
+              evaTouched: ae.pain_score != null,
+              tipo: "" as PainTipo,
+              aparicion: ae.pain_appearance || "",
+              irradia: legacyIrradia,
+              irradia_hacia: ae.pain_radiation && ae.pain_radiation !== "No irradia" ? ae.pain_radiation : "",
+              caracteristicas: ae.pain_characteristics || "",
+              agravantes: ae.pain_aggravating_factors || "",
+              observaciones: "",
+            }]);
+            painsNextId.current = 2;
+          }
+
+          setMobilityObservations((ae as any).mobility_observations || "");
           setEdemaObs(ae.edema || "");
           setGodetTest(ae.godet_test || "");
-          setShowEdema(!!(ae.edema || ae.godet_test || ae.edema_circummetry));
           const circ: any = ae.edema_circummetry;
           if (isCircometriaFormat(circ)) {
             setEdemaCircItems(normalizeCircometriaValue(circ));
           }
-          setShowMobility(!!(ae.goniometry || ae.arom || ae.prom || ae.kapandji));
           if (ae.goniometry && typeof ae.goniometry === "object") {
             const toGonio = (arr: any) => {
               const base = emptySide();
@@ -720,7 +939,6 @@ export default function SessionForm() {
           setKapandjiPain(kap.includes("dolor"));
           setDynMsdVals(parseDyn(ae.dynamometer_msd));
           setDynMsiVals(parseDyn(ae.dynamometer_msi));
-          setShowStrength(!!(ae.dynamometer_msd || ae.dynamometer_msi || ae.muscle_strength || ae.muscle_strength_daniels || ae.dppd_fingers));
           const fist = (ae.muscle_strength || "").match(/Cierre de puño: ([^—]+)/)?.[1]?.trim() || "";
           setFistClosure(fist);
           if (Array.isArray(ae.muscle_strength_daniels) && ae.muscle_strength_daniels.length) {
@@ -734,7 +952,6 @@ export default function SessionForm() {
           setDppdMedio(dppd.medio != null ? String(dppd.medio) : "");
           setDppdAnular(dppd.anular != null ? String(dppd.anular) : "");
           setDppdMenique(dppd.menique != null ? String(dppd.menique) : "");
-          setShowSensitivity(!!(ae.sensitivity || ae.sensitivity_tacto_ligero || ae.sensitivity_dos_puntos || ae.sensitivity_picking_up || ae.sensitivity_semmes_weinstein || ae.sensitivity_toco_pincho || ae.sensitivity_temperatura));
           setSensitivity(ae.sensitivity || "");
           setSensitivityTactoLigero(ae.sensitivity_tacto_ligero || "");
           setSensitivityDosPuntos(ae.sensitivity_dos_puntos || "");
@@ -742,9 +959,8 @@ export default function SessionForm() {
           setSensitivitySemmesWeinstein(ae.sensitivity_semmes_weinstein || "");
           setSensitivityTocoPincho(ae.sensitivity_toco_pincho || "");
           setSensitivityTemperatura(ae.sensitivity_temperatura || "");
-          if (ae.specific_tests && typeof ae.specific_tests === "object") { setSpecificTests(ae.specific_tests as any); setShowSpecificTests(true); }
+          if (ae.specific_tests && typeof ae.specific_tests === "object") { setSpecificTests(ae.specific_tests as any); }
           const scar = (ae.scar_evaluation && typeof ae.scar_evaluation === "object" && !Array.isArray(ae.scar_evaluation) ? ae.scar_evaluation : {}) as Record<string, any>;
-          setShowCicatriz(!!(ae.scar || ae.scar_evaluation || ae.vancouver_score));
           setScarLocalizacion(scar.localizacion || "");
           setScarLongitud(scar.longitud_cm != null ? String(scar.longitud_cm) : "");
           setScarVascularizacion(scar.vascularizacion || "");
@@ -758,7 +974,6 @@ export default function SessionForm() {
           setVssVascularizacion(scar.vss?.vascularizacion != null ? String(scar.vss.vascularizacion) : "");
           setVssFlexibilidad(scar.vss?.flexibilidad != null ? String(scar.vss.flexibilidad) : "");
           setVssAltura(scar.vss?.altura != null ? String(scar.vss.altura) : "");
-          setShowOtros(!!(ae.trophic_state || ae.posture || ae.emotional_state));
           setTrophicState(ae.trophic_state || "");
           setPosture(ae.posture || "");
           setEmotionalState(ae.emotional_state || "");
@@ -787,6 +1002,7 @@ export default function SessionForm() {
   // Load existing clinical record + occupational profile for admission editing/upsert
   useEffect(() => {
     if (!patientId) return;
+    setSecondaryLoaded(false);
     (async () => {
       const epId = activeEpisodeId;
       const cliQuery = supabase.from("patient_clinical_records").select("*").eq("patient_id", patientId);
@@ -826,11 +1042,12 @@ export default function SessionForm() {
       if (activeEpisodeId) {
         const { data: epRow } = await supabase
           .from("treatment_episodes")
-          .select("affected_side")
+          .select("affected_side, referral_date")
           .eq("id", activeEpisodeId)
           .maybeSingle();
         const affSide = (epRow?.affected_side as "MSD" | "MSI" | "both" | null) ?? null;
         if (affSide) setAffectedSide(affSide);
+        setReferralDate(epRow?.referral_date || "");
 
         // Pre-poblar lado NO afectado con valores de la sesión anterior (solo follow-up nuevo)
         if (!sessionId && !isAdmission && affSide && affSide !== "both") {
@@ -854,7 +1071,7 @@ export default function SessionForm() {
           }
         }
       }
-
+      setSecondaryLoaded(true);
     })();
   }, [patientId, activeEpisodeId]);
 
@@ -965,32 +1182,40 @@ export default function SessionForm() {
     }
     setSaving(true);
 
-    // ── Pain (gated) ──
-    const painLocFinal = showPain ? (pain_location || null) : null;
-    const painRadiationFinal = showPain
-      ? pain_radiates_choice === "si"
-        ? pain_radiation || null
-        : pain_radiates_choice === "no"
-        ? "No irradia"
-        : null
+    // ── Pain — build array de dolores ──
+    const painsFiltered = pains.filter(p =>
+      p.localizacion || p.evaTouched || p.tipo || p.aparicion || p.irradia || p.caracteristicas || p.agravantes || p.observaciones
+    );
+    const painsJson = painsFiltered.length > 0
+      ? painsFiltered.map(({ id: _id, evaTouched, ...p }) => ({
+          localizacion: p.localizacion || null,
+          eva: evaTouched ? p.eva : null,
+          tipo: p.tipo || null,
+          aparicion: p.aparicion || null,
+          irradia: p.irradia || null,
+          irradia_hacia: p.irradia === "si" ? p.irradia_hacia || null : null,
+          caracteristicas: p.caracteristicas || null,
+          agravantes: p.agravantes || null,
+          observaciones: p.observaciones || null,
+        }))
       : null;
+    const evaValues = painsFiltered.filter(p => p.evaTouched).map(p => p.eva);
+    const painScoreFinal = evaValues.length > 0 ? Math.max(...evaValues) : null;
 
-    // ── Edema circometría (gated) — JSONB tabla ──
-    const edemaCirc = showEdema
-      ? buildCircometriaPayload(edema_circ_items)
-      : null;
+    // ── Edema circometría — JSONB tabla ──
+    const edemaCirc = buildCircometriaPayload(edema_circ_items);
 
     // ── Mobility (gated) — por lado MSD/MSI ──
     const buildSideJsonb = () => {
       const arom: any = {};
       const prom: any = {};
       (["MSD", "MSI"] as const).forEach((side) => {
-        if (showMobility && show_arom) {
+        if (show_arom) {
           const pre = buildAllGonioJsonArray(all_pre_gonio[side]);
           const post = show_arom_post ? buildAllGonioJsonArray(all_arom_post_gonio[side]) : null;
           if (pre || post) arom[side] = { pre: pre ?? null, post: post ?? null };
         }
-        if (showMobility && show_prom) {
+        if (show_prom) {
           const pre = buildAllGonioJsonArray(all_prom_pre_gonio[side]);
           const post = show_prom_post ? buildAllGonioJsonArray(all_post_gonio[side]) : null;
           if (pre || post) prom[side] = { pre: pre ?? null, post: post ?? null };
@@ -1009,10 +1234,10 @@ export default function SessionForm() {
       });
       return parts.length > 0 ? parts.join(" ") : null;
     };
-    const aromVal = showMobility && show_arom ? buildSideText(all_pre_gonio) : null;
-    const promVal = showMobility && show_prom ? buildSideText(all_prom_pre_gonio) : null;
-    const gonioJsonb = showMobility ? buildSideJsonb() : null;
-    const kapandjiFinal = showMobility && kapandji_val ? `${kapandji_val}/10${kapandji_pain ? " con dolor" : ""}` : null;
+    const aromVal = show_arom ? buildSideText(all_pre_gonio) : null;
+    const promVal = show_prom ? buildSideText(all_prom_pre_gonio) : null;
+    const gonioJsonb = buildSideJsonb();
+    const kapandjiFinal = kapandji_val ? `${kapandji_val}/10${kapandji_pain ? " con dolor" : ""}` : null;
 
     // ── Dinamometría: 3 mediciones + promedio ──
     const buildDyn = (vals: [string, string, string]) => {
@@ -1021,29 +1246,25 @@ export default function SessionForm() {
       const avg = Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
       return { values: vals.map((v) => (v.trim() ? Number(v) : null)), average: avg };
     };
-    const dynMsdJson = showStrength ? buildDyn(dyn_msd_vals) : null;
-    const dynMsiJson = showStrength ? buildDyn(dyn_msi_vals) : null;
+    const dynMsdJson = buildDyn(dyn_msd_vals);
+    const dynMsiJson = buildDyn(dyn_msi_vals);
 
     // ── Strength notes ──
     const msParts: string[] = [];
-    if (showMobility && fist_closure) msParts.push(`Cierre de puño: ${fist_closure}`);
+    if (fist_closure) msParts.push(`Cierre de puño: ${fist_closure}`);
     const msVal = msParts.length > 0 ? msParts.join(" — ") : null;
 
     // ── Daniels rows (gated by strength) ──
-    const danielsFiltered = showStrength
-      ? danielsRows.filter(r => r.muscle.trim() && r.grade.trim()).map(r => ({ muscle: r.muscle.trim(), grade: r.grade }))
-      : [];
+    const danielsFiltered = danielsRows.filter(r => r.muscle.trim() && r.grade.trim()).map(r => ({ muscle: r.muscle.trim(), grade: r.grade }));
     const danielsJson = danielsFiltered.length > 0 ? danielsFiltered : null;
 
-    const dppdEntries: [string, string][] = showStrength
-      ? ([
-          ["pulgar", dppd_pulgar],
-          ["indice", dppd_indice],
-          ["medio", dppd_medio],
-          ["anular", dppd_anular],
-          ["menique", dppd_menique],
-        ].filter(([, v]) => v && v.trim()) as [string, string][])
-      : [];
+    const dppdEntries: [string, string][] = ([
+      ["pulgar", dppd_pulgar],
+      ["indice", dppd_indice],
+      ["medio", dppd_medio],
+      ["anular", dppd_anular],
+      ["menique", dppd_menique],
+    ].filter(([, v]) => v && v.trim()) as [string, string][]);
     const dppdFingersJson =
       dppdEntries.length > 0 ? Object.fromEntries(dppdEntries.map(([k, v]) => [k, parseFloat(v)])) : null;
 
@@ -1053,7 +1274,7 @@ export default function SessionForm() {
         : [discharge_summary, general_observations].filter(Boolean).join("\n\n") || null;
 
     // ── Specific tests (gated) ──
-    const hasTests = showSpecificTests && Object.values(specificTests).some((v) => v !== null);
+    const hasTests = Object.values(specificTests).some((v) => v !== null);
     const specificTestsJson = hasTests
       ? Object.fromEntries(Object.entries(specificTests).map(([k, v]) => [k, v]))
       : null;
@@ -1106,7 +1327,10 @@ export default function SessionForm() {
         studies: cli_studies.trim() || null,
       };
       if (activeEpisodeId) {
-        await supabase.from("treatment_episodes").update({ affected_side: affected_side ?? null }).eq("id", activeEpisodeId);
+        await supabase.from("treatment_episodes").update({
+          affected_side: affected_side ?? null,
+          referral_date: referral_date || null,
+        }).eq("id", activeEpisodeId);
       }
       if (editingClinicalId) {
         const { error: cliErr } = await supabase.from("patient_clinical_records").update(cliPayload).eq("id", editingClinicalId);
@@ -1172,26 +1396,22 @@ export default function SessionForm() {
     }
 
     // ── Cicatriz (gated) ──
-    const scarPlanillaEntries: [string, string][] = showCicatriz
-      ? ([
-          ["localizacion", scar_localizacion],
-          ["longitud_cm", scar_longitud],
-          ["vascularizacion", scar_vascularizacion],
-          ["pigmentacion", scar_pigmentacion],
-          ["flexibilidad", scar_flexibilidad],
-          ["sensibilidad", scar_sensibilidad],
-          ["relieve", scar_relieve],
-          ["temperatura", scar_temperatura],
-        ].filter(([, v]) => v && String(v).trim()) as [string, string][])
-      : [];
+    const scarPlanillaEntries: [string, string][] = ([
+      ["localizacion", scar_localizacion],
+      ["longitud_cm", scar_longitud],
+      ["vascularizacion", scar_vascularizacion],
+      ["pigmentacion", scar_pigmentacion],
+      ["flexibilidad", scar_flexibilidad],
+      ["sensibilidad", scar_sensibilidad],
+      ["relieve", scar_relieve],
+      ["temperatura", scar_temperatura],
+    ].filter(([, v]) => v && String(v).trim()) as [string, string][]);
 
     const vssObj: Record<string, number> = {};
-    if (showCicatriz) {
-      if (vss_pigmentacion !== "") vssObj.pigmentacion = parseInt(vss_pigmentacion);
-      if (vss_vascularizacion !== "") vssObj.vascularizacion = parseInt(vss_vascularizacion);
-      if (vss_flexibilidad !== "") vssObj.flexibilidad = parseInt(vss_flexibilidad);
-      if (vss_altura !== "") vssObj.altura = parseInt(vss_altura);
-    }
+    if (vss_pigmentacion !== "") vssObj.pigmentacion = parseInt(vss_pigmentacion);
+    if (vss_vascularizacion !== "") vssObj.vascularizacion = parseInt(vss_vascularizacion);
+    if (vss_flexibilidad !== "") vssObj.flexibilidad = parseInt(vss_flexibilidad);
+    if (vss_altura !== "") vssObj.altura = parseInt(vss_altura);
     const vssTotal = Object.values(vssObj).reduce((a, b) => a + b, 0);
     const hasVss = Object.keys(vssObj).length > 0;
 
@@ -1203,42 +1423,42 @@ export default function SessionForm() {
           }
         : null;
 
-    // Build a hasMeasurements check based on what's actually present after gating
     const hasMeasurements =
       show_measurements &&
       [
-        showPain && pain_touched && pain_score > 0,
-        painLocFinal,
-        showPain && pain_characteristics,
-        showPain && pain_aggravating_factors,
-        showPain && pain_appearance,
-        showPain && pain_free,
-        showEdema && edema_obs,
-        showEdema && godet_test,
+        painsJson,
+        edema_obs,
+        godet_test,
         edemaCirc,
         aromVal,
         promVal,
-        showMobility && fist_closure,
+        fist_closure,
         dynMsdJson,
         dynMsiJson,
         kapandjiFinal,
         msVal,
         danielsJson,
-        showSensitivity && sensitivity,
-        showSensitivity && sensitivity_tacto_ligero,
-        showSensitivity && sensitivity_dos_puntos,
-        showSensitivity && sensitivity_picking_up,
-        showSensitivity && sensitivity_semmes_weinstein,
-        showSensitivity && sensitivity_toco_pincho,
-        showSensitivity && sensitivity_temperatura,
-        showOtros && trophic_state,
-        showOtros && posture,
-        showOtros && emotional_state,
+        sensitivity,
+        sensitivity_tacto_ligero,
+        sensitivity_dos_puntos,
+        sensitivity_picking_up,
+        sensitivity_semmes_weinstein,
+        sensitivity_toco_pincho,
+        sensitivity_temperatura,
+        trophic_state,
+        posture,
+        emotional_state,
         specificTestsJson,
         gonioJsonb,
         dppdFingersJson,
         scarEvalJson,
+        mobility_observations,
       ].some((v) => v !== "" && v !== null && v !== undefined && v !== false);
+
+    const sectionsConfig = {
+      pain: showPain, edema: showEdema, mobility: showMobility, strength: showStrength,
+      sensitivity: showSensitivity, cicatriz: showCicatriz, specific_tests: showSpecificTests, otros: showOtros,
+    };
 
     const analyticalPayload = {
       patient_id: patientId!,
@@ -1246,15 +1466,17 @@ export default function SessionForm() {
       episode_id: activeEpisodeId,
       session_id: session.id,
       evaluation_date: session_date,
-      pain_score: showPain && pain_touched ? pain_score : null,
-      pain_appearance: showPain ? pain_appearance || null : null,
-      pain_location: painLocFinal,
-      pain_radiation: painRadiationFinal,
-      pain_characteristics: showPain ? pain_characteristics || null : null,
-      pain_aggravating_factors: showPain ? pain_aggravating_factors || null : null,
-      pain: showPain ? pain_free || null : null,
-      edema: showEdema ? edema_obs || null : null,
-      godet_test: showEdema ? godet_test || null : null,
+      pains: painsJson as any,
+      pain_score: painScoreFinal,
+      pain_appearance: null,
+      pain_location: null,
+      pain_radiation: null,
+      pain_characteristics: null,
+      pain_aggravating_factors: null,
+      pain: null,
+      sections_config: sectionsConfig as any,
+      edema: edema_obs || null,
+      godet_test: godet_test || null,
       edema_circummetry: edemaCirc,
       arom: aromVal,
       prom: promVal,
@@ -1267,24 +1489,25 @@ export default function SessionForm() {
       muscle_strength_cubital: null,
       muscle_strength_radial: null,
       muscle_strength_daniels: danielsJson as any,
+      mobility_observations: mobility_observations || null,
       specific_tests: specificTestsJson,
       dppd_fingers: dppdFingersJson,
-      sensitivity: showSensitivity ? sensitivity || null : null,
+      sensitivity: sensitivity || null,
       sensitivity_functional: null,
       sensitivity_protective: null,
-      sensitivity_tacto_ligero: showSensitivity ? sensitivity_tacto_ligero || null : null,
-      sensitivity_dos_puntos: showSensitivity ? sensitivity_dos_puntos || null : null,
-      sensitivity_picking_up: showSensitivity ? sensitivity_picking_up || null : null,
-      sensitivity_semmes_weinstein: showSensitivity ? sensitivity_semmes_weinstein || null : null,
-      sensitivity_toco_pincho: showSensitivity ? sensitivity_toco_pincho || null : null,
-      sensitivity_temperatura: showSensitivity ? sensitivity_temperatura || null : null,
-      trophic_state: showOtros ? trophic_state || null : null,
-      scar: showCicatriz ? scar_observaciones || null : null,
+      sensitivity_tacto_ligero: sensitivity_tacto_ligero || null,
+      sensitivity_dos_puntos: sensitivity_dos_puntos || null,
+      sensitivity_picking_up: sensitivity_picking_up || null,
+      sensitivity_semmes_weinstein: sensitivity_semmes_weinstein || null,
+      sensitivity_toco_pincho: sensitivity_toco_pincho || null,
+      sensitivity_temperatura: sensitivity_temperatura || null,
+      trophic_state: trophic_state || null,
+      scar: scar_observaciones || null,
       scar_evaluation: scarEvalJson,
-      vancouver_score: showCicatriz && hasVss ? vssTotal : null,
+      vancouver_score: hasVss ? vssTotal : null,
       osas_score: null,
-      posture: showOtros ? posture || null : null,
-      emotional_state: showOtros ? emotional_state || null : null,
+      posture: posture || null,
+      emotional_state: emotional_state || null,
     } as any;
 
     if (editingAnalEval) {
@@ -1333,6 +1556,7 @@ export default function SessionForm() {
     }
 
     setSaving(false);
+    clearDraft();
     toast.success(isEditMode ? "Sesión actualizada correctamente" : "Sesión registrada correctamente");
     navigate(`/patients/${patientId}`);
   };
@@ -1562,6 +1786,7 @@ export default function SessionForm() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><FieldLabel>Médico derivante</FieldLabel><Input value={cli_doctor_name} onChange={(e) => setCliDoctorName(e.target.value)} className={inputClass} /></div>
+                <div><FieldLabel>Fecha de derivación</FieldLabel><Input type="date" value={referral_date} onChange={(e) => setReferralDate(e.target.value)} className={inputClass} /></div>
                 <div>
                   <FieldLabel>Tipo de tratamiento</FieldLabel>
                   <Select value={cli_treatment_type} onValueChange={setCliTreatmentType}>
@@ -1686,93 +1911,106 @@ export default function SessionForm() {
           icon={BarChart2}
           title="Evaluación analítica"
         >
-          {/* Dolor */}
+          {/* Dolor — múltiple */}
           <SubSection title="Dolor" checked={showPain} onChange={setShowPain} withDivider={false}>
-            <div>
-              <Label>Aparición</Label>
-              <Input value={pain_appearance} onChange={(e) => setPainAppearance(e.target.value)} className={inputClass} />
-            </div>
-            <div>
-              <Label>Localización</Label>
-              <Input value={pain_location} onChange={(e) => setPainLocation(e.target.value)} className={inputClass} />
-            </div>
-            <div>
-              <Label>Irradiación</Label>
-              <RadioGroup
-                value={pain_radiates_choice}
-                onValueChange={(v) => {
-                  const val = v as "no" | "si";
-                  setPainRadiatesChoice(val);
-                  if (val === "no") setPainRadiation("");
-                }}
-                className="flex gap-6"
+            <div className="space-y-3">
+              {pains.map((pain, idx) => (
+                <div key={pain.id} className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dolor {idx + 1}</span>
+                    {pains.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => setPains(prev => prev.filter(p => p.id !== pain.id))}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label>Aparición</Label>
+                      <Input value={pain.aparicion} onChange={e => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, aparicion: e.target.value } : p))} className={inputClass} />
+                    </div>
+                    <div>
+                      <Label>Localización</Label>
+                      <Input value={pain.localizacion} onChange={e => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, localizacion: e.target.value } : p))} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Tipo</Label>
+                    <Select value={pain.tipo} onValueChange={v => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, tipo: v as PainTipo } : p))}>
+                      <SelectTrigger className={inputClass}><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                      <SelectContent position="popper">
+                        <SelectItem value="reposo">Reposo</SelectItem>
+                        <SelectItem value="actividad">Actividad</SelectItem>
+                        <SelectItem value="reposo_y_actividad">Reposo y actividad</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Irradiación</Label>
+                    <RadioGroup
+                      value={pain.irradia}
+                      onValueChange={v => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, irradia: v as "no" | "si", irradia_hacia: v === "no" ? "" : p.irradia_hacia } : p))}
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="no" id={`pain-rad-no-${pain.id}`} />
+                        <Label htmlFor={`pain-rad-no-${pain.id}`} className="font-normal cursor-pointer text-sm">No irradia</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="si" id={`pain-rad-si-${pain.id}`} />
+                        <Label htmlFor={`pain-rad-si-${pain.id}`} className="font-normal cursor-pointer text-sm">Sí irradia</Label>
+                      </div>
+                    </RadioGroup>
+                    {pain.irradia === "si" && (
+                      <div className="mt-2">
+                        <Label>¿Hacia dónde?</Label>
+                        <Input value={pain.irradia_hacia} onChange={e => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, irradia_hacia: e.target.value } : p))} className={inputClass} />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Características</Label>
+                    <Input value={pain.caracteristicas} onChange={e => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, caracteristicas: e.target.value } : p))} placeholder="urente, punzante, etc." className={inputClass} />
+                  </div>
+                  <div>
+                    <Label>Intensidad EVA (0-10)</Label>
+                    <div className="flex items-center gap-3">
+                      <Slider
+                        min={0} max={10} step={1}
+                        value={[pain.eva]}
+                        onValueChange={([v]) => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, eva: v, evaTouched: true } : p))}
+                        className="flex-1"
+                      />
+                      <Badge className={`text-sm font-semibold w-10 justify-center ${!pain.evaTouched ? "bg-muted text-foreground hover:bg-muted" : pain.eva <= 3 ? "bg-green-100 text-green-700 hover:bg-green-100" : pain.eva <= 6 ? "bg-amber-100 text-amber-700 hover:bg-amber-100" : "bg-red-100 text-red-700 hover:bg-red-100"}`}>
+                        {pain.eva}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Agravantes / Atenuantes</Label>
+                    <Textarea rows={2} value={pain.agravantes} onChange={e => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, agravantes: e.target.value } : p))} className={textareaClass} />
+                  </div>
+                  <div>
+                    <Label>Observaciones</Label>
+                    <Textarea rows={2} value={pain.observaciones} onChange={e => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, observaciones: e.target.value } : p))} className={textareaClass} />
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-primary hover:text-primary"
+                onClick={() => { const id = painsNextId.current++; setPains(prev => [...prev, emptyPain(id)]); }}
               >
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="no" id="pain-rad-no-sf" />
-                  <Label htmlFor="pain-rad-no-sf" className="font-normal cursor-pointer text-sm">
-                    No irradia
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="si" id="pain-rad-si-sf" />
-                  <Label htmlFor="pain-rad-si-sf" className="font-normal cursor-pointer text-sm">
-                    Sí irradia
-                  </Label>
-                </div>
-              </RadioGroup>
-              {pain_radiates_choice === "si" && (
-                <div className="mt-2">
-                  <Label>¿Hacia dónde?</Label>
-                  <Input value={pain_radiation} onChange={(e) => setPainRadiation(e.target.value)} className={inputClass} />
-                </div>
-              )}
-            </div>
-            <div>
-              <Label>Características</Label>
-              <Input
-                value={pain_characteristics}
-                onChange={(e) => setPainCharacteristics(e.target.value)}
-                placeholder="urente, punzante, etc."
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <Label>Intensidad EVA (0-10)</Label>
-              <div className="flex items-center gap-3">
-                <Slider
-                  min={0}
-                  max={10}
-                  step={1}
-                  value={[pain_score]}
-                  onValueChange={([v]) => {
-                    setPainScore(v);
-                    setPainTouched(true);
-                  }}
-                  className="flex-1"
-                />
-                <Badge
-                  className={`text-sm font-semibold w-10 justify-center ${
-                    pain_score === 0
-                      ? "bg-muted text-foreground hover:bg-muted"
-                      : pain_score <= 3
-                      ? "bg-green-100 text-green-700 hover:bg-green-100"
-                      : pain_score <= 6
-                      ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
-                      : "bg-red-100 text-red-700 hover:bg-red-100"
-                  }`}
-                >
-                  {pain_score}
-                </Badge>
-              </div>
-            </div>
-            <div>
-              <Label>Agravantes / Atenuantes</Label>
-              <Textarea
-                rows={2}
-                value={pain_aggravating_factors}
-                onChange={(e) => setPainAggravatingFactors(e.target.value)}
-                className={textareaClass}
-              />
+                <Plus className="h-4 w-4 mr-1" /> Agregar dolor
+              </Button>
             </div>
           </SubSection>
 
@@ -1945,6 +2183,10 @@ export default function SessionForm() {
                   className={inputClass}
                 />
               </div>
+            </div>
+            <div>
+              <Label>Observaciones</Label>
+              <Textarea rows={2} value={mobility_observations} onChange={(e) => setMobilityObservations(e.target.value)} className={textareaClass} />
             </div>
           </SubSection>
 

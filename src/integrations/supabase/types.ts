@@ -37,6 +37,7 @@ export type Database = {
           goniometry: Json | null
           id: string
           kapandji: string | null
+          mobility_observations: string | null
           muscle_strength: string | null
           muscle_strength_cubital: string | null
           muscle_strength_daniels: Json | null
@@ -51,12 +52,14 @@ export type Database = {
           pain_location: string | null
           pain_radiation: string | null
           pain_score: number | null
+          pains: Json | null
           patient_id: string
           posture: string | null
           professional_id: string
           prom: string | null
           scar: string | null
           scar_evaluation: Json | null
+          sections_config: Json | null
           sensitivity: string | null
           sensitivity_dos_puntos: string | null
           sensitivity_functional: string | null
@@ -88,6 +91,7 @@ export type Database = {
           goniometry?: Json | null
           id?: string
           kapandji?: string | null
+          mobility_observations?: string | null
           muscle_strength?: string | null
           muscle_strength_cubital?: string | null
           muscle_strength_daniels?: Json | null
@@ -102,12 +106,14 @@ export type Database = {
           pain_location?: string | null
           pain_radiation?: string | null
           pain_score?: number | null
+          pains?: Json | null
           patient_id: string
           posture?: string | null
           professional_id: string
           prom?: string | null
           scar?: string | null
           scar_evaluation?: Json | null
+          sections_config?: Json | null
           sensitivity?: string | null
           sensitivity_dos_puntos?: string | null
           sensitivity_functional?: string | null
@@ -139,6 +145,7 @@ export type Database = {
           goniometry?: Json | null
           id?: string
           kapandji?: string | null
+          mobility_observations?: string | null
           muscle_strength?: string | null
           muscle_strength_cubital?: string | null
           muscle_strength_daniels?: Json | null
@@ -153,12 +160,14 @@ export type Database = {
           pain_location?: string | null
           pain_radiation?: string | null
           pain_score?: number | null
+          pains?: Json | null
           patient_id?: string
           posture?: string | null
           professional_id?: string
           prom?: string | null
           scar?: string | null
           scar_evaluation?: Json | null
+          sections_config?: Json | null
           sensitivity?: string | null
           sensitivity_dos_puntos?: string | null
           sensitivity_functional?: string | null
@@ -1454,6 +1463,7 @@ export type Database = {
           notes: string | null
           patient_id: string
           professional_id: string
+          referral_date: string | null
           status: string
           updated_at: string
         }
@@ -1470,6 +1480,7 @@ export type Database = {
           notes?: string | null
           patient_id: string
           professional_id: string
+          referral_date?: string | null
           status?: string
           updated_at?: string
         }
@@ -1486,6 +1497,7 @@ export type Database = {
           notes?: string | null
           patient_id?: string
           professional_id?: string
+          referral_date?: string | null
           status?: string
           updated_at?: string
         }

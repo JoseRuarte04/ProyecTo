@@ -500,6 +500,38 @@ export default function AnalyticalEvaluationPage() {
   const evalDate = e.evaluation_date ? format(new Date(e.evaluation_date), "dd 'de' MMMM yyyy", { locale: es }) : "";
   const sessionLabel = session?.session_number != null ? `Sesión Nº ${session.session_number}` : "";
 
+  // ── Sections config (toggle visible/oculto) ──
+  const cfg = (e.sections_config && typeof e.sections_config === "object") ? e.sections_config as Record<string, boolean> : null;
+  const sectionVisible = (key: string, hasData: boolean) => {
+    if (cfg && cfg[key] === false) return false;
+    return hasData;
+  };
+
+  // ── Pain entries: nuevo array o legacy flat ──
+  const TIPO_LABEL: Record<string, string> = {
+    reposo: "Reposo", actividad: "Actividad", reposo_y_actividad: "Reposo y actividad",
+  };
+  type PainEntryView = {
+    localizacion: string | null; eva: number | null; tipo: string | null;
+    aparicion: string | null; irradia: string | null; irradia_hacia: string | null;
+    caracteristicas: string | null; agravantes: string | null; observaciones: string | null;
+  };
+  let painEntries: PainEntryView[] = [];
+  if (Array.isArray(e.pains) && e.pains.length > 0) {
+    painEntries = e.pains as PainEntryView[];
+  } else if (nn(e.pain_score) || nn(e.pain_location) || nn(e.pain_appearance) || nn(e.pain_characteristics) || nn(e.pain_aggravating_factors) || nn(e.pain_radiation)) {
+    const legacyLoc = e.pain_location ? e.pain_location.replace(/\s*[—\-–]\s*Irradia a:.*$/i, "").trim() || null : null;
+    const legacyIrradia = nn(e.pain_radiation) ? (e.pain_radiation === "No irradia" ? "no" : "si") : null;
+    const legacyHacia = e.pain_radiation && e.pain_radiation !== "No irradia" ? e.pain_radiation : null;
+    painEntries = [{
+      localizacion: legacyLoc, eva: nn(e.pain_score) ? e.pain_score : null, tipo: null,
+      aparicion: e.pain_appearance || null, irradia: legacyIrradia, irradia_hacia: legacyHacia,
+      caracteristicas: e.pain_characteristics || null, agravantes: e.pain_aggravating_factors || null,
+      observaciones: e.pain || null,
+    }];
+  }
+  const hasPain = painEntries.length > 0;
+
   const displayLocation = e.pain_location
     ? e.pain_location.replace(/\s*[—\-–]\s*Irradia a:.*$/i, "").trim() || null
     : null;
@@ -546,6 +578,7 @@ export default function AnalyticalEvaluationPage() {
   const vssLabel = (field: string, val: any) => VSS_LABELS[field]?.[Number(val)] ?? String(val);
 
   const hasOtros = nn(e.trophic_state) || nn(e.posture) || nn(e.emotional_state);
+  const hasMobility = hasGonioTables || nn(e.arom) || nn(e.prom) || nn(e.kapandji) || !!fistClosure || nn((e as any).mobility_observations);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -563,56 +596,74 @@ export default function AnalyticalEvaluationPage() {
       </div>
 
       {/* Dolor */}
-      <Section title="Dolor">
-        {nn(e.pain_score) && (
-          <div className="rounded-xl bg-muted/40 border border-border/60 p-4 mb-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Escala EVA</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold text-foreground leading-none">{e.pain_score}</span>
-                <span className="text-sm text-muted-foreground font-medium">/10</span>
+      {sectionVisible("pain", hasPain) && (
+        <Section title="Dolor">
+          {painEntries.length === 0 && <NA />}
+          <div className="space-y-4">
+            {painEntries.map((pain, idx) => (
+              <div key={idx} className={cn("rounded-lg border border-border bg-muted/30 p-4 space-y-3", painEntries.length === 1 && "border-none bg-transparent p-0")}>
+                {painEntries.length > 1 && (
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dolor {idx + 1}</p>
+                )}
+                {/* EVA */}
+                {nn(pain.eva) && (
+                  <div className="rounded-xl bg-muted/40 border border-border/60 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Escala EVA</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold text-foreground leading-none">{pain.eva}</span>
+                        <span className="text-sm text-muted-foreground font-medium">/10</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 h-4">
+                      {Array.from({ length: 10 }, (_, i) => {
+                        const active = (i + 1) <= (pain.eva ?? 0);
+                        const activeC = i < 3 ? "bg-emerald-500" : i < 6 ? "bg-amber-400" : "bg-red-500";
+                        const inactiveC = i < 3 ? "bg-emerald-100" : i < 6 ? "bg-amber-100" : "bg-red-100";
+                        const radius = i === 0 ? "rounded-l-full" : i === 9 ? "rounded-r-full" : "rounded-sm";
+                        return <div key={i} className={`flex-1 ${radius} ${active ? activeC : inactiveC}`} />;
+                      })}
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground mt-2">
+                      <span>Sin dolor</span><span>Dolor máximo</span>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <DataCell label="Aparición" value={pain.aparicion} />
+                  <DataCell label="Localización" value={pain.localizacion} />
+                  {nn(pain.tipo) && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs text-muted-foreground">Tipo</span>
+                      <span className="text-sm font-medium text-foreground">{TIPO_LABEL[pain.tipo!] ?? pain.tipo}</span>
+                    </div>
+                  )}
+                  <div className={cn("flex flex-col gap-1", !nn(pain.tipo) && "col-span-2")}>
+                    <span className="text-xs text-muted-foreground">Irradiación</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${pain.irradia === "si" ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-muted text-muted-foreground border-border"}`}>
+                        {pain.irradia === "si" ? "Sí irradia" : "No irradia"}
+                      </span>
+                      {pain.irradia === "si" && nn(pain.irradia_hacia) && (
+                        <>
+                          <span className="text-muted-foreground text-sm leading-none">→</span>
+                          <span className="text-sm font-medium text-foreground">{pain.irradia_hacia}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <DataCell label="Características" value={pain.caracteristicas} />
+                  <DataCell label="Agravantes / Atenuantes" value={pain.agravantes} />
+                  {nn(pain.observaciones) && <div className="col-span-2"><DataCell label="Observaciones" value={pain.observaciones} /></div>}
+                </div>
               </div>
-            </div>
-            <div className="flex gap-1 h-4">
-              {Array.from({ length: 10 }, (_, i) => {
-                const active = (i + 1) <= e.pain_score;
-                const activeC = i < 3 ? "bg-emerald-500" : i < 6 ? "bg-amber-400" : "bg-red-500";
-                const inactiveC = i < 3 ? "bg-emerald-100" : i < 6 ? "bg-amber-100" : "bg-red-100";
-                const radius = i === 0 ? "rounded-l-full" : i === 9 ? "rounded-r-full" : "rounded-sm";
-                return <div key={i} className={`flex-1 ${radius} ${active ? activeC : inactiveC}`} />;
-              })}
-            </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground mt-2">
-              <span>Sin dolor</span>
-              <span>Dolor máximo</span>
-            </div>
+            ))}
           </div>
-        )}
-        <div className="grid grid-cols-2 gap-3">
-          <DataCell label="Aparición" value={e.pain_appearance} />
-          <DataCell label="Localización" value={displayLocation} />
-          <div className="col-span-2 flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">Irradiación</span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${nn(e.pain_radiation) ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-muted text-muted-foreground border-border"}`}>
-                {nn(e.pain_radiation) ? "Sí irradia" : "No irradia"}
-              </span>
-              {nn(e.pain_radiation) && (
-                <>
-                  <span className="text-muted-foreground text-sm leading-none">→</span>
-                  <span className="text-sm font-medium text-foreground">{e.pain_radiation}</span>
-                </>
-              )}
-            </div>
-          </div>
-          <DataCell label="Características" value={e.pain_characteristics} />
-          <DataCell label="Agravantes / Atenuantes" value={e.pain_aggravating_factors} />
-          {nn(e.pain) && <div className="col-span-2"><DataCell label="Descripción general" value={e.pain} /></div>}
-        </div>
-      </Section>
+        </Section>
+      )}
 
       {/* Edema */}
-      {hasEdema && (
+      {sectionVisible("edema", !!hasEdema) && (
         <Section title="Edema">
           {edemaNode && (
             <div className="mb-4">
@@ -628,7 +679,7 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Movilidad */}
-      <Section title="Movilidad">
+      {sectionVisible("mobility", hasMobility) && <Section title="Movilidad">
         {hasGonioTables ? (
           isNewGonioFormat ? (
             <div className="space-y-6">
@@ -678,11 +729,16 @@ export default function AnalyticalEvaluationPage() {
             {fistClosure && <DataCell label="Cierre de puño" value={fistClosure} />}
           </div>
         )}
-        {!hasGonioTables && !nn(e.arom) && !nn(e.prom) && !nn(e.kapandji) && !fistClosure && <NA />}
-      </Section>
+        {!hasGonioTables && !nn(e.arom) && !nn(e.prom) && !nn(e.kapandji) && !fistClosure && !nn((e as any).mobility_observations) && <NA />}
+        {nn((e as any).mobility_observations) && (
+          <div className={`${hasGonioTables || nn(e.arom) || nn(e.prom) || nn(e.kapandji) || fistClosure ? "mt-4 pt-4 border-t border-border/30" : ""}`}>
+            <DataCell label="Observaciones" value={(e as any).mobility_observations} />
+          </div>
+        )}
+      </Section>}
 
       {/* Fuerza muscular */}
-      {hasStrength && (
+      {sectionVisible("strength", hasStrength) && (
         <Section title="Fuerza muscular">
           <div className="space-y-5">
             {/* Dinamómetro */}
@@ -749,7 +805,7 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Sensibilidad */}
-      {hasSensitivity && (
+      {sectionVisible("sensitivity", hasSensitivity) && (
         <Section title="Sensibilidad">
           <div className="space-y-5">
             {hasEpicritica && (
@@ -783,7 +839,7 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Cicatriz */}
-      {hasCicatriz && (
+      {sectionVisible("cicatriz", hasCicatriz) && (
         <Section title="Cicatriz">
           <div className="space-y-5">
             {(scarEval || nn(e.scar)) && (
@@ -815,14 +871,14 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Pruebas específicas */}
-      {testsNode && (
+      {sectionVisible("specific_tests", !!testsNode) && (
         <Section title="Pruebas específicas">
           {testsNode}
         </Section>
       )}
 
       {/* Otros */}
-      {hasOtros && (
+      {sectionVisible("otros", hasOtros) && (
         <Section title="Otros">
           <div className="grid grid-cols-2 gap-3">
             {nn(e.trophic_state) && <DataCell label="Estado trófico" value={e.trophic_state} />}
