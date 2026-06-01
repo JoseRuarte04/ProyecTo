@@ -500,13 +500,6 @@ export default function AnalyticalEvaluationPage() {
   const evalDate = e.evaluation_date ? format(new Date(e.evaluation_date), "dd 'de' MMMM yyyy", { locale: es }) : "";
   const sessionLabel = session?.session_number != null ? `Sesión Nº ${session.session_number}` : "";
 
-  // ── Sections config (toggle visible/oculto) ──
-  const cfg = (e.sections_config && typeof e.sections_config === "object") ? e.sections_config as Record<string, boolean> : null;
-  const sectionVisible = (key: string, hasData: boolean) => {
-    if (cfg && cfg[key] === false) return false;
-    return hasData;
-  };
-
   // ── Pain entries: nuevo array o legacy flat ──
   const TIPO_LABEL: Record<string, string> = {
     reposo: "Reposo", actividad: "Actividad", reposo_y_actividad: "Reposo y actividad",
@@ -596,7 +589,7 @@ export default function AnalyticalEvaluationPage() {
       </div>
 
       {/* Dolor */}
-      {sectionVisible("pain", hasPain) && (
+      {hasPain && (
         <Section title="Dolor">
           {painEntries.length === 0 && <NA />}
           <div className="space-y-4">
@@ -663,7 +656,7 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Edema */}
-      {sectionVisible("edema", !!hasEdema) && (
+      {!!hasEdema && (
         <Section title="Edema">
           {edemaNode && (
             <div className="mb-4">
@@ -679,7 +672,7 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Movilidad */}
-      {sectionVisible("mobility", hasMobility) && <Section title="Movilidad">
+      {hasMobility && <Section title="Movilidad">
         {hasGonioTables ? (
           isNewGonioFormat ? (
             <div className="space-y-6">
@@ -738,7 +731,7 @@ export default function AnalyticalEvaluationPage() {
       </Section>}
 
       {/* Fuerza muscular */}
-      {sectionVisible("strength", hasStrength) && (
+      {hasStrength && (
         <Section title="Fuerza muscular">
           <div className="space-y-5">
             {/* Dinamómetro */}
@@ -805,7 +798,7 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Sensibilidad */}
-      {sectionVisible("sensitivity", hasSensitivity) && (
+      {hasSensitivity && (
         <Section title="Sensibilidad">
           <div className="space-y-5">
             {hasEpicritica && (
@@ -839,7 +832,7 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Cicatriz */}
-      {sectionVisible("cicatriz", hasCicatriz) && (
+      {hasCicatriz && (
         <Section title="Cicatriz">
           <div className="space-y-5">
             {(scarEval || nn(e.scar)) && (
@@ -871,14 +864,14 @@ export default function AnalyticalEvaluationPage() {
       )}
 
       {/* Pruebas específicas */}
-      {sectionVisible("specific_tests", !!testsNode) && (
+      {!!testsNode && (
         <Section title="Pruebas específicas">
           {testsNode}
         </Section>
       )}
 
       {/* Otros */}
-      {sectionVisible("otros", hasOtros) && (
+      {hasOtros && (
         <Section title="Otros">
           <div className="grid grid-cols-2 gap-3">
             {nn(e.trophic_state) && <DataCell label="Estado trófico" value={e.trophic_state} />}
