@@ -30,6 +30,7 @@ import AdminPatients from "./pages/admin/AdminPatients";
 import MiEquipo from "./pages/MiEquipo";
 import InvitationRegister from "./pages/InvitationRegister";
 import AcceptInvite from "./pages/AcceptInvite";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <SpeedInsights />
       <AuthProvider>
         <WorkspaceProvider>
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
