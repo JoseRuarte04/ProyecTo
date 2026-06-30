@@ -28,7 +28,13 @@
       "Bash(Sort-Object Name)",
       "Bash(Select-Object -Last 5)",
       "mcp__claude_ai_Vercel__deploy_to_vercel",
-      "mcp__claude_ai_Vercel__list_deployments"
+      "mcp__claude_ai_Vercel__list_deployments",
+      "Bash(npm --version)",
+      "Bash(which bun *)",
+      "Bash(chmod -R u+w node_modules)",
+      "Bash(chmod -R u+w \"/Users/joseruarte/Desktop/jojo personal/ProyectiTO\")",
+      "Bash(npm install *)",
+      "Bash(curl -s http://localhost:5173)"
     ]
   }
 }

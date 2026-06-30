@@ -128,7 +128,7 @@
     @apply bg-transparent text-gray-500 border-gray-300;
   }
   .status-scheduled {
-    @apply bg-transparent text-blue-700 border-blue-300;
+    @apply bg-transparent text-sky-600 border-sky-300;
   }
   .status-completed {
     @apply bg-transparent text-emerald-700 border-emerald-300;

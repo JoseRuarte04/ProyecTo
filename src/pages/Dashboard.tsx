@@ -1,22 +1,23 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ChevronLeft, ChevronRight, Search, Plus, CalendarCheck, Clock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { format, startOfDay, endOfDay, addDays, subDays, differenceInYears, differenceInMinutes } from "date-fns";
+import { format, addDays, subDays, differenceInYears, differenceInMinutes } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { useDayAppointments, useActivePatients, useRecentSessions, useStalePatients } from "@/hooks/useDashboard";
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     active: { label: "Activo", cls: "status-active" },
     paused: { label: "Pausado", cls: "status-paused" },
     discharged: { label: "Alta", cls: "status-discharged" },
-    scheduled: { label: "Programado", cls: "status-scheduled" },
+    scheduled: { label: "Pendiente", cls: "status-scheduled" },
     completed: { label: "Completado", cls: "status-completed" },
     cancelled: { label: "Cancelado", cls: "status-cancelled" },
+    no_show: { label: "No asistió", cls: "status-cancelled" },
     confirmed: { label: "Confirmado", cls: "status-completed" },
     pending: { label: "Pendiente", cls: "status-paused" },
   };
@@ -79,122 +80,17 @@ export default function Dashboard() {
   const { profile, user } = useAuth();
   const { workspace } = useWorkspace();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [agendaDate, setAgendaDate] = useState(new Date());
-  const [dayAppointments, setDayAppointments] = useState<any[]>([]);
-  const [activePatients, setActivePatients] = useState<any[]>([]);
-  const [activePatientsCount, setActivePatientsCount] = useState(0);
-  const [recentSessions, setRecentSessions] = useState<any[]>([]);
-  const [stalePatients, setStalePatients] = useState<any[]>([]);
 
-  // Agenda: por profesional, sin workspace (turnos son del profesional)
-  useEffect(() => {
-    fetchAgenda(agendaDate);
-  }, [agendaDate]);
+  const { data: dayAppointments = [], isLoading: loadingAgenda } = useDayAppointments(agendaDate);
+  const { data: activePatientsData } = useActivePatients(workspace, user?.id);
+  const { data: recentSessions = [] } = useRecentSessions(workspace, user?.id);
+  const { data: stalePatients = [] } = useStalePatients(workspace, user?.id);
 
-  // Stats: refetch al cambiar workspace o usuario
-  useEffect(() => {
-    if (!user) return;
-    fetchActivePatients();
-    fetchRecentSessions();
-    fetchStalePatients();
-  }, [workspace, user]);
+  const activePatients = activePatientsData?.patients ?? [];
+  const activePatientsCount = activePatientsData?.count ?? 0;
 
-  const fetchAgenda = async (date: Date) => {
-    const dayStart = startOfDay(date).toISOString();
-    const dayEnd = endOfDay(date).toISOString();
-
-    const { data } = await supabase
-      .from("appointments")
-      .select("id, appointment_date, appointment_end, type, status, notes, patients(id, first_name, last_name, birth_date)")
-      .gte("appointment_date", dayStart)
-      .lte("appointment_date", dayEnd)
-      .order("appointment_date");
-
-    setDayAppointments(data || []);
-    setLoading(false);
-  };
-
-  const fetchActivePatients = async () => {
-    let query = supabase
-      .from("patients")
-      .select("id, first_name, last_name, admission_date", { count: "exact" })
-      .eq("status", "active")
-      .eq("is_deleted", false)
-      .order("admission_date", { ascending: false })
-      .limit(3);
-
-    if (workspace.type === "personal") {
-      query = query.eq("professional_id", user!.id);
-    } else {
-      query = query.eq("team_id", workspace.teamId);
-    }
-
-    const { data, count } = await query;
-    setActivePatients(data || []);
-    setActivePatientsCount(count || 0);
-  };
-
-  const fetchRecentSessions = async () => {
-    let query = supabase
-      .from("therapy_sessions")
-      .select("id, session_date, session_type, session_number, patient_id, patients!inner(first_name, last_name, professional_id, team_id)")
-      .eq("is_deleted", false)
-      .order("session_date", { ascending: false })
-      .limit(3);
-
-    if (workspace.type === "personal") {
-      query = query.eq("patients.professional_id", user!.id);
-    } else {
-      query = query.eq("patients.team_id", workspace.teamId);
-    }
-
-    const { data } = await query;
-    setRecentSessions(data || []);
-  };
-
-  const fetchStalePatients = async () => {
-    const cutoff = subDays(new Date(), 14).toISOString().split("T")[0];
-
-    // Pacientes del workspace con sesión reciente
-    let recentQuery = supabase
-      .from("therapy_sessions")
-      .select("patient_id, patients!inner(professional_id, team_id)")
-      .gte("session_date", cutoff)
-      .eq("is_deleted", false);
-
-    if (workspace.type === "personal") {
-      recentQuery = recentQuery.eq("patients.professional_id", user!.id);
-    } else {
-      recentQuery = recentQuery.eq("patients.team_id", workspace.teamId);
-    }
-
-    const { data: recentData } = await recentQuery;
-    const recentIds = [...new Set((recentData || []).map((r: any) => r.patient_id))];
-
-    // Pacientes del workspace sin sesión reciente
-    let query = supabase
-      .from("patients")
-      .select("id, first_name, last_name")
-      .eq("status", "active")
-      .eq("is_deleted", false)
-      .limit(4);
-
-    if (workspace.type === "personal") {
-      query = query.eq("professional_id", user!.id);
-    } else {
-      query = query.eq("team_id", workspace.teamId);
-    }
-
-    if (recentIds.length > 0) {
-      query = query.not("id", "in", `(${recentIds.join(",")})`);
-    }
-
-    const { data } = await query;
-    setStalePatients(data || []);
-  };
-
-  if (loading) {
+  if (loadingAgenda) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

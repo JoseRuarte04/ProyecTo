@@ -20,6 +20,7 @@ import FunctionalEvaluationPage from "./pages/FunctionalEvaluationPage";
 import QuickDashPublicPage from "./pages/QuickDashPublicPage";
 import PlanPublicPage from "./pages/PlanPublicPage";
 import WorkspacePicker from "./pages/WorkspacePicker";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AdminLayout } from "@/components/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTherapists from "./pages/admin/AdminTherapists";
@@ -41,6 +42,7 @@ const App = () => (
       <AuthProvider>
         <WorkspaceProvider>
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <ErrorBoundary>
             <Routes>
               <Route path="/login" element={<Login />} />
               {/* Selector de workspace — requiere auth, no requiere AppLayout */}
@@ -74,6 +76,7 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ErrorBoundary>
           </BrowserRouter>
         </WorkspaceProvider>
       </AuthProvider>
