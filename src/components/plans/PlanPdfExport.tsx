@@ -64,8 +64,9 @@ function buildPlanHtml(plan: any, patient: any, exercises: any[]): string {
     .map((ex) => {
       const lib = ex.exercise_library;
       const name = lib?.name || "Ejercicio";
-      const region = lib?.body_region
-        ? `<span style="background:#ccfbf1;color:#0f766e;font-size:11px;border-radius:4px;padding:2px 8px;margin-left:8px;display:inline-block">${lib.body_region}</span>`
+      const regionName = lib?.exercise_body_regions?.name;
+      const region = regionName
+        ? `<span style="background:#ccfbf1;color:#0f766e;font-size:11px;border-radius:4px;padding:2px 8px;margin-left:8px;display:inline-block">${regionName}</span>`
         : "";
       const description = lib?.description
         ? `<div style="font-size:12px;color:#374151;margin:6px 0;white-space:pre-wrap">${lib.description}</div>`
@@ -78,10 +79,10 @@ function buildPlanHtml(plan: any, patient: any, exercises: any[]): string {
         : "";
 
       const params: string[] = [];
-      const rep = ex.repetitions ?? lib?.default_repetitions;
-      const sets = ex.sets ?? lib?.default_sets;
-      const freq = ex.frequency || lib?.default_frequency;
-      const dur = ex.duration || lib?.default_duration;
+      const rep = ex.repetitions ?? lib?.suggested_reps;
+      const sets = ex.sets ?? lib?.suggested_sets;
+      const freq = ex.frequency;
+      const dur = ex.duration;
       if (rep) params.push(`${rep} rep`);
       if (sets) params.push(`${sets} series`);
       if (freq) params.push(`Frec: ${freq}`);
@@ -152,9 +153,9 @@ export async function exportPlanPdf(plan: any, patient: any) {
     .select(`
       order_index, repetitions, sets, frequency, duration, notes,
       exercise_library (
-        name, description, body_region, instructions,
-        default_repetitions, default_sets, default_frequency,
-        default_duration, video_url
+        name, description, instructions,
+        suggested_sets, suggested_reps, video_url,
+        exercise_body_regions (name)
       )
     `)
     .eq("treatment_plan_id", plan.id)

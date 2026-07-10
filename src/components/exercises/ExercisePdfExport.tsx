@@ -1,14 +1,9 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { type Exercise, getExerciseType } from "./exerciseLibrary";
 
-const EXERCISE_TYPE_LABEL: Record<string, string> = {
-  activo: "Activo",
-  activo_asistido: "Activo asistido",
-  fortalecimiento: "Fortalecimiento",
-};
-
-export function exportExercisesPdf(exercises: any[]) {
+export function exportExercisesPdf(exercises: Exercise[]) {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -76,7 +71,7 @@ export function exportExercisesPdf(exercises: any[]) {
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
     doc.text(`${idx + 1}. ${ex.name}`, margin, y);
-    const typeLabel = ex.exercise_type ? EXERCISE_TYPE_LABEL[ex.exercise_type] : null;
+    const typeLabel = getExerciseType(ex.exercise_type)?.label ?? null;
     if (typeLabel) {
       const nameW = doc.getTextWidth(`${idx + 1}. ${ex.name}`); // medir mientras bold
       doc.setFontSize(8);
@@ -95,20 +90,6 @@ export function exportExercisesPdf(exercises: any[]) {
 
     // Equipamiento
     if (ex.equipment) printInlineField("Equipamiento", ex.equipment);
-
-    // Parámetros de ejecución legacy (sin label, inline)
-    const params: string[] = [];
-    if (ex.default_repetitions) params.push(`${ex.default_repetitions} rep/serie`);
-    if (ex.default_sets) params.push(`${ex.default_sets} series`);
-    if (ex.default_duration) params.push(`Pausa: ${ex.default_duration}`);
-    if (ex.default_frequency) params.push(`Frecuencia: ${ex.default_frequency}`);
-    if (params.length > 0) {
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      const paramText = doc.splitTextToSize(params.join("  ·  "), contentW);
-      paramText.forEach((line: string) => { checkSpace(5); doc.text(line, margin, y); y += 4; });
-      y += 1;
-    }
 
     // Descripción
     if (ex.description) printBlock("Descripción:", ex.description);

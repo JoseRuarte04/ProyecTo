@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Search, Eye, Edit, FileDown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { StatusBadge } from "@/pages/Dashboard";
+import { StatusBadge } from "@/components/status";
 import { exportPlanPdf } from "@/components/plans/PlanPdfExport";
 
 export interface SelectedExercise {
@@ -63,7 +63,7 @@ function ExercisePicker({ exercises, loadingEx, searchEx, onSearch, selectedExer
                   <Checkbox checked={!!selected} onCheckedChange={() => onToggle(ex)} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{ex.name}</p>
-                    {ex.body_region && <p className="text-xs text-muted-foreground">{ex.body_region}</p>}
+                    {ex.exercise_body_regions?.name && <p className="text-xs text-muted-foreground">{ex.exercise_body_regions.name}</p>}
                   </div>
                 </div>
                 {selected && (
@@ -110,7 +110,7 @@ export function NewPlanDialog({ open, onClose, patientId, userId, onSaved }: New
   useEffect(() => {
     if (step === 2 && exercises.length === 0) {
       setLoadingEx(true);
-      supabase.from("exercise_library").select("id, name, body_region, default_repetitions, default_sets, default_frequency, default_duration").eq("is_active", true)
+      supabase.from("exercise_library").select("id, name, suggested_sets, suggested_reps, exercise_body_regions(name)").eq("professional_id", userId).eq("is_active", true)
         .then(({ data }) => { setExercises(data || []); setLoadingEx(false); });
     }
   }, [step]);
@@ -124,7 +124,7 @@ export function NewPlanDialog({ open, onClose, patientId, userId, onSaved }: New
     if (exists) {
       setSelectedExercises(selectedExercises.filter(s => s.id !== ex.id));
     } else {
-      setSelectedExercises([...selectedExercises, { id: ex.id, name: ex.name, body_region: ex.body_region, repetitions: ex.default_repetitions, sets: ex.default_sets, frequency: ex.default_frequency || "", duration: ex.default_duration || "", notes: "" }]);
+      setSelectedExercises([...selectedExercises, { id: ex.id, name: ex.name, body_region: ex.exercise_body_regions?.name ?? null, repetitions: ex.suggested_reps, sets: ex.suggested_sets, frequency: "", duration: "", notes: "" }]);
     }
   };
 
@@ -209,7 +209,7 @@ export function PlanDetailDialog({ plan, onClose }: PlanDetailProps) {
   useEffect(() => {
     if (plan) {
       setLoading(true);
-      supabase.from("treatment_plan_exercises").select("*, exercise_library(name, body_region)").eq("treatment_plan_id", plan.id).order("order_index")
+      supabase.from("treatment_plan_exercises").select("*, exercise_library(name, exercise_body_regions(name))").eq("treatment_plan_id", plan.id).order("order_index")
         .then(({ data }) => { setExercises(data || []); setLoading(false); });
     } else {
       setExercises([]);
@@ -233,11 +233,11 @@ export function PlanDetailDialog({ plan, onClose }: PlanDetailProps) {
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              {(["Objetivo", plan.objective], [
+              {[
                 ["Objetivo", plan.objective], ["Indicaciones", plan.indications],
                 ["Cuidado de piel", plan.skin_care], ["Protección articular", plan.joint_protection_guidelines],
                 ["Recomendaciones hogar", plan.home_item_recommendations], ["Notas", plan.notes],
-              ]).map(([label, value]) => (
+              ].map(([label, value]) => (
                 <div key={label as string}>
                   <p className="text-muted-foreground text-xs font-medium">{label as string}</p>
                   <p className="text-foreground">{(value as string) || "—"}</p>
@@ -255,7 +255,7 @@ export function PlanDetailDialog({ plan, onClose }: PlanDetailProps) {
                   {exercises.map((ex) => (
                     <div key={ex.id} className="border rounded-lg p-3 text-sm">
                       <p className="font-medium">{ex.custom_name || ex.exercise_library?.name || "Ejercicio"}</p>
-                      {ex.exercise_library?.body_region && <p className="text-xs text-muted-foreground">{ex.exercise_library.body_region}</p>}
+                      {ex.exercise_library?.exercise_body_regions?.name && <p className="text-xs text-muted-foreground">{ex.exercise_library.exercise_body_regions.name}</p>}
                       <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
                         {ex.repetitions && <span>Rep: {ex.repetitions}</span>}
                         {ex.sets && <span>Series: {ex.sets}</span>}
@@ -306,12 +306,12 @@ export function EditPlanDialog({ plan, onClose, patientId, userId, onSaved }: Ed
       });
       setStep(1);
       setInitialized(true);
-      supabase.from("treatment_plan_exercises").select("*, exercise_library(name, body_region)").eq("treatment_plan_id", plan.id).order("order_index")
+      supabase.from("treatment_plan_exercises").select("*, exercise_library(name, exercise_body_regions(name))").eq("treatment_plan_id", plan.id).order("order_index")
         .then(({ data }) => {
           if (data) {
             setSelectedExercises(data.map((ex: any) => ({
               id: ex.exercise_id, name: ex.custom_name || ex.exercise_library?.name || "",
-              body_region: ex.exercise_library?.body_region || null,
+              body_region: ex.exercise_library?.exercise_body_regions?.name || null,
               repetitions: ex.repetitions, sets: ex.sets,
               frequency: ex.frequency || "", duration: ex.duration || "", notes: ex.notes || "",
             })));
@@ -324,7 +324,7 @@ export function EditPlanDialog({ plan, onClose, patientId, userId, onSaved }: Ed
   useEffect(() => {
     if (plan && step === 2 && exercises.length === 0) {
       setLoadingEx(true);
-      supabase.from("exercise_library").select("id, name, body_region, default_repetitions, default_sets, default_frequency, default_duration").eq("is_active", true)
+      supabase.from("exercise_library").select("id, name, suggested_sets, suggested_reps, exercise_body_regions(name)").eq("professional_id", userId).eq("is_active", true)
         .then(({ data }) => { setExercises(data || []); setLoadingEx(false); });
     }
   }, [step, plan]);
@@ -336,7 +336,7 @@ export function EditPlanDialog({ plan, onClose, patientId, userId, onSaved }: Ed
     if (exists) {
       setSelectedExercises(selectedExercises.filter(s => s.id !== ex.id));
     } else {
-      setSelectedExercises([...selectedExercises, { id: ex.id, name: ex.name, body_region: ex.body_region, repetitions: ex.default_repetitions, sets: ex.default_sets, frequency: ex.default_frequency || "", duration: ex.default_duration || "", notes: "" }]);
+      setSelectedExercises([...selectedExercises, { id: ex.id, name: ex.name, body_region: ex.exercise_body_regions?.name ?? null, repetitions: ex.suggested_reps, sets: ex.suggested_sets, frequency: "", duration: "", notes: "" }]);
     }
   };
 

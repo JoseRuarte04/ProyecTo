@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Dumbbell, Plus, ClipboardList, Pencil, Trash2, Search, X, ChevronUp, ChevronDown, Save } from "lucide-react";
 import { ExercisePlanLinkManager } from "@/components/patients/ExercisePlanLinkManager";
+import { EXERCISE_TYPES } from "@/components/exercises/exerciseLibrary";
 import { toast } from "sonner";
 
 interface ExercisePlan {
@@ -40,11 +41,9 @@ interface PlanItem {
   exercise: ExerciseResult;
 }
 
-const TYPE_BADGE: Record<string, { label: string; className: string }> = {
-  activo:          { label: "Activo",          className: "bg-info/10 text-info border-info/20" },
-  activo_asistido: { label: "Activo asistido", className: "bg-success/10 text-success border-success/20" },
-  fortalecimiento: { label: "Fortalecimiento", className: "bg-warning/10 text-warning border-warning/20" },
-};
+const TYPE_BADGE: Record<string, { label: string; className: string }> = Object.fromEntries(
+  EXERCISE_TYPES.map((t) => [t.value, { label: t.label, className: t.badgeClass }])
+);
 
 interface Props {
   patientId: string;
@@ -500,9 +499,9 @@ export function EjerciciosTab({ patientId }: Props) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos los tipos</SelectItem>
-                          <SelectItem value="activo">Activo</SelectItem>
-                          <SelectItem value="activo_asistido">Activo asistido</SelectItem>
-                          <SelectItem value="fortalecimiento">Fortalecimiento</SelectItem>
+                          {EXERCISE_TYPES.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
