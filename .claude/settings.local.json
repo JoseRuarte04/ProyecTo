@@ -34,7 +34,23 @@
       "Bash(chmod -R u+w node_modules)",
       "Bash(chmod -R u+w \"/Users/joseruarte/Desktop/jojo personal/ProyectiTO\")",
       "Bash(npm install *)",
-      "Bash(curl -s http://localhost:5173)"
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(npx vitest *)",
+      "Bash(node *)",
+      "Bash(qlmanage -t -s 512 -o . \"/Users/joseruarte/Desktop/jojo personal/ProyectiTO/public/favicon.svg\")",
+      "Bash(sips -g pixelWidth -g pixelHeight favicon.svg.png)",
+      "Bash(sips -z 192 192 /private/tmp/claude-501/-Users-joseruarte-Desktop-jojo-personal-ProyectiTO/8d6ff990-73d4-49fd-9fb3-84aeea9c0725/scratchpad/favicon.svg.png --out '/Users/joseruarte/Desktop/jojo personal/ProyectiTO/public/icon-192.png')",
+      "Bash(sips -z 180 180 /private/tmp/claude-501/-Users-joseruarte-Desktop-jojo-personal-ProyectiTO/8d6ff990-73d4-49fd-9fb3-84aeea9c0725/scratchpad/favicon.svg.png --out '/Users/joseruarte/Desktop/jojo personal/ProyectiTO/public/apple-touch-icon.png')",
+      "Bash(sips -z 64 64 /private/tmp/claude-501/-Users-joseruarte-Desktop-jojo-personal-ProyectiTO/8d6ff990-73d4-49fd-9fb3-84aeea9c0725/scratchpad/favicon.svg.png --out /private/tmp/claude-501/-Users-joseruarte-Desktop-jojo-personal-ProyectiTO/8d6ff990-73d4-49fd-9fb3-84aeea9c0725/scratchpad/favicon-64.png)",
+      "Bash(sed -n '/const TYPE_BAR/,/};/p' pages/Appointments.tsx)",
+      "Bash(sed -n '/const typeMap/,/};/p' pages/Appointments.tsx)",
+      "mcp__claude_ai_Supabase__generate_typescript_types",
+      "Bash(sort -t'│' -k2 -rn)",
+      "Bash(awk '{print $2, $3}')",
+      "Bash(sort -k2 -rn)",
+      "Bash(xargs -I{} sh -c 'echo \"$\\(du -h \"{}\" | cut -f1\\)  {}\"')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
