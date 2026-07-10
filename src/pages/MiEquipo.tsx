@@ -14,6 +14,7 @@ import {
 import { Loader2, Users2, UserX, RefreshCw, X, UserCog } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/PageHeader";
 
 // ── Actividad reciente ───────────────────────────────────────────────────────
 
@@ -429,10 +430,7 @@ export default function MiEquipo() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">Mi equipo</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Gestioná los miembros e invitaciones de tus equipos</p>
-      </div>
+      <PageHeader title="Mi equipo" subtitle="Gestioná los miembros e invitaciones de tus equipos" />
       {teams.map((t) => (
         <TeamCard key={t.id} team={t} onReload={reload} />
       ))}

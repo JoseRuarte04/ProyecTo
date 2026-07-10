@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,33 +7,43 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { AppLayout } from "@/components/AppLayout";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Patients from "./pages/Patients";
-import PatientProfile from "./pages/PatientProfile";
-import Appointments from "./pages/Appointments";
-import Exercises from "./pages/Exercises";
-import SessionForm from "./pages/SessionForm";
-import NewPatientForm from "./components/patients/NewPatientForm";
-import NotFound from "./pages/NotFound";
-import AnalyticalEvaluationPage from "./pages/AnalyticalEvaluationPage";
-import FunctionalEvaluationPage from "./pages/FunctionalEvaluationPage";
-import QuickDashPublicPage from "./pages/QuickDashPublicPage";
-import PlanPublicPage from "./pages/PlanPublicPage";
-import WorkspacePicker from "./pages/WorkspacePicker";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AdminLayout } from "@/components/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminTherapists from "./pages/admin/AdminTherapists";
-import AdminTeams from "./pages/admin/AdminTeams";
-import AdminTeamDetail from "./pages/admin/AdminTeamDetail";
-import AdminActivity from "./pages/admin/AdminActivity";
-import AdminPatients from "./pages/admin/AdminPatients";
-import MiEquipo from "./pages/MiEquipo";
-import InvitationRegister from "./pages/InvitationRegister";
-import AcceptInvite from "./pages/AcceptInvite";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Loader2 } from "lucide-react";
+
+// Code-splitting por ruta: cada página se descarga recién cuando se navega a ella.
+const Login = lazy(() => import("./pages/Login"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Patients = lazy(() => import("./pages/Patients"));
+const PatientProfile = lazy(() => import("./pages/PatientProfile"));
+const Appointments = lazy(() => import("./pages/Appointments"));
+const Exercises = lazy(() => import("./pages/Exercises"));
+const SessionForm = lazy(() => import("./pages/SessionForm"));
+const NewPatientForm = lazy(() => import("./components/patients/NewPatientForm"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const AnalyticalEvaluationPage = lazy(() => import("./pages/AnalyticalEvaluationPage"));
+const FunctionalEvaluationPage = lazy(() => import("./pages/FunctionalEvaluationPage"));
+const QuickDashPublicPage = lazy(() => import("./pages/QuickDashPublicPage"));
+const PlanPublicPage = lazy(() => import("./pages/PlanPublicPage"));
+const WorkspacePicker = lazy(() => import("./pages/WorkspacePicker"));
+const MiEquipo = lazy(() => import("./pages/MiEquipo"));
+const InvitationRegister = lazy(() => import("./pages/InvitationRegister"));
+const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminTherapists = lazy(() => import("./pages/admin/AdminTherapists"));
+const AdminTeams = lazy(() => import("./pages/admin/AdminTeams"));
+const AdminTeamDetail = lazy(() => import("./pages/admin/AdminTeamDetail"));
+const AdminActivity = lazy(() => import("./pages/admin/AdminActivity"));
+const AdminPatients = lazy(() => import("./pages/admin/AdminPatients"));
 
 const queryClient = new QueryClient();
+
+const PageLoader = () => (
+  <div className="flex min-h-[50vh] items-center justify-center">
+    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -43,8 +54,10 @@ const App = () => (
         <WorkspaceProvider>
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               {/* Selector de workspace — requiere auth, no requiere AppLayout */}
               <Route path="/workspace-picker" element={<WorkspacePicker />} />
               <Route path="/" element={<AppLayout />}>
@@ -76,6 +89,7 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
             </ErrorBoundary>
           </BrowserRouter>
         </WorkspaceProvider>

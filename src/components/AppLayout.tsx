@@ -4,6 +4,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { CommandPalette } from "@/components/CommandPalette";
 import { Loader2, Building2, X } from "lucide-react";
 
 const Spinner = () => (
@@ -68,6 +69,7 @@ export function AppLayout() {
           </main>
         </div>
       </div>
+      <CommandPalette />
     </SidebarProvider>
   );
 }

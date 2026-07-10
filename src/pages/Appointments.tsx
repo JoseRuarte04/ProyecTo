@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppointments, useCompleteAppointment, useCancelAppointment, APPOINTMENTS_KEY } from "@/hooks/useAppointments";
-import { StatusBadge } from "./Dashboard";
+import { StatusBadge, APPOINTMENT_TYPE_STRIPE } from "@/components/status";
+import { PageHeader } from "@/components/PageHeader";
+import { ListSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User } from "lucide-react";
+import { Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle } from "lucide-react";
+import { whatsappUrl } from "@/lib/whatsapp";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -38,13 +42,7 @@ const TYPE_CHIP: Record<string, string> = {
 };
 
 // Barra de 4px en lista (por tipo)
-const TYPE_BAR: Record<string, string> = {
-  admission:    "bg-teal-500",
-  follow_up:    "bg-blue-500",
-  evaluation:   "bg-amber-500",
-  discharge:    "bg-emerald-500",
-  consultation: "bg-gray-400",
-};
+const TYPE_BAR = APPOINTMENT_TYPE_STRIPE;
 
 // Bloque en calendario: fondo suave + borde izquierdo por estado (Google Calendar style)
 const STATUS_BLOCK: Record<string, string> = {
@@ -173,28 +171,31 @@ export default function Appointments() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 shrink-0">
-        <h1 className="font-serif text-2xl font-semibold text-foreground tracking-tight">Turnos</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            <button
-              onClick={() => setView("list")}
-              className={cn("px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
-            >
-              <List className="h-3.5 w-3.5" /> Lista
-            </button>
-            <button
-              onClick={() => setView("week")}
-              className={cn("px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors border-l border-border", view === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
-            >
-              <CalendarDays className="h-3.5 w-3.5" /> Semana
-            </button>
-          </div>
-          <Button onClick={() => { setPrefilledDate(""); setPrefilledTime(""); setShowNew(true); }} size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" /> Nuevo turno
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        className="pb-4 shrink-0"
+        title="Turnos"
+        actions={
+          <>
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button
+                onClick={() => setView("list")}
+                className={cn("px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+              >
+                <List className="h-3.5 w-3.5" /> Lista
+              </button>
+              <button
+                onClick={() => setView("week")}
+                className={cn("px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors border-l border-border", view === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+              >
+                <CalendarDays className="h-3.5 w-3.5" /> Semana
+              </button>
+            </div>
+            <Button onClick={() => { setPrefilledDate(""); setPrefilledTime(""); setShowNew(true); }} size="sm" className="gap-1.5">
+              <Plus className="h-4 w-4" /> Nuevo turno
+            </Button>
+          </>
+        }
+      />
 
       {/* Filter tabs */}
       <div className="flex border-b border-border shrink-0">
@@ -213,8 +214,8 @@ export default function Appointments() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <div className="pt-4">
+          <ListSkeleton rows={7} withHeader={false} />
         </div>
       ) : view === "list" ? (
         /* ── VISTA LISTA ── */
@@ -628,6 +629,22 @@ function AppointmentDetailPanel({
           >
             <Clock className="h-4 w-4" /> Reprogramar
           </Button>
+          {appt.patients?.phone && (() => {
+            const url = whatsappUrl(
+              appt.patients.phone,
+              `Hola ${appt.patients.first_name}! Te recordamos tu turno de Terapia Ocupacional el ${dateStr} a las ${startStr} hs. ¡Nos vemos!`
+            );
+            return url ? (
+              <Button
+                className="w-full gap-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400"
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(url, "_blank")}
+              >
+                <MessageCircle className="h-4 w-4" /> Recordar por WhatsApp
+              </Button>
+            ) : null;
+          })()}
           <Button
             className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive/5 hover:border-destructive/50"
             variant="outline"
@@ -812,7 +829,7 @@ function NewAppointmentDialog({
       professional_id: userId,
       appointment_date: new Date(`${selectedDate}T${startTime}:00`).toISOString(),
       appointment_end: new Date(`${selectedDate}T${endTime}:00`).toISOString(),
-      type: form.type,
+      type: form.type as Database["public"]["Enums"]["appointment_type"],
       status: "scheduled",
       notes: form.notes || null,
       is_overtime: isOvertime,

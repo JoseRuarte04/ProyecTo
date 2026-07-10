@@ -1,80 +1,15 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, ChevronLeft, ChevronRight, Search, Plus, CalendarCheck, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Plus, CalendarCheck, Clock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, addDays, subDays, differenceInYears, differenceInMinutes } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { useDayAppointments, useActivePatients, useRecentSessions, useStalePatients } from "@/hooks/useDashboard";
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    active: { label: "Activo", cls: "status-active" },
-    paused: { label: "Pausado", cls: "status-paused" },
-    discharged: { label: "Alta", cls: "status-discharged" },
-    scheduled: { label: "Pendiente", cls: "status-scheduled" },
-    completed: { label: "Completado", cls: "status-completed" },
-    cancelled: { label: "Cancelado", cls: "status-cancelled" },
-    no_show: { label: "No asistió", cls: "status-cancelled" },
-    confirmed: { label: "Confirmado", cls: "status-completed" },
-    pending: { label: "Pendiente", cls: "status-paused" },
-  };
-  const s = map[status] || { label: status, cls: "" };
-  return <Badge variant="outline" className={`${s.cls} text-xs font-medium px-2.5 py-0.5 rounded-full`}>{s.label}</Badge>;
-}
-
-export { StatusBadge };
-
-const appointmentTypeMap: Record<string, string> = {
-  consultation: "Consulta",
-  follow_up: "Seguimiento",
-  evaluation: "Evaluación",
-  admission: "Admisión",
-  discharge: "Alta",
-};
-
-// Color stripe por tipo de turno (3px izquierda)
-const typeStripeClass: Record<string, string> = {
-  admission: "bg-[hsl(192,35%,42%)]",
-  follow_up: "bg-[hsl(210,65%,55%)]",
-  evaluation: "bg-[hsl(38,90%,52%)]",
-  discharge: "bg-[hsl(152,50%,45%)]",
-  consultation: "bg-[hsl(0,0%,65%)]",
-};
-
-// Dot de estado (reemplaza el badge grande en la agenda)
-function StatusDot({ status }: { status: string }) {
-  const dotMap: Record<string, string> = {
-    active: "bg-emerald-500",
-    scheduled: "bg-blue-400",
-    confirmed: "bg-emerald-500",
-    pending: "bg-amber-400",
-    paused: "bg-amber-400",
-    cancelled: "bg-red-400",
-    completed: "bg-slate-400",
-    discharged: "bg-slate-400",
-  };
-  const labelMap: Record<string, string> = {
-    active: "Activo", scheduled: "Programado", confirmed: "Confirmado",
-    pending: "Pendiente", paused: "Pausado", cancelled: "Cancelado",
-    completed: "Completado", discharged: "Alta",
-  };
-  const cls = dotMap[status] || "bg-slate-300";
-  return (
-    <span
-      className={`inline-block w-2 h-2 rounded-full ${cls} shrink-0`}
-      title={labelMap[status] || status}
-    />
-  );
-}
-
-const sessionTypeMap: Record<string, string> = {
-  admission: "Admisión",
-  follow_up: "Seguimiento",
-  discharge: "Alta",
-};
+import { StatusDot, APPOINTMENT_TYPE_LABEL, APPOINTMENT_TYPE_STRIPE, SESSION_TYPE_LABEL } from "@/components/status";
+import { DashboardSkeleton } from "@/components/skeletons";
+import { openCommandPalette } from "@/components/CommandPalette";
 
 export default function Dashboard() {
   const { profile, user } = useAuth();
@@ -90,13 +25,7 @@ export default function Dashboard() {
   const activePatients = activePatientsData?.patients ?? [];
   const activePatientsCount = activePatientsData?.count ?? 0;
 
-  if (loadingAgenda) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loadingAgenda) return <DashboardSkeleton />;
 
   const firstName = profile?.full_name?.split(" ")[0] || "";
   const now = new Date();
@@ -140,8 +69,11 @@ export default function Dashboard() {
         <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/appointments")}>
           <CalendarCheck className="h-4 w-4" /> Nuevo turno
         </Button>
-        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => navigate("/patients")}>
+        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={openCommandPalette}>
           <Search className="h-4 w-4" /> Buscar
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+            ⌘K
+          </kbd>
         </Button>
       </div>
 
@@ -175,11 +107,11 @@ export default function Dashboard() {
                 const dur = a.appointment_end ? differenceInMinutes(new Date(a.appointment_end), new Date(a.appointment_date)) : 30;
                 const patient = a.patients;
                 const age = patient?.birth_date ? differenceInYears(new Date(), new Date(patient.birth_date)) : null;
-                const typeName = appointmentTypeMap[a.type] || a.type;
+                const typeName = APPOINTMENT_TYPE_LABEL[a.type] || a.type;
                 const isNow = Math.abs(new Date(a.appointment_date).getTime() - now.getTime()) < 30 * 60 * 1000 && a.status !== "cancelled";
                 const isCancelled = a.status === "cancelled";
                 const isCompleted = a.status === "completed";
-                const stripeClass = typeStripeClass[a.type] || "bg-slate-300";
+                const stripeClass = APPOINTMENT_TYPE_STRIPE[a.type] || "bg-slate-300";
 
                 return (
                   <div
@@ -259,7 +191,7 @@ export default function Dashboard() {
               <div className="space-y-2.5">
                 {recentSessions.map((s) => {
                   const patient = s.patients;
-                  const typeName = sessionTypeMap[s.session_type] || s.session_type;
+                  const typeName = SESSION_TYPE_LABEL[s.session_type] || s.session_type;
                   return (
                     <Link key={s.id} to={`/patients/${s.patient_id}`} className="flex items-center justify-between group">
                       <div className="min-w-0">
