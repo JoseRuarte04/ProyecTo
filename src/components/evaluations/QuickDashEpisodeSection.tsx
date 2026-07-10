@@ -78,7 +78,7 @@ export function QuickDashEpisodeSection({ episodeId, patientId }: QuickDashEpiso
 
     if (!data) { setMode("view"); return; }
 
-    const completed = data.filter((r) => r.completed_at !== null && r.result !== null) as HistoryEntry[];
+    const completed = data.filter((r) => r.completed_at !== null && r.result !== null) as unknown as HistoryEntry[];
     const pending   = data.find(
       (r) => !r.completed_at && new Date(r.expires_at) > new Date()
     ) as ActiveToken | undefined;

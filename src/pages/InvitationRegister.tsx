@@ -38,7 +38,7 @@ export default function InvitationRegister() {
       if (rpcErr) {
         setInvitation({ valid: false, reason: "not_found" });
       } else {
-        setInvitation(data as InvitationData);
+        setInvitation(data as unknown as InvitationData);
       }
       setLoading(false);
     });

@@ -15,9 +15,18 @@ export type Database = {
   public: {
     Tables: {
       admin_users: {
-        Row: { created_at: string; user_id: string }
-        Insert: { created_at?: string; user_id: string }
-        Update: { created_at?: string; user_id?: string }
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
         Relationships: []
       }
       analytical_evaluations: {
@@ -218,8 +227,11 @@ export type Database = {
         Row: {
           appointment_date: string
           appointment_end: string | null
+          cancellation_notes: string | null
+          cancellation_reason: string | null
           created_at: string
           id: string
+          is_overtime: boolean
           notes: string | null
           patient_id: string
           professional_id: string
@@ -230,8 +242,11 @@ export type Database = {
         Insert: {
           appointment_date: string
           appointment_end?: string | null
+          cancellation_notes?: string | null
+          cancellation_reason?: string | null
           created_at?: string
           id?: string
+          is_overtime?: boolean
           notes?: string | null
           patient_id: string
           professional_id: string
@@ -242,8 +257,11 @@ export type Database = {
         Update: {
           appointment_date?: string
           appointment_end?: string | null
+          cancellation_notes?: string | null
+          cancellation_reason?: string | null
           created_at?: string
           id?: string
+          is_overtime?: boolean
           notes?: string | null
           patient_id?: string
           professional_id?: string
@@ -421,32 +439,24 @@ export type Database = {
       }
       exercise_body_regions: {
         Row: {
+          created_at: string
           id: string
           name: string
           professional_id: string
-          created_at: string
         }
         Insert: {
+          created_at?: string
           id?: string
           name: string
           professional_id: string
-          created_at?: string
         }
         Update: {
+          created_at?: string
           id?: string
           name?: string
           professional_id?: string
-          created_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "exercise_body_regions_professional_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       exercise_categories: {
         Row: {
@@ -547,22 +557,22 @@ export type Database = {
           body_region: string | null
           body_region_id: string | null
           created_at: string
-          equipment: string | null
-          exercise_type: string | null
-          precautions: string | null
-          starting_position: string | null
-          suggested_reps: number | null
-          suggested_sets: number | null
           default_duration: string | null
           default_frequency: string | null
           default_repetitions: number | null
           default_sets: number | null
           description: string | null
+          equipment: string | null
+          exercise_type: string | null
           id: string
           instructions: string | null
           is_active: boolean
           name: string
+          precautions: string | null
           professional_id: string | null
+          starting_position: string | null
+          suggested_reps: number | null
+          suggested_sets: number | null
           updated_at: string
           video_url: string | null
         }
@@ -570,22 +580,22 @@ export type Database = {
           body_region?: string | null
           body_region_id?: string | null
           created_at?: string
-          equipment?: string | null
-          exercise_type?: string | null
-          precautions?: string | null
-          starting_position?: string | null
-          suggested_reps?: number | null
-          suggested_sets?: number | null
           default_duration?: string | null
           default_frequency?: string | null
           default_repetitions?: number | null
           default_sets?: number | null
           description?: string | null
+          equipment?: string | null
+          exercise_type?: string | null
           id?: string
           instructions?: string | null
           is_active?: boolean
           name: string
+          precautions?: string | null
           professional_id?: string | null
+          starting_position?: string | null
+          suggested_reps?: number | null
+          suggested_sets?: number | null
           updated_at?: string
           video_url?: string | null
         }
@@ -593,33 +603,26 @@ export type Database = {
           body_region?: string | null
           body_region_id?: string | null
           created_at?: string
-          equipment?: string | null
-          exercise_type?: string | null
-          precautions?: string | null
-          starting_position?: string | null
-          suggested_reps?: number | null
-          suggested_sets?: number | null
           default_duration?: string | null
           default_frequency?: string | null
           default_repetitions?: number | null
           default_sets?: number | null
           description?: string | null
+          equipment?: string | null
+          exercise_type?: string | null
           id?: string
           instructions?: string | null
           is_active?: boolean
           name?: string
+          precautions?: string | null
           professional_id?: string | null
+          starting_position?: string | null
+          suggested_reps?: number | null
+          suggested_sets?: number | null
           updated_at?: string
           video_url?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "exercise_library_professional_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "exercise_library_body_region_id_fkey"
             columns: ["body_region_id"]
@@ -627,52 +630,11 @@ export type Database = {
             referencedRelation: "exercise_body_regions"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      exercise_plan_tokens: {
-        Row: {
-          created_at: string
-          expires_at: string
-          id: string
-          patient_id: string
-          plan_id: string
-          professional_id: string
-          revoked_at: string | null
-          token: string
-        }
-        Insert: {
-          created_at?: string
-          expires_at: string
-          id?: string
-          patient_id: string
-          plan_id: string
-          professional_id: string
-          revoked_at?: string | null
-          token?: string
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          id?: string
-          patient_id?: string
-          plan_id?: string
-          professional_id?: string
-          revoked_at?: string | null
-          token?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "exercise_plan_tokens_plan_id_fkey"
-            columns: ["plan_id"]
+            foreignKeyName: "exercise_library_professional_id_fkey"
+            columns: ["professional_id"]
             isOneToOne: false
-            referencedRelation: "exercise_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exercise_plan_tokens_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "patients"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -713,17 +675,65 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "exercise_plan_items_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_library"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "exercise_plan_items_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "exercise_plans"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      exercise_plan_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          patient_id: string
+          plan_id: string
+          professional_id: string
+          revoked_at: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          patient_id: string
+          plan_id: string
+          professional_id: string
+          revoked_at?: string | null
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          patient_id?: string
+          plan_id?: string
+          professional_id?: string
+          revoked_at?: string | null
+          token?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "exercise_plan_items_exercise_id_fkey"
-            columns: ["exercise_id"]
+            foreignKeyName: "exercise_plan_tokens_patient_id_fkey"
+            columns: ["patient_id"]
             isOneToOne: false
-            referencedRelation: "exercise_library"
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_plan_tokens_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -759,13 +769,6 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "exercise_plans_professional_id_fkey"
-            columns: ["professional_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1169,17 +1172,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "patients_user_profile_id_fkey"
-            columns: ["user_profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "patients_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_user_profile_id_fkey"
+            columns: ["user_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1223,6 +1226,70 @@ export type Database = {
         }
         Relationships: []
       }
+      quickdash_tokens: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          episode_id: string | null
+          expires_at: string
+          id: string
+          patient_id: string
+          result: Json | null
+          session_id: string | null
+          token: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by: string
+          episode_id?: string | null
+          expires_at: string
+          id?: string
+          patient_id: string
+          result?: Json | null
+          session_id?: string | null
+          token?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          episode_id?: string | null
+          expires_at?: string
+          id?: string
+          patient_id?: string
+          result?: Json | null
+          session_id?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quickdash_tokens_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quickdash_tokens_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quickdash_tokens_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "therapy_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_invitations: {
         Row: {
           created_at: string
@@ -1256,19 +1323,12 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "team_invitations_invited_by_fkey"
-            columns: ["invited_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "team_invitations_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       team_members: {
@@ -1295,13 +1355,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "team_members_invited_by_fkey"
-            columns: ["invited_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "team_members_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1309,12 +1362,12 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "team_members_user_id_fkey"
+            foreignKeyName: "team_members_user_id_fkey_profiles"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       teams: {
@@ -1342,15 +1395,7 @@ export type Database = {
           member_limit?: number
           name?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "teams_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       therapy_sessions: {
         Row: {
@@ -1452,7 +1497,7 @@ export type Database = {
       treatment_episodes: {
         Row: {
           admission_date: string
-          affected_side: "MSD" | "MSI" | "both" | null
+          affected_side: string | null
           created_at: string
           deleted_at: string | null
           diagnosis: string | null
@@ -1469,7 +1514,7 @@ export type Database = {
         }
         Insert: {
           admission_date?: string
-          affected_side?: "MSD" | "MSI" | "both" | null
+          affected_side?: string | null
           created_at?: string
           deleted_at?: string | null
           diagnosis?: string | null
@@ -1486,7 +1531,7 @@ export type Database = {
         }
         Update: {
           admission_date?: string
-          affected_side?: "MSD" | "MSI" | "both" | null
+          affected_side?: string | null
           created_at?: string
           deleted_at?: string | null
           diagnosis?: string | null
@@ -1666,97 +1711,203 @@ export type Database = {
           },
         ]
       }
-      quickdash_tokens: {
-        Row: {
-          id: string
-          token: string
-          patient_id: string
-          session_id: string | null
-          episode_id: string | null
-          created_by: string
-          created_at: string
-          expires_at: string
-          completed_at: string | null
-          completed_by: "patient" | "therapist" | null
-          result: Json | null
-        }
-        Insert: {
-          id?: string
-          token?: string
-          patient_id: string
-          session_id?: string | null
-          episode_id?: string | null
-          created_by: string
-          created_at?: string
-          expires_at: string
-          completed_at?: string | null
-          completed_by?: "patient" | "therapist" | null
-          result?: Json | null
-        }
-        Update: {
-          id?: string
-          token?: string
-          patient_id?: string
-          session_id?: string | null
-          episode_id?: string | null
-          created_by?: string
-          created_at?: string
-          expires_at?: string
-          completed_at?: string | null
-          completed_by?: "patient" | "therapist" | null
-          result?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quickdash_tokens_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "patients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quickdash_tokens_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "therapy_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quickdash_tokens_episode_id_fkey"
-            columns: ["episode_id"]
-            isOneToOne: false
-            referencedRelation: "treatment_episodes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quickdash_tokens_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      admin_create_team: {
+        Args: {
+          p_admin_user_id: string
+          p_member_limit?: number
+          p_name: string
+        }
+        Returns: string
+      }
+      admin_deactivate_therapist: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      admin_get_active_teams: {
+        Args: never
+        Returns: {
+          member_count: number
+          patient_count: number
+          session_count: number
+          team_id: string
+          team_name: string
+        }[]
+      }
+      admin_get_activity: {
+        Args: never
+        Returns: {
+          action: string
+          created_at: string
+          description: string
+          email: string
+          full_name: string
+          id: string
+          performed_by: string
+          table_name: string
+        }[]
+      }
+      admin_get_inactive_therapists: {
+        Args: { p_days?: number }
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          last_session_at: string
+          patient_count: number
+          specialty: string
+        }[]
+      }
+      admin_get_monthly_sessions: {
+        Args: never
+        Returns: {
+          month: string
+          session_count: number
+        }[]
+      }
+      admin_get_stale_invitations: {
+        Args: { p_days?: number }
+        Returns: {
+          created_at: string
+          days_pending: number
+          email: string
+          invitation_id: string
+          invited_by_name: string
+          team_id: string
+          team_name: string
+        }[]
+      }
+      admin_get_stats: { Args: never; Returns: Json }
+      admin_get_trends: { Args: never; Returns: Json }
+      admin_list_patients: {
+        Args: { p_professional_id?: string; p_team_id?: string }
+        Returns: {
+          created_at: string
+          full_name: string
+          id: string
+          professional_id: string
+          professional_name: string
+          status: string
+          team_id: string
+          team_name: string
+        }[]
+      }
+      admin_list_pending_invitations: {
+        Args: never
+        Returns: {
+          days_pending: number
+          email: string
+          full_name: string
+          invited_at: string
+          user_id: string
+        }[]
+      }
+      admin_list_therapists: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          license_number: string
+          patient_count: number
+          specialty: string
+          team_count: number
+        }[]
+      }
+      admin_move_patient_to_team: {
+        Args: { p_patient_id: string; p_team_id?: string }
+        Returns: undefined
+      }
+      admin_reactivate_therapist: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      admin_set_team_limit: {
+        Args: { p_limit: number; p_team_id: string }
+        Returns: undefined
+      }
+      admin_upsert_therapist: {
+        Args: {
+          p_email: string
+          p_full_name: string
+          p_license?: string
+          p_specialty?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      cancel_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: undefined
+      }
+      complete_quickdash_token: {
+        Args: { p_items: Json; p_score: number; p_token: string }
+        Returns: undefined
+      }
+      create_exercise_plan_token: {
+        Args: { p_expires_at: string; p_patient_id: string; p_plan_id: string }
+        Returns: string
+      }
+      create_quickdash_token: {
+        Args: {
+          p_episode_id: string
+          p_expires_at: string
+          p_patient_id: string
+        }
+        Returns: string
+      }
+      get_exercise_plan_public: { Args: { p_token: string }; Returns: Json }
+      get_exercise_plan_token: { Args: { p_token: string }; Returns: Json }
+      get_invitation_by_token: { Args: { p_token: string }; Returns: Json }
       get_my_role: {
         Args: never
         Returns: Database["public"]["Enums"]["profile_role"]
       }
+      get_quickdash_token: { Args: { p_token: string }; Returns: Json }
+      get_team_activity: {
+        Args: { p_team_id: string }
+        Returns: {
+          action: string
+          created_at: string
+          description: string
+          email: string
+          full_name: string
+          id: string
+          performed_by: string
+          table_name: string
+        }[]
+      }
       insert_audit_log: {
         Args: {
           p_action: Database["public"]["Enums"]["audit_action"]
+          p_changes?: Json
           p_description?: string
           p_record_id: string
           p_table_name: string
         }
         Returns: undefined
       }
+      invite_to_team: {
+        Args: { p_email: string; p_team_id: string }
+        Returns: Json
+      }
       is_active_professional: { Args: never; Returns: boolean }
       is_my_patient: { Args: { p_patient_id: string }; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
+      is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
+      is_team_member: { Args: { p_team_id: string }; Returns: boolean }
+      remove_team_member: {
+        Args: { p_team_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      resend_invitation: { Args: { p_invitation_id: string }; Returns: string }
       search_cie10: {
         Args: { max_results?: number; search_input: string }
         Returns: {
@@ -1766,17 +1917,9 @@ export type Database = {
           rank: number
         }[]
       }
-      get_quickdash_token: {
-        Args: { p_token: string }
-        Returns: Json
-      }
-      complete_quickdash_token: {
-        Args: { p_token: string; p_items: Json; p_score: number }
+      set_team_member_role: {
+        Args: { p_role: string; p_team_id: string; p_user_id: string }
         Returns: undefined
-      }
-      create_quickdash_token: {
-        Args: { p_episode_id: string; p_patient_id: string; p_expires_at: string }
-        Returns: string
       }
       soft_delete_session: {
         Args: { p_session_id: string }
