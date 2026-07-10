@@ -6,6 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   QUICKDASH_QUESTIONS,
   calcQuickDashScore,
@@ -15,10 +16,10 @@ import {
 type PageStatus = "loading" | "valid" | "expired" | "completed" | "not_found" | "submitting" | "success";
 
 function scoreInterpretation(score: number): { label: string; colorClass: string } {
-  if (score <= 25) return { label: "Leve",       colorClass: "text-green-700  bg-green-50  border-green-200"  };
-  if (score <= 50) return { label: "Moderado",   colorClass: "text-yellow-700 bg-yellow-50 border-yellow-200" };
+  if (score <= 25) return { label: "Leve",       colorClass: "text-success bg-success/10 border-success/20" };
+  if (score <= 50) return { label: "Moderado",   colorClass: "text-warning bg-warning/10 border-warning/30" };
   if (score <= 75) return { label: "Severo",     colorClass: "text-orange-700 bg-orange-50 border-orange-200" };
-  return             { label: "Muy severo", colorClass: "text-red-700    bg-red-50    border-red-200"    };
+  return             { label: "Muy severo", colorClass: "text-destructive bg-destructive/5 border-destructive/20" };
 }
 
 export default function QuickDashPublicPage() {
@@ -63,15 +64,18 @@ export default function QuickDashPublicPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header fijo */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
-        <div className="max-w-lg mx-auto">
-          <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest">RehabOT</p>
-          <h1 className="text-base font-serif font-bold text-gray-900 leading-tight">
-            Cuestionario QuickDASH
-          </h1>
-          <p className="text-xs text-muted-foreground">Miembro superior · Última semana</p>
+      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-3">
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          <img src="/favicon.svg" alt="RehabOT" className="h-9 w-9 rounded-[10px] shrink-0" />
+          <div>
+            <p className="field-label text-primary">RehabOT</p>
+            <h1 className="font-serif text-base font-semibold text-foreground leading-tight">
+              Cuestionario QuickDASH
+            </h1>
+            <p className="text-xs text-muted-foreground">Miembro superior · Última semana</p>
+          </div>
         </div>
       </div>
 
@@ -80,19 +84,19 @@ export default function QuickDashPublicPage() {
         {/* ── LOADING ── */}
         {status === "loading" && (
           <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm">Verificando enlace...</p>
           </div>
         )}
 
         {/* ── INVÁLIDO / VENCIDO ── */}
         {(status === "not_found" || status === "expired") && (
-          <div className="mt-10 rounded-2xl border border-red-200 bg-red-50 p-8 text-center space-y-3">
-            <XCircle className="h-12 w-12 text-red-400 mx-auto" />
-            <h2 className="text-lg font-semibold text-red-800">
+          <div className="mt-10 rounded-[12px] border border-destructive/20 bg-destructive/5 p-8 text-center space-y-3">
+            <XCircle className="h-12 w-12 text-destructive/70 mx-auto" />
+            <h2 className="font-serif text-lg font-semibold text-foreground">
               {status === "expired" ? "Este enlace venció" : "Enlace no válido"}
             </h2>
-            <p className="text-sm text-red-600 leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               {status === "expired"
                 ? "El tiempo para completar este cuestionario expiró. Pedile a tu terapeuta que te envíe un nuevo enlace."
                 : "Este enlace no existe o está incompleto. Revisá que hayas copiado la URL completa."}
@@ -102,10 +106,10 @@ export default function QuickDashPublicPage() {
 
         {/* ── YA COMPLETADO ── */}
         {status === "completed" && (
-          <div className="mt-10 rounded-2xl border border-teal-200 bg-teal-50 p-8 text-center space-y-3">
-            <CheckCircle2 className="h-12 w-12 text-teal-500 mx-auto" />
-            <h2 className="text-lg font-semibold text-teal-800">Ya completaste este cuestionario</h2>
-            <p className="text-sm text-teal-600 leading-relaxed">
+          <div className="mt-10 rounded-[12px] border border-success/20 bg-success/10 p-8 text-center space-y-3">
+            <CheckCircle2 className="h-12 w-12 text-success mx-auto" />
+            <h2 className="font-serif text-lg font-semibold text-foreground">Ya completaste este cuestionario</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Tus respuestas ya fueron registradas. Tu terapeuta puede verlas en tu historial clínico.
             </p>
           </div>
@@ -116,14 +120,14 @@ export default function QuickDashPublicPage() {
           const interp = scoreInterpretation(finalScore);
           return (
             <div className="space-y-4 mt-4">
-              <div className="rounded-2xl border border-teal-200 bg-teal-50 p-6 text-center space-y-2">
-                <CheckCircle2 className="h-10 w-10 text-teal-500 mx-auto" />
-                <h2 className="text-base font-semibold text-teal-800">¡Gracias! Tus respuestas fueron enviadas</h2>
-                <p className="text-sm text-teal-600">Tu terapeuta recibirá el resultado.</p>
+              <div className="rounded-[12px] border border-success/20 bg-success/10 p-6 text-center space-y-2">
+                <CheckCircle2 className="h-10 w-10 text-success mx-auto" />
+                <h2 className="font-serif text-base font-semibold text-foreground">¡Gracias! Tus respuestas fueron enviadas</h2>
+                <p className="text-sm text-muted-foreground">Tu terapeuta recibirá el resultado.</p>
               </div>
-              <div className={`rounded-2xl border p-6 text-center space-y-1 ${interp.colorClass}`}>
+              <div className={cn("rounded-[12px] border p-6 text-center space-y-1", interp.colorClass)}>
                 <p className="text-xs font-semibold uppercase tracking-widest opacity-70">Tu puntaje QuickDASH</p>
-                <p className="text-5xl font-bold leading-none mt-1">
+                <p className="text-5xl font-bold leading-none mt-1 tabular-nums">
                   {finalScore.toFixed(1)}
                   <span className="text-xl font-normal">/100</span>
                 </p>
@@ -142,12 +146,12 @@ export default function QuickDashPublicPage() {
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{answeredCount} de 11 preguntas respondidas</span>
                 {allAnswered && (
-                  <span className="text-teal-600 font-medium">✓ Listo para enviar</span>
+                  <span className="text-success font-medium">✓ Listo para enviar</span>
                 )}
               </div>
-              <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-teal-500 transition-all duration-300"
+                  className="h-full rounded-full bg-primary transition-all duration-300"
                   style={{ width: `${(answeredCount / 11) * 100}%` }}
                 />
               </div>
@@ -155,7 +159,7 @@ export default function QuickDashPublicPage() {
 
             <p className="text-xs text-muted-foreground leading-relaxed">
               Indicá cuánta dificultad tuviste para realizar cada actividad{" "}
-              <strong>en la última semana</strong>, independientemente de si la realizás con la mano
+              <strong className="text-foreground">en la última semana</strong>, independientemente de si la realizás con la mano
               derecha, izquierda o las dos.
             </p>
 
@@ -164,12 +168,9 @@ export default function QuickDashPublicPage() {
               {QUICKDASH_QUESTIONS.map((item, idx) => {
                 const value = items[idx];
                 return (
-                  <div
-                    key={idx}
-                    className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-                  >
-                    <p className="text-sm font-medium text-gray-800 mb-3 leading-snug">
-                      <span className="text-teal-600 font-bold mr-1">{idx + 1}.</span>
+                  <div key={idx} className="dashboard-card p-4">
+                    <p className="text-sm font-medium text-foreground mb-3 leading-snug">
+                      <span className="text-primary font-bold mr-1">{idx + 1}.</span>
                       {item.q}
                     </p>
                     <RadioGroup
@@ -188,15 +189,16 @@ export default function QuickDashPublicPage() {
                           <Label
                             key={val}
                             htmlFor={id}
-                            className={`flex items-center gap-3 cursor-pointer rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                            className={cn(
+                              "flex items-center gap-3 cursor-pointer rounded-lg border px-3 py-2.5 text-sm transition-colors",
                               value === val
-                                ? "border-teal-500 bg-teal-50 text-teal-800"
-                                : "border-gray-200 bg-gray-50 text-gray-700 hover:border-teal-200 hover:bg-white"
-                            }`}
+                                ? "border-primary bg-primary/5 text-foreground font-medium"
+                                : "border-border bg-muted/40 text-foreground hover:border-primary/30 hover:bg-card"
+                            )}
                           >
                             <RadioGroupItem value={String(val)} id={id} className="shrink-0" />
                             <span>
-                              <span className="font-semibold text-gray-400 mr-1 text-xs">{val}.</span>
+                              <span className="font-semibold text-muted-foreground mr-1 text-xs">{val}.</span>
                               {optLabel}
                             </span>
                           </Label>
@@ -213,7 +215,7 @@ export default function QuickDashPublicPage() {
               <Button
                 onClick={handleSubmit}
                 disabled={!allAnswered || status === "submitting"}
-                className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white h-12 text-base font-semibold rounded-xl shadow-md"
+                className="w-full h-12 text-base font-semibold"
               >
                 {status === "submitting" ? (
                   <>

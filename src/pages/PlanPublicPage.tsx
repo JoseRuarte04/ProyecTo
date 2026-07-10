@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, XCircle, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getExerciseType, extractYoutubeId } from "@/components/exercises/exerciseLibrary";
 
 type PageStatus = "loading" | "valid" | "expired" | "revoked" | "not_found";
 
@@ -29,23 +31,6 @@ interface PlanData {
   items: PlanItem[];
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  activo:          "Activo",
-  activo_asistido: "Activo asistido",
-  fortalecimiento: "Fortalecimiento",
-};
-
-const TYPE_COLOR: Record<string, string> = {
-  activo:          "bg-blue-50 text-blue-700 border-blue-200",
-  activo_asistido: "bg-green-50 text-green-700 border-green-200",
-  fortalecimiento: "bg-amber-50 text-amber-700 border-amber-200",
-};
-
-function extractYoutubeId(url: string): string | null {
-  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-  return m ? m[1] : null;
-}
-
 export default function PlanPublicPage() {
   const { token } = useParams<{ token: string }>();
   const [status, setStatus] = useState<PageStatus>("loading");
@@ -65,19 +50,24 @@ export default function PlanPublicPage() {
       // Token válido — traer datos del plan
       supabase.rpc("get_exercise_plan_public", { p_token: token }).then(({ data: pd }) => {
         if (!pd) { setStatus("not_found"); return; }
-        setPlanData(pd as PlanData);
+        setPlanData(pd as unknown as PlanData);
         setStatus("valid");
       });
     });
   }, [token]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
-        <div className="max-w-xl mx-auto">
-          <p className="text-xs font-semibold text-teal-600 uppercase tracking-widest">RehabOT</p>
-          <h1 className="text-base font-bold text-gray-900 leading-tight">Plan de ejercicios domiciliarios</h1>
+      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-3">
+        <div className="max-w-xl mx-auto flex items-center gap-3">
+          <img src="/favicon.svg" alt="RehabOT" className="h-9 w-9 rounded-[10px] shrink-0" />
+          <div>
+            <p className="field-label text-primary">RehabOT</p>
+            <h1 className="font-serif text-base font-semibold text-foreground leading-tight">
+              Plan de ejercicios domiciliarios
+            </h1>
+          </div>
         </div>
       </div>
 
@@ -86,24 +76,27 @@ export default function PlanPublicPage() {
         {/* ── LOADING ── */}
         {status === "loading" && (
           <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm">Cargando tu plan...</p>
           </div>
         )}
 
         {/* ── ERRORES ── */}
         {(status === "not_found" || status === "expired" || status === "revoked") && (
-          <div className="mt-10 rounded-2xl border p-8 text-center space-y-3 border-red-200 bg-red-50">
+          <div className={cn(
+            "mt-10 rounded-[12px] border p-8 text-center space-y-3",
+            status === "expired" ? "border-warning/30 bg-warning/10" : "border-destructive/20 bg-destructive/5"
+          )}>
             {status === "expired"
-              ? <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto" />
-              : <XCircle className="h-12 w-12 text-red-400 mx-auto" />
+              ? <AlertTriangle className="h-12 w-12 text-warning mx-auto" />
+              : <XCircle className="h-12 w-12 text-destructive/70 mx-auto" />
             }
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="font-serif text-lg font-semibold text-foreground">
               {status === "expired"  ? "Este link ha expirado"  :
                status === "revoked"  ? "Este link fue revocado" :
                "Link no válido"}
             </h2>
-            <p className="text-sm text-gray-600 leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               {status === "expired"
                 ? "Este link ya no está disponible. Consultá a tu terapeuta para obtener uno nuevo."
                 : status === "revoked"
@@ -117,19 +110,18 @@ export default function PlanPublicPage() {
         {status === "valid" && planData && (
           <div className="space-y-4 pb-10">
             {planData.plan_notes && (
-              <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3">
-                <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-1">Indicaciones generales</p>
-                <p className="text-sm text-teal-800 whitespace-pre-wrap leading-relaxed">{planData.plan_notes}</p>
+              <div className="rounded-[12px] border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="field-label text-primary mb-1">Indicaciones generales</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{planData.plan_notes}</p>
               </div>
             )}
 
             {planData.items.length === 0 ? (
-              <p className="text-center text-sm text-gray-500 py-8">El plan no tiene ejercicios cargados todavía.</p>
+              <p className="text-center text-sm text-muted-foreground py-8">El plan no tiene ejercicios cargados todavía.</p>
             ) : (
               planData.items.map((item, idx) => {
                 const ex = item.exercise;
-                const typeColor = ex.exercise_type ? TYPE_COLOR[ex.exercise_type] : null;
-                const typeLabel = ex.exercise_type ? TYPE_LABEL[ex.exercise_type] : null;
+                const type = getExerciseType(ex.exercise_type);
                 const dosage = item.assigned_sets && item.assigned_reps
                   ? `${item.assigned_sets} series × ${item.assigned_reps} reps`
                   : item.assigned_sets ? `${item.assigned_sets} series`
@@ -139,25 +131,25 @@ export default function PlanPublicPage() {
                 const ytId = ex.video_url ? extractYoutubeId(ex.video_url) : null;
 
                 return (
-                  <div key={idx} className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                  <div key={idx} className="dashboard-card overflow-hidden">
                     {/* Card header */}
-                    <div className="px-4 py-3 border-b border-gray-100 flex items-start gap-3">
-                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center text-xs font-bold text-teal-600">
+                    <div className="px-4 py-3 border-b border-border bg-muted/20 flex items-start gap-3">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                         {idx + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <h2 className="text-base font-semibold text-gray-900 leading-tight">{ex.name}</h2>
+                        <h2 className="font-serif text-base font-semibold text-foreground leading-tight">{ex.name}</h2>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {typeLabel && typeColor && (
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${typeColor}`}>
-                              {typeLabel}
+                          {type && (
+                            <span className={cn("field-label px-1.5 py-0.5 rounded border", type.badgeClass)}>
+                              {type.label}
                             </span>
                           )}
                           {dosage && (
-                            <span className="text-xs text-gray-500 font-medium">{dosage}</span>
+                            <span className="text-xs text-foreground font-medium">{dosage}</span>
                           )}
                           {item.frequency && (
-                            <span className="text-xs text-gray-500">{item.frequency}</span>
+                            <span className="text-xs text-muted-foreground">{item.frequency}</span>
                           )}
                         </div>
                       </div>
@@ -167,41 +159,44 @@ export default function PlanPublicPage() {
                     <div className="px-4 py-3 space-y-3">
                       {ex.equipment && (
                         <div>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Equipamiento</p>
-                          <p className="text-sm text-gray-700">{ex.equipment}</p>
+                          <p className="field-label mb-0.5">Equipamiento</p>
+                          <p className="text-sm text-foreground">{ex.equipment}</p>
                         </div>
                       )}
                       {ex.starting_position && (
                         <div>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Posición inicial</p>
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{ex.starting_position}</p>
+                          <p className="field-label mb-0.5">Posición inicial</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ex.starting_position}</p>
                         </div>
                       )}
                       {ex.instructions && (
                         <div>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Instrucciones</p>
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{ex.instructions}</p>
+                          <p className="field-label mb-0.5">Instrucciones</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ex.instructions}</p>
                         </div>
                       )}
                       {ex.precautions && (
-                        <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                          <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-0.5">Precauciones</p>
-                          <p className="text-sm text-amber-800 whitespace-pre-wrap leading-relaxed">{ex.precautions}</p>
+                        <div className="flex gap-3 rounded-[10px] border border-warning/30 bg-warning/10 px-3 py-2.5">
+                          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                          <div>
+                            <p className="field-label mb-0.5">Precauciones</p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ex.precautions}</p>
+                          </div>
                         </div>
                       )}
                       {item.item_notes && (
                         <div>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Notas del terapeuta</p>
-                          <p className="text-sm text-gray-600 italic whitespace-pre-wrap">{item.item_notes}</p>
+                          <p className="field-label mb-0.5">Notas del terapeuta</p>
+                          <p className="text-sm text-muted-foreground italic whitespace-pre-wrap">{item.item_notes}</p>
                         </div>
                       )}
 
                       {/* Video */}
                       {ex.video_url && (
                         <div>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Video de referencia</p>
+                          <p className="field-label mb-1.5">Video de referencia</p>
                           {ytId ? (
-                            <div className="rounded-lg overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                            <div className="rounded-[10px] overflow-hidden border border-border" style={{ aspectRatio: "16/9" }}>
                               <iframe
                                 src={`https://www.youtube.com/embed/${ytId}`}
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -215,7 +210,7 @@ export default function PlanPublicPage() {
                               href={ex.video_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sm text-teal-600 underline underline-offset-2 break-all"
+                              className="text-sm text-primary underline underline-offset-2 break-all"
                             >
                               {ex.video_url}
                             </a>
