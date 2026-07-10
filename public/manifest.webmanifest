@@ -1,0 +1,27 @@
+{
+  "name": "RehabOT — Gestión clínica para Terapia Ocupacional",
+  "short_name": "RehabOT",
+  "description": "Sistema de gestión clínica para profesionales de Terapia Ocupacional: pacientes, sesiones, turnos, evaluaciones y planes de ejercicios.",
+  "lang": "es",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbfaf9",
+  "theme_color": "#325d67",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
