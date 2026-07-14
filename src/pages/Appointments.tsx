@@ -16,8 +16,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle } from "lucide-react";
+import { Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
 import { whatsappUrl } from "@/lib/whatsapp";
+import { createVideoRoom } from "@/lib/videoRoom";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -245,6 +246,11 @@ export default function Appointments() {
                             <Zap className="h-2.5 w-2.5" /> Sobreturno
                           </span>
                         )}
+                        {a.modality === "virtual" && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium bg-violet-100 text-violet-600 rounded px-1 py-0.5 shrink-0">
+                            <Video className="h-2.5 w-2.5" /> Virtual
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {format(parseISO(a.appointment_date), "EEE d MMM, HH:mm", { locale: es })}
@@ -406,6 +412,7 @@ export default function Appointments() {
                           >
                             <div className="flex items-center gap-0.5 min-w-0">
                               {a.is_overtime && <Zap className="h-2.5 w-2.5 shrink-0 text-orange-500" />}
+                              {a.modality === "virtual" && <Video className="h-2.5 w-2.5 shrink-0" />}
                               <p className="text-[11px] font-semibold truncate leading-tight">
                                 {a.patients?.last_name}
                               </p>
@@ -440,6 +447,7 @@ export default function Appointments() {
         onComplete={id => { completeAppointment(id); setDetailOpen(false); }}
         onReschedule={a => { setRescheduleAppt(a); setDetailOpen(false); }}
         onCancel={id => { openCancelDialog(id); setDetailOpen(false); }}
+        onUpdated={a => { setSelectedAppt(a); refreshAppointments(); }}
       />
 
       {/* Dialogs */}
@@ -499,7 +507,7 @@ export default function Appointments() {
 ═══════════════════════════════════════════════════════════ */
 
 function AppointmentDetailPanel({
-  appt, open, onClose, onComplete, onReschedule, onCancel,
+  appt, open, onClose, onComplete, onReschedule, onCancel, onUpdated,
 }: {
   appt: any | null;
   open: boolean;
@@ -507,8 +515,20 @@ function AppointmentDetailPanel({
   onComplete: (id: string) => void;
   onReschedule: (appt: any) => void;
   onCancel: (id: string) => void;
+  onUpdated: (appt: any) => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [generatingLink, setGeneratingLink] = useState(false);
+
+  const handleGenerateLink = async () => {
+    setGeneratingLink(true);
+    const url = createVideoRoom();
+    const { error } = await supabase.from("appointments").update({ video_link: url }).eq("id", appt.id);
+    setGeneratingLink(false);
+    if (error) { toast.error("No se pudo guardar el link"); return; }
+    toast.success("Link de videollamada generado");
+    onUpdated({ ...appt, video_link: url });
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -583,6 +603,11 @@ function AppointmentDetailPanel({
               <Zap className="h-3 w-3" /> Sobreturno
             </span>
           )}
+          {appt.modality === "virtual" && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium bg-violet-100 text-violet-600 rounded-full px-2.5 py-1">
+              <Video className="h-3 w-3" /> Virtual
+            </span>
+          )}
         </div>
 
         {/* Info de cancelación */}
@@ -614,6 +639,45 @@ function AppointmentDetailPanel({
       {/* Acciones (solo para turnos programados) */}
       {appt.status === "scheduled" && (
         <div className="px-4 py-4 border-t border-border space-y-2 shrink-0">
+          {appt.modality === "virtual" && (
+            appt.video_link ? (
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 gap-2 bg-violet-600 hover:bg-violet-700 text-white"
+                  size="sm"
+                  onClick={() => window.open(appt.video_link, "_blank")}
+                >
+                  <Video className="h-4 w-4" /> Unirse a la llamada
+                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(appt.video_link); toast.success("Link copiado"); }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copiar link</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            ) : (
+              <Button
+                className="w-full gap-2 text-violet-700 border-violet-300 hover:bg-violet-50 hover:border-violet-400"
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateLink}
+                disabled={generatingLink}
+              >
+                {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
+                Generar link de videollamada
+              </Button>
+            )
+          )}
           <Button
             className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
             size="sm"
@@ -630,10 +694,10 @@ function AppointmentDetailPanel({
             <Clock className="h-4 w-4" /> Reprogramar
           </Button>
           {appt.patients?.phone && (() => {
-            const url = whatsappUrl(
-              appt.patients.phone,
-              `Hola ${appt.patients.first_name}! Te recordamos tu turno de Terapia Ocupacional el ${dateStr} a las ${startStr} hs. ¡Nos vemos!`
-            );
+            const message = appt.modality === "virtual" && appt.video_link
+              ? `Hola ${appt.patients.first_name}! Te recordamos tu turno virtual de Terapia Ocupacional el ${dateStr} a las ${startStr} hs. Unite a la videollamada desde este link (conectate 5 minutos antes): ${appt.video_link}`
+              : `Hola ${appt.patients.first_name}! Te recordamos tu turno de Terapia Ocupacional el ${dateStr} a las ${startStr} hs. ¡Nos vemos!`;
+            const url = whatsappUrl(appt.patients.phone, message);
             return url ? (
               <Button
                 className="w-full gap-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400"
@@ -734,7 +798,7 @@ function NewAppointmentDialog({
   const [endTime, setEndTime] = useState("");
   const [dayAppts, setDayAppts] = useState<any[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [form, setForm] = useState({ type: "consultation" as string, notes: "" });
+  const [form, setForm] = useState({ type: "consultation" as string, modality: "in_person" as "in_person" | "virtual", notes: "" });
   const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
   const [showOvertimeConfirm, setShowOvertimeConfirm] = useState(false);
 
@@ -750,7 +814,7 @@ function NewAppointmentDialog({
       setSelectedDate("");
       setStartTime("");
       setEndTime("");
-      setForm({ type: "consultation", notes: "" });
+      setForm({ type: "consultation", modality: "in_person", notes: "" });
       setOvertimeConflict(null);
     }
   }, [open, prefilledDate, prefilledTime]);
@@ -833,6 +897,8 @@ function NewAppointmentDialog({
       status: "scheduled",
       notes: form.notes || null,
       is_overtime: isOvertime,
+      modality: form.modality,
+      video_link: form.modality === "virtual" ? createVideoRoom() : null,
     });
     setSaving(false);
     if (error) { toast.error("Error al crear turno"); return; }
@@ -1009,6 +1075,42 @@ function NewAppointmentDialog({
                 })()}
               </div>
             )}
+
+            {/* Modalidad */}
+            <div className="space-y-1.5">
+              <Label>Modalidad</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, modality: "in_person" }))}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
+                    form.modality === "in_person"
+                      ? "border-primary bg-primary/10 text-foreground font-medium"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <MapPin className="h-4 w-4" /> Presencial
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, modality: "virtual" }))}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
+                    form.modality === "virtual"
+                      ? "border-violet-500 bg-violet-50 text-violet-700 font-medium"
+                      : "border-border text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Video className="h-4 w-4" /> Virtual
+                </button>
+              </div>
+              {form.modality === "virtual" && (
+                <p className="text-xs text-muted-foreground">
+                  Al guardar se genera automáticamente el link de la videollamada.
+                </p>
+              )}
+            </div>
 
             {/* Tipo */}
             <div className="space-y-1.5">

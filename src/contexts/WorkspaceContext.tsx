@@ -79,8 +79,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   };
 
+  const userId = user?.id;
+
   useEffect(() => {
-    if (!user) {
+    // Depender del id (primitivo) y no de `user` completo: `user` es un
+    // objeto nuevo en cada refresh de token de supabase-js (p.ej. al volver
+    // de otra pestaña), y eso no debe disparar una nueva carga de equipos
+    // si el usuario es el mismo — eso resetea `loading` y AppLayout
+    // desmonta la página/formulario que estaba abierto.
+    if (!userId) {
       setTeams([]);
       setWorkspaceState({ type: "personal" });
       setLoading(false);
@@ -90,24 +97,24 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     setLoading(true);
-    loadTeams(user.id);
+    loadTeams(userId);
 
     const channel = supabase
-      .channel(`workspace_member_${user.id}`)
+      .channel(`workspace_member_${userId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "team_members",
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${userId}`,
         },
-        () => loadTeams(user.id)
+        () => loadTeams(userId)
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [userId]);
 
   const setWorkspace = (ws: StoredWorkspace) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));

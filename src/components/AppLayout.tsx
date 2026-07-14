@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -18,14 +19,20 @@ export function AppLayout() {
   const isAdmin = useIsAdmin();
   const { workspace, teams, loading: wsLoading, setWorkspace } = useWorkspace();
   const navigate = useNavigate();
+  const hasLoadedOnce = useRef(false);
 
-  if (authLoading) return <Spinner />;
+  const stillLoading = authLoading || isAdmin === null || wsLoading;
+
+  // El spinner de pantalla completa solo bloquea la carga INICIAL. Una vez
+  // que la app ya montó, revalidaciones en background (p.ej. supabase-js
+  // refrescando el token al volver de otra pestaña) no deben desmontar el
+  // <Outlet /> — eso borraba formularios/diálogos que el usuario tenía
+  // abiertos con datos sin guardar.
+  if (stillLoading && !hasLoadedOnce.current) return <Spinner />;
+  if (!stillLoading) hasLoadedOnce.current = true;
+
   if (!session) return <Navigate to="/login" replace />;
-  if (isAdmin === null) return <Spinner />;
   if (isAdmin) return <Navigate to="/admin" replace />;
-
-  // Esperar a que carguen los equipos antes de decidir si mostrar el picker
-  if (wsLoading) return <Spinner />;
 
   // Si tiene equipos y no eligió workspace esta sesión → picker
   if (teams.length > 0 && !sessionStorage.getItem("workspace_chosen")) {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -33,6 +33,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Último userId para el que ya se pidió el perfil. Evita re-consultarlo
+  // en cada TOKEN_REFRESHED (p.ej. al volver de otra pestaña), donde
+  // supabase-js entrega una `session` nueva pero el usuario es el mismo.
+  const profileUserId = useRef<string | null>(null);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -48,8 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (_event, session) => {
         setSession(session);
         if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
+          if (profileUserId.current !== session.user.id) {
+            profileUserId.current = session.user.id;
+            setTimeout(() => fetchProfile(session.user.id), 0);
+          }
         } else {
+          profileUserId.current = null;
           setProfile(null);
         }
         setLoading(false);
@@ -58,7 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user) fetchProfile(session.user.id);
+      if (session?.user) {
+        profileUserId.current = session.user.id;
+        fetchProfile(session.user.id);
+      }
       setLoading(false);
     });
 

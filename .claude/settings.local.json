@@ -50,7 +50,9 @@
       "Bash(sort -k2 -rn)",
       "Bash(xargs -I{} sh -c 'echo \"$\\(du -h \"{}\" | cut -f1\\)  {}\"')",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(npm test *)",
+      "Bash(npx eslint *)"
     ]
   }
 }

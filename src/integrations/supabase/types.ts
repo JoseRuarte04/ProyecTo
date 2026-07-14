@@ -232,12 +232,14 @@ export type Database = {
           created_at: string
           id: string
           is_overtime: boolean
+          modality: Database["public"]["Enums"]["appointment_modality"]
           notes: string | null
           patient_id: string
           professional_id: string
           status: Database["public"]["Enums"]["appointment_status"]
           type: Database["public"]["Enums"]["appointment_type"]
           updated_at: string
+          video_link: string | null
         }
         Insert: {
           appointment_date: string
@@ -247,12 +249,14 @@ export type Database = {
           created_at?: string
           id?: string
           is_overtime?: boolean
+          modality?: Database["public"]["Enums"]["appointment_modality"]
           notes?: string | null
           patient_id: string
           professional_id: string
           status?: Database["public"]["Enums"]["appointment_status"]
           type?: Database["public"]["Enums"]["appointment_type"]
           updated_at?: string
+          video_link?: string | null
         }
         Update: {
           appointment_date?: string
@@ -262,12 +266,14 @@ export type Database = {
           created_at?: string
           id?: string
           is_overtime?: boolean
+          modality?: Database["public"]["Enums"]["appointment_modality"]
           notes?: string | null
           patient_id?: string
           professional_id?: string
           status?: Database["public"]["Enums"]["appointment_status"]
           type?: Database["public"]["Enums"]["appointment_type"]
           updated_at?: string
+          video_link?: string | null
         }
         Relationships: [
           {
@@ -1927,6 +1933,7 @@ export type Database = {
       }
     }
     Enums: {
+      appointment_modality: "in_person" | "virtual"
       appointment_status: "scheduled" | "completed" | "cancelled"
       appointment_type: "consultation" | "follow_up" | "evaluation"
       audit_action:
@@ -2075,6 +2082,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      appointment_modality: ["in_person", "virtual"],
       appointment_status: ["scheduled", "completed", "cancelled"],
       appointment_type: ["consultation", "follow_up", "evaluation"],
       audit_action: [

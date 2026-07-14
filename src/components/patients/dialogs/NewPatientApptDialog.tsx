@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin, Video } from "lucide-react";
 import { toast } from "sonner";
+import { createVideoRoom } from "@/lib/videoRoom";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -23,6 +25,7 @@ export function NewPatientApptDialog({ open, onClose, patientId, userId, onSaved
     appointment_date: "",
     type: "consultation" as "consultation" | "follow_up" | "evaluation",
     status: "scheduled" as "scheduled" | "completed" | "cancelled",
+    modality: "in_person" as "in_person" | "virtual",
     notes: "",
   });
 
@@ -33,6 +36,8 @@ export function NewPatientApptDialog({ open, onClose, patientId, userId, onSaved
       patient_id: patientId, professional_id: userId,
       appointment_date: new Date(form.appointment_date).toISOString(),
       type: form.type, status: form.status, notes: form.notes || null,
+      modality: form.modality,
+      video_link: form.modality === "virtual" ? createVideoRoom() : null,
     });
     setSaving(false);
     if (error) { toast.error("Error al crear turno"); return; }
@@ -60,6 +65,40 @@ export function NewPatientApptDialog({ open, onClose, patientId, userId, onSaved
                 <SelectItem value="evaluation">Evaluación</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Modalidad</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, modality: "in_person" })}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
+                  form.modality === "in_person"
+                    ? "border-primary bg-primary/10 text-foreground font-medium"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <MapPin className="h-4 w-4" /> Presencial
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, modality: "virtual" })}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
+                  form.modality === "virtual"
+                    ? "border-violet-500 bg-violet-50 text-violet-700 font-medium"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Video className="h-4 w-4" /> Virtual
+              </button>
+            </div>
+            {form.modality === "virtual" && (
+              <p className="text-xs text-muted-foreground">
+                Al guardar se genera automáticamente el link de la videollamada.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Notas</Label>
