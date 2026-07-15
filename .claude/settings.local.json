@@ -52,7 +52,11 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(npm test *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(curl -sS -m 5 -o /dev/null -w \"HTTP %{http_code} en %{time_total}s\\\\n\" http://localhost:8080/)",
+      "Bash(unzip -l docs/files.zip)",
+      "Bash(unzip -o docs/files.zip -d docs/)",
+      "Bash(git commit *)"
     ]
   }
 }
