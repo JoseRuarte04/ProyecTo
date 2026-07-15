@@ -21,7 +21,10 @@ export function AppLayout() {
   const navigate = useNavigate();
   const hasLoadedOnce = useRef(false);
 
-  const stillLoading = authLoading || isAdmin === null || wsLoading;
+  // isAdmin solo se resuelve (deja de ser null) si hay sesión — sin sesión
+  // se queda en null a propósito (ver useIsAdmin), así que no debe bloquear
+  // el spinner cuando de entrada no hay usuario logueado.
+  const stillLoading = authLoading || (!!session && isAdmin === null) || wsLoading;
 
   // El spinner de pantalla completa solo bloquea la carga INICIAL. Una vez
   // que la app ya montó, revalidaciones en background (p.ej. supabase-js
