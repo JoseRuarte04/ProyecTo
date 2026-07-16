@@ -26,4 +26,12 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "warn",
     },
   },
+  {
+    // Los primitivos de shadcn exportan variants/helpers junto al componente
+    // por diseño; el warning de fast-refresh no aplica acá.
+    files: ["src/components/ui/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 );

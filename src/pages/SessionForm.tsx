@@ -208,7 +208,7 @@ export default function SessionForm() {
     currentStep,
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     if (!draftRestored) return;
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
@@ -587,7 +587,7 @@ export default function SessionForm() {
     const days = differenceInCalendarDays(sess, ref);
     if (days < 0) return;
     setWeekAtSession(String(Math.floor(days / 7)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [session_date, clinical]);
 
   if (loading)

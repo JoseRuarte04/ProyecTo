@@ -1,8 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
 type FilterStatus = "all" | "scheduled" | "completed" | "cancelled";
+
+// Forma de las filas que devuelve useAppointments (join con patients)
+export type AppointmentWithPatient = Tables<"appointments"> & {
+  patients: Pick<Tables<"patients">, "first_name" | "last_name" | "phone"> | null;
+};
 
 export const APPOINTMENTS_KEY = "appointments-list";
 

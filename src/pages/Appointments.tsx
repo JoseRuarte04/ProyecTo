@@ -3,7 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAppointments, useCompleteAppointment, useCancelAppointment, APPOINTMENTS_KEY } from "@/hooks/useAppointments";
+import { useAppointments, useCompleteAppointment, useCancelAppointment, APPOINTMENTS_KEY, type AppointmentWithPatient } from "@/hooks/useAppointments";
+import type { Tables } from "@/integrations/supabase/types";
 import { StatusBadge, APPOINTMENT_TYPE_STRIPE } from "@/components/status";
 import { PageHeader } from "@/components/PageHeader";
 import { ListSkeleton } from "@/components/skeletons";
@@ -71,7 +72,14 @@ const HOUR_START = 7;
 const HOUR_END = 21;
 const SLOT_H = 56; // px por hora
 
-function displayStatus(a: any): string {
+// Paciente resumido que devuelve la búsqueda del dialog de turno nuevo
+type PatientLite = Pick<Tables<"patients">, "id" | "first_name" | "last_name" | "dni">;
+// Turnos del día en el dialog (join sin phone)
+type DayAppointment = Tables<"appointments"> & {
+  patients: Pick<Tables<"patients">, "first_name" | "last_name"> | null;
+};
+
+function displayStatus(a: AppointmentWithPatient): string {
   return a.status === "cancelled" && a.cancellation_reason === "no_show" ? "no_show" : a.status;
 }
 
@@ -88,10 +96,10 @@ export default function Appointments() {
   const [showNew, setShowNew] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState("");
   const [prefilledTime, setPrefilledTime] = useState("");
-  const [rescheduleAppt, setRescheduleAppt] = useState<any | null>(null);
+  const [rescheduleAppt, setRescheduleAppt] = useState<AppointmentWithPatient | null>(null);
 
   // Detail panel
-  const [selectedAppt, setSelectedAppt] = useState<any | null>(null);
+  const [selectedAppt, setSelectedAppt] = useState<AppointmentWithPatient | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   // Cancel dialog
@@ -106,7 +114,7 @@ export default function Appointments() {
   const refreshAppointments = () =>
     queryClient.invalidateQueries({ queryKey: [APPOINTMENTS_KEY] });
 
-  const openDetail = (appt: any) => {
+  const openDetail = (appt: AppointmentWithPatient) => {
     setSelectedAppt(appt);
     setDetailOpen(true);
   };
@@ -509,13 +517,13 @@ export default function Appointments() {
 function AppointmentDetailPanel({
   appt, open, onClose, onComplete, onReschedule, onCancel, onUpdated,
 }: {
-  appt: any | null;
+  appt: AppointmentWithPatient | null;
   open: boolean;
   onClose: () => void;
   onComplete: (id: string) => void;
-  onReschedule: (appt: any) => void;
+  onReschedule: (appt: AppointmentWithPatient) => void;
   onCancel: (id: string) => void;
-  onUpdated: (appt: any) => void;
+  onUpdated: (appt: AppointmentWithPatient) => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
@@ -727,7 +735,7 @@ function AppointmentDetailPanel({
    REPROGRAMAR DIALOG
 ═══════════════════════════════════════════════════════════ */
 
-function RescheduleDialog({ appt, onClose, onSaved }: { appt: any; onClose: () => void; onSaved: () => void }) {
+function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPatient; onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
   const [date, setDate] = useState(appt.appointment_date ? format(parseISO(appt.appointment_date), "yyyy-MM-dd") : "");
   const [startTime, setStartTime] = useState(appt.appointment_date ? format(parseISO(appt.appointment_date), "HH:mm") : "");
@@ -785,18 +793,18 @@ function NewAppointmentDialog({
   onClose: () => void;
   userId: string;
   onSaved: () => void;
-  existingAppointments: any[];
+  existingAppointments: AppointmentWithPatient[];
   prefilledDate?: string;
   prefilledTime?: string;
 }) {
   const [saving, setSaving] = useState(false);
-  const [patients, setPatients] = useState<any[]>([]);
+  const [patients, setPatients] = useState<PatientLite[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [selectedPatient, setSelectedPatient] = useState<PatientLite | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [dayAppts, setDayAppts] = useState<any[]>([]);
+  const [dayAppts, setDayAppts] = useState<DayAppointment[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [form, setForm] = useState({ type: "consultation" as string, modality: "in_person" as "in_person" | "virtual", notes: "" });
   const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
