@@ -26,8 +26,8 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      toast.error("La contraseña debe tener al menos 6 caracteres");
+    if (password.length < 8) {
+      toast.error("La contraseña debe tener al menos 8 caracteres");
       return;
     }
     if (password !== confirm) {
@@ -85,11 +85,11 @@ export default function ResetPassword() {
                   <Input
                     id="new-password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={8}
                     autoComplete="new-password"
                     className="h-11 pr-10"
                     autoFocus
@@ -114,7 +114,7 @@ export default function ResetPassword() {
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                   autoComplete="new-password"
                   className="h-11"
                 />

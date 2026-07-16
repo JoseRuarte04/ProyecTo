@@ -16,11 +16,11 @@ export default function ChangePasswordCard({ email }: Props) {
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
 
-  const canSave = current !== "" && next.length >= 6 && confirm !== "";
+  const canSave = current !== "" && next.length >= 8 && confirm !== "";
 
   const handleSave = async () => {
-    if (next.length < 6) {
-      toast.error("La nueva contraseña debe tener al menos 6 caracteres");
+    if (next.length < 8) {
+      toast.error("La nueva contraseña debe tener al menos 8 caracteres");
       return;
     }
     if (next !== confirm) {
@@ -80,7 +80,7 @@ export default function ChangePasswordCard({ email }: Props) {
             type="password"
             value={next}
             onChange={(e) => setNext(e.target.value)}
-            minLength={6}
+            minLength={8}
             autoComplete="new-password"
           />
         </div>
@@ -90,13 +90,13 @@ export default function ChangePasswordCard({ email }: Props) {
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            minLength={6}
+            minLength={8}
             autoComplete="new-password"
           />
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">Mínimo 6 caracteres.</p>
+      <p className="text-xs text-muted-foreground">Mínimo 8 caracteres.</p>
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving || !canSave} className="min-w-[160px]">
