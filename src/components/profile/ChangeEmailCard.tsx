@@ -28,7 +28,12 @@ export default function ChangeEmailCard({ email }: Props) {
       return;
     }
     setSaving(true);
-    const { error } = await supabase.auth.updateUser({ email: target });
+    // El emailRedirectTo debe estar en la allowlist de Redirect URLs del
+    // proyecto Supabase; si no, el link del mail cae en el Site URL.
+    const { error } = await supabase.auth.updateUser(
+      { email: target },
+      { emailRedirectTo: `${window.location.origin}/profile` },
+    );
     setSaving(false);
     if (error) {
       toast.error("Error al cambiar el email", { description: error.message });
