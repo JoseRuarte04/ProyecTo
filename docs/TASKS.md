@@ -23,6 +23,7 @@ señal de que estás cayendo en el patrón de siempre.
 - [ ] Decidir si la fricción de Jitsi (moderador tiene que loguearse con Google/GitHub/Facebook, paciente no) amerita migrar a Daily.co o Whereby embebido — discutido, no decidido. Poco detalle, afinar.
 
 ## 🗄️ Base de datos / Supabase
+- [ ] Probar el flujo completo de cambio de email del módulo Perfil: cambiar a una casilla accesible, confirmar desde el mail, y verificar en el dashboard de Supabase que el redirect URL del mail de cambio de email apunte al dominio de la app (misma config que reset-password).
 - [ ] Borrar la edge function huérfana `create-daily-room` del proyecto Supabase (`pvuaqatdendcgumwktid`) — quedó deployada del intento con Daily.co, ya no se usa desde que se pasó a Jitsi.
 - [ ] Definir alcance de arquitectura offline-first para centros con conectividad inestable durante la sesión clínica (ver ejemplo cargado en `DECISIONS.md` — quedó "pendiente de definir alcance", a validar con Maia el impacto clínico real).
 
@@ -34,6 +35,7 @@ señal de que estás cayendo en el patrón de siempre.
 
 ## 💡 Ideas / Backlog sin priorizar
 (Todo lo que se te ocurre a mitad de otra tarea va ACÁ, no se empieza ahí nomás)
+- [ ] Asistente de IA para médicos/terapeutas (chat dentro de la app): RAG sobre pgvector en Supabase — pipeline de ingesta de documentos (tabla `documents` + `document_chunks` con embeddings), búsqueda por similitud y respuestas con cita de fuente. Bloqueada por: falta el PDF fuente (lo pasan externos) y decidir proveedor de embeddings (Anthropic no tiene API propia; candidatos Voyage AI u OpenAI) y LLM de respuesta. Arquitectura ya conversada el 2026-07-15.
 - [ ] Backfillear en `DECISIONS.md` la decisión ya tomada de pasar de Daily.co a Jitsi Meet (2026-07-10) — quedó documentada solo en memoria de sesiones anteriores, no en el repo. Poco detalle, afinar.
 
 ---

@@ -29,6 +29,7 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 | | | |
 
 ## ✅ Cerrado esta semana
+- **[2026-07-15] Módulo Perfil en `/profile`** (ítem en sidebar debajo de Ejercicios): edición de datos personales (nombre, especialidad, matrícula), foto de avatar (bucket `avatars` público + columna `avatar_url`, con compresión client-side a 512px porque las fotos de cámara superaban el límite de 2MB del bucket), cambio de contraseña (verificando la actual) y cambio de email (flujo de confirmación de Supabase; `profiles.email` se sincroniza client-side en `fetchProfile`, sin trigger). AuthContext ahora expone `refreshProfile`. Verificado: datos personales y avatar. Sin probar todavía: flujo completo de cambio de email (requiere casilla accesible y chequear el redirect URL del mail en el dashboard de Supabase).
 - **[2026-07-15] Fix: spinner infinito en `/` para usuarios sin sesión.** `useIsAdmin` dejaba `isAdmin` en `null` para siempre cuando no había sesión (a propósito — ver comentario del hook), pero `AppLayout` trataba `isAdmin === null` como "todavía cargando" sin importar si había sesión. Resultado: nunca se llegaba a evaluar la redirección a `/login`, pantalla en blanco con spinner eterno. Fix en `src/components/AppLayout.tsx`: ahora solo espera a `isAdmin` cuando efectivamente hay `session` (mismo orden que ya usaba `AdminLayout`).
 - **[2026-07-15] Setup del sistema de tracking del proyecto** (este mismo archivo + `TASKS.md`, `DECISIONS.md`, `CHANGELOG.md` en `docs/`, y reglas de flujo de trabajo en `CLAUDE.md`).
 
@@ -41,6 +42,6 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 
 ## Última sesión de trabajo
 **Fecha:** 2026-07-15
-**Qué se hizo:** Diagnóstico y fix del spinner infinito al abrir localhost (bug en `useIsAdmin`/`AppLayout` para usuarios sin sesión). Setup del sistema de tracking del proyecto (`docs/PROJECT_STATE.md`, `TASKS.md`, `DECISIONS.md`, `CHANGELOG.md` + reglas en `CLAUDE.md`).
-**Qué quedó a medio camino:** Nada en código — el fix del spinner está cerrado. El sistema de tracking queda con `DECISIONS.md` todavía sin entradas reales (hay una candidata pendiente: backfillear la decisión Daily.co → Jitsi, ver `TASKS.md`).
-**Próxima sesión debería empezar por:** Definir qué tarea pasa a "En progreso" — no hay nada activo elegido todavía.
+**Qué se hizo:** Módulo Perfil completo en `/profile` (datos personales, avatar con compresión client-side, contraseña, email) — 6 commits chicos, migración `20260715120000_profile_avatar.sql` ya aplicada en Supabase. También se planificó (sin implementar) un asistente de IA para médicos con RAG sobre pgvector — quedó como candidata en `TASKS.md` esperando el PDF fuente.
+**Qué quedó a medio camino:** Del módulo Perfil, solo falta probar el flujo completo de cambio de email (confirmar desde una casilla real + verificar el redirect URL del mail en el dashboard de Supabase — ver `TASKS.md`).
+**Próxima sesión debería empezar por:** Definir qué tarea pasa a "En progreso" — candidatas: asistente de IA (cuando llegue el PDF) o alguna del backlog.

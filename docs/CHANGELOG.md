@@ -15,6 +15,12 @@ Formato: `## [YYYY-MM-DD] Título corto`
 - Decisión tomada: ... (ver DECISIONS.md si aplica)
 - Para la próxima: ...
 
+## [2026-07-15] Módulo Perfil completo
+- Se cerró: módulo Perfil en `/profile` — datos personales, foto de avatar (con compresión client-side porque las fotos de cámara superaban el límite del bucket), cambio de contraseña y de email.
+- Decisión tomada: bucket `avatars` público + sync de email client-side sin trigger (ver DECISIONS.md).
+- Quedó pendiente: probar el flujo completo de cambio de email (ver TASKS.md).
+- Para la próxima: el asistente de IA (RAG) quedó como candidata en TASKS.md esperando el PDF fuente.
+
 ## [2026-07-15] Fix spinner infinito + setup de tracking del proyecto
 - Se cerró: fix del spinner infinito en `/` para usuarios sin sesión (`AppLayout` esperaba a `useIsAdmin` aunque no hubiera `session`).
 - Se cerró: setup del sistema de tracking (`docs/PROJECT_STATE.md`, `TASKS.md`, `DECISIONS.md`, este changelog) + reglas de flujo de trabajo en `CLAUDE.md`.
