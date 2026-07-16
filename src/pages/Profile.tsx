@@ -2,6 +2,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader } from "@/components/PageHeader";
 import { Loader2 } from "lucide-react";
 import PersonalDataCard from "@/components/profile/PersonalDataCard";
+import ChangeEmailCard from "@/components/profile/ChangeEmailCard";
+import ChangePasswordCard from "@/components/profile/ChangePasswordCard";
 
 export default function Profile() {
   const { profile } = useAuth();
@@ -22,6 +24,8 @@ export default function Profile() {
       />
       <div className="max-w-2xl space-y-6">
         <PersonalDataCard profile={profile} />
+        <ChangeEmailCard email={profile.email} />
+        <ChangePasswordCard email={profile.email} />
       </div>
     </div>
   );
