@@ -32,6 +32,7 @@ const baseNavItems = [
   { title: "Pacientes",  url: "/patients",     icon: Users },
   { title: "Turnos",     url: "/appointments", icon: Calendar },
   { title: "Ejercicios", url: "/exercises",    icon: Dumbbell },
+  { title: "Perfil",     url: "/profile",      icon: User },
 ];
 
 export function AppSidebar() {
