@@ -28,6 +28,33 @@ motivo real de negocio/técnico).
 
 ---
 
+## [2026-07-16] Registro solo por invitación: guard en el trigger, no toggle del dashboard
+
+**Contexto:** Cualquiera podía hacer `signUp` sin invitación y `handle_new_user`
+le creaba un perfil de profesional activo (RLS aislaba los datos, pero el alta
+era libre). Había que cerrarlo sin romper los dos flujos legítimos de invitación.
+
+**Opciones consideradas:**
+1. Apagar "Allow new users to sign up" en el dashboard de Supabase
+2. Guard dentro de `handle_new_user`: rechazar el alta salvo `invited_at`
+   seteado (invitación nativa) o invitación de equipo pendiente
+
+**Decisión:** Opción 2 (migración `20260716000000_signup_only_by_invitation`).
+
+**Por qué:** El toggle del dashboard rompería `/registro?token=` — el flujo de
+invitación a equipos usa `signUp` público. El guard en el trigger cierra el alta
+libre y mantiene ambos flujos sin tocar el frontend. Además queda versionado en
+una migración (el toggle del dashboard no deja rastro en el repo).
+
+**Consecuencias / trade-offs aceptados:** Los usuarios de prueba de la suite de
+RLS ya no pueden auto-crearse; si se borran hay que re-invitarlos a mano. El
+error que ve un intruso es el genérico de Supabase ("Database error saving new
+user"), no un mensaje amigable — aceptable, no es un flujo que deba ser amigable.
+
+**Quién lo decidió:** Jose (con Claude, tras el hallazgo al armar los tests de RLS)
+
+---
+
 ## [2026-07-15] Bucket de avatares público (sin signed URLs)
 
 **Contexto:** El módulo Perfil suma foto de avatar. El único bucket existente

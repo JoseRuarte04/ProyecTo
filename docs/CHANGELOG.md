@@ -15,6 +15,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 - Decisión tomada: ... (ver DECISIONS.md si aplica)
 - Para la próxima: ...
 
+## [2026-07-16] Registro solo por invitación
+- Se cerró: el signup abierto — `handle_new_user` ahora rechaza altas sin invitación (nativa o de equipo). Los flujos `/registro` y `/accept-invite` siguen andando. Verificado contra la API + test de regresión (suite RLS: 13 tests).
+- Decisión tomada: guard en el trigger en vez del toggle del dashboard, para no romper el flujo de invitación de equipos que usa signUp (ver DECISIONS.md).
+
 ## [2026-07-16] CI + tests de RLS
 - Se cerró: CI con GitHub Actions (lint con techo de 260 warnings + typecheck + tests + build en cada push/PR — antes nada validaba lo que llegaba a producción). Para destrabarlo, no-explicit-any pasó a warning y se arreglaron los 4 errores reales de lint.
 - Se cerró: suite de 12 tests de RLS contra el Supabase real — un profesional no puede acceder a pacientes/sesiones/fichas de otro; corren en CI.
