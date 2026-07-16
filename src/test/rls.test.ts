@@ -7,11 +7,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * Verifican el contrato de seguridad central del producto: un profesional
  * NO puede leer ni tocar pacientes/sesiones/fichas de otro profesional.
  *
- * Usa dos usuarios de prueba fijos que se auto-crean en la primera corrida
- * (signUp dispara handle_new_user, que crea el profile de profesional; el
- * proyecto tiene autoconfirm así que no requiere mail). Los datos de prueba
- * también son fijos y se reutilizan entre corridas — la suite no acumula
- * filas nuevas en cada ejecución.
+ * Usa dos usuarios de prueba fijos (rls-test-a/b@example.com) que ya existen
+ * en el proyecto. OJO: desde la migración 20260716 el registro es solo por
+ * invitación, así que si alguien los borra la suite NO puede recrearlos —
+ * habría que invitarlos de nuevo desde el dashboard. Los datos de prueba
+ * son fijos y se reutilizan entre corridas — la suite no acumula filas.
  */
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -38,7 +38,11 @@ async function signInOrSignUp(client: SupabaseClient, user: typeof USER_A): Prom
     password: user.password,
     options: { data: { full_name: user.name } },
   });
-  if (signUp.error) throw new Error(`No se pudo crear ${user.email}: ${signUp.error.message}`);
+  if (signUp.error)
+    throw new Error(
+      `No se pudo crear ${user.email}: ${signUp.error.message}. ` +
+        `El signup está cerrado (solo por invitación) — si el usuario de prueba fue borrado, invitalo desde el dashboard de Supabase.`,
+    );
   if (!signUp.data.session) throw new Error("signUp no devolvió sesión — ¿autoconfirm desactivado?");
   return signUp.data.user!.id;
 }
@@ -197,5 +201,16 @@ describe("RLS: sin sesión (anon)", () => {
 
   it("anon no ve perfiles de profesionales", async () => {
     await expectDenied(clientAnon.from("profiles").select("id").limit(5));
+  });
+
+  it("no se puede crear una cuenta sin invitación (signup cerrado)", async () => {
+    // handle_new_user rechaza el alta salvo invitación pendiente o invite
+    // nativo; si esto alguna vez pasa, se creó un usuario basura real.
+    const { data, error } = await clientAnon.auth.signUp({
+      email: "rls-test-intruso@example.com",
+      password: "Password-Fuerte-99!",
+    });
+    expect(error).not.toBeNull();
+    expect(data.user).toBeNull();
   });
 });
