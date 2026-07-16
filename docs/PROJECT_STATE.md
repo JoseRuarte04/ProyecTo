@@ -17,9 +17,7 @@ _(sin definir todavía — completar)_
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| | | | |
-
-**Vacío a propósito.** No hay nada activo ahora mismo — decidir qué arranca.
+| Recordatorios de turnos | Planificando | — | Definir alcance (semi-automático con WhatsApp manual asistido vs. automático con cron+email) y ejecutar |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 

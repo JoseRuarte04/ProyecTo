@@ -20,6 +20,7 @@ señal de que estás cayendo en el patrón de siempre.
 - [ ] 
 
 ## 📅 Turnos / Agenda
+- [~] **Recordatorios de turnos** — en progreso desde 2026-07-16. Hoy el link de WhatsApp es manual y depende de que la terapeuta se acuerde; el objetivo es que el sistema empuje los recordatorios (reduce ausentismo). Alcance a definir en el plan: semi-automático (panel de "recordatorios de mañana" con wa.me con un click + tracking de enviados, gratis) vs. automático (cron + edge function + proveedor de email/WhatsApp API, requiere servicio externo).
 - [ ] Decidir si la fricción de Jitsi (moderador tiene que loguearse con Google/GitHub/Facebook, paciente no) amerita migrar a Daily.co o Whereby embebido — discutido, no decidido. Poco detalle, afinar.
 
 ## 🗄️ Base de datos / Supabase
@@ -31,7 +32,8 @@ señal de que estás cayendo en el patrón de siempre.
 - [ ] Definir alcance de arquitectura offline-first para centros con conectividad inestable durante la sesión clínica (ver ejemplo cargado en `DECISIONS.md` — quedó "pendiente de definir alcance", a validar con Maia el impacto clínico real).
 
 ## 🎨 UI / UX
-- [ ] 
+- [ ] **14 queries ignoran el error silenciosamente** (`const { data } = await supabase...` sin leer `error`): cuando fallan, el usuario ve pantalla vacía sin aviso y Sentry no lo captura porque el código lo traga. Pasada corta: sumar el `toast.error` que ya es patrón en el resto del repo. Encontrado 2026-07-16.
+- [ ] **Decidir el destino del rol `patient`**: existe en el enum del schema pero no hay ninguna experiencia de paciente (solo links públicos de QuickDASH/planes). ¿Portal de paciente o matar el rol? Charlar con Maia antes de codear. Encontrado 2026-07-16.
 
 ## 🔧 Infraestructura / DevOps
 - [x] CI con GitHub Actions (lint con techo de warnings + typecheck + tests + build) — hecho 2026-07-16.
@@ -43,6 +45,7 @@ señal de que estás cayendo en el patrón de siempre.
 
 ## 💡 Ideas / Backlog sin priorizar
 (Todo lo que se te ocurre a mitad de otra tarea va ACÁ, no se empieza ahí nomás)
+- [ ] Limpieza de restos de Lovable (media hora): borrar `bun.lockb` (el CI usa npm y `package-lock.json`), sacar `lovable-tagger` de `vite.config.ts`, borrar `pages/Index.tsx` huérfana, el `playwright.config.ts` de Lovable sin e2e, y desinstalar `react-hook-form`+`zod` si se confirma que no se van a usar. Encontrado 2026-07-16.
 - [ ] Asistente de IA para médicos/terapeutas (chat dentro de la app): RAG sobre pgvector en Supabase — pipeline de ingesta de documentos (tabla `documents` + `document_chunks` con embeddings), búsqueda por similitud y respuestas con cita de fuente. Bloqueada por: falta el PDF fuente (lo pasan externos) y decidir proveedor de embeddings (Anthropic no tiene API propia; candidatos Voyage AI u OpenAI) y LLM de respuesta. Arquitectura ya conversada el 2026-07-15.
 - [ ] Backfillear en `DECISIONS.md` la decisión ya tomada de pasar de Daily.co a Jitsi Meet (2026-07-10) — quedó documentada solo en memoria de sesiones anteriores, no en el repo. Poco detalle, afinar.
 
