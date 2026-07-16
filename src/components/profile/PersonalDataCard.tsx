@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Camera, Loader2 } from "lucide-react";
+
+const AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // debe coincidir con el límite del bucket
 
 interface Props {
   profile: {
@@ -20,6 +24,8 @@ interface Props {
 export default function PersonalDataCard({ profile }: Props) {
   const { refreshProfile } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     full_name: profile.full_name,
     specialty: profile.specialty || "",
@@ -27,6 +33,59 @@ export default function PersonalDataCard({ profile }: Props) {
   });
 
   const canSave = form.full_name.trim() !== "";
+
+  const initials =
+    profile.full_name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "TO";
+
+  const handleAvatarChange = async (file: File | undefined) => {
+    if (!file) return;
+    if (!AVATAR_MIME_TYPES.includes(file.type)) {
+      toast.error("La foto debe ser JPG, PNG o WebP");
+      return;
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      toast.error("La foto no puede superar los 2MB");
+      return;
+    }
+    setUploading(true);
+
+    // Filename con timestamp: reusar el mismo path haría que el CDN siga
+    // sirviendo la imagen vieja aunque el archivo cambie.
+    const ext = file.type.split("/")[1] === "jpeg" ? "jpg" : file.type.split("/")[1];
+    const path = `${profile.id}/${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, { contentType: file.type });
+    if (uploadError) {
+      setUploading(false);
+      toast.error("Error al subir la foto", { description: uploadError.message });
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ avatar_url: publicUrl })
+      .eq("id", profile.id);
+    if (updateError) {
+      setUploading(false);
+      toast.error("Error al guardar la foto", { description: updateError.message });
+      return;
+    }
+
+    // Borrar la foto anterior (best-effort: si falla queda huérfana, no bloquea)
+    const oldPath = profile.avatar_url?.split("/avatars/")[1];
+    if (oldPath) await supabase.storage.from("avatars").remove([oldPath]);
+
+    await refreshProfile();
+    setUploading(false);
+    toast.success("Foto actualizada");
+  };
 
   const handleSave = async () => {
     if (!canSave) {
@@ -55,6 +114,37 @@ export default function PersonalDataCard({ profile }: Props) {
   return (
     <section className="dashboard-card p-5 sm:p-6 space-y-4">
       <p className="field-label">Datos personales</p>
+
+      <div className="flex items-center gap-4">
+        <Avatar className="h-20 w-20">
+          {profile.avatar_url && (
+            <AvatarImage src={profile.avatar_url} alt={profile.full_name} className="object-cover" />
+          )}
+          <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+        </Avatar>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={AVATAR_MIME_TYPES.join(",")}
+            className="hidden"
+            onChange={(e) => {
+              handleAvatarChange(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <><Camera className="h-4 w-4 mr-2" />Cambiar foto</>}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG o WebP, hasta 2MB.</p>
+        </div>
+      </div>
 
       <div className="space-y-2">
         <Label>Nombre completo *</Label>

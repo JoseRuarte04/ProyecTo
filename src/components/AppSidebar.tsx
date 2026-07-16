@@ -16,7 +16,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -211,6 +211,9 @@ export function AppSidebar() {
         {!collapsed && profile && (
           <div className="flex items-center gap-3 mb-4">
             <Avatar className="h-9 w-9 border border-border">
+              {profile.avatar_url && (
+                <AvatarImage src={profile.avatar_url} alt={profile.full_name} className="object-cover" />
+              )}
               <AvatarFallback className="bg-primary/8 text-primary text-xs font-semibold">
                 {initials}
               </AvatarFallback>
