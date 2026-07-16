@@ -4,7 +4,7 @@
 > Se actualiza al FINAL de cada sesión de trabajo (con Claude Code o sin él).
 > Si algo no está acá, no pasó — o no está confirmado.
 
-**Última actualización:** 2026-07-15
+**Última actualización:** 2026-07-16
 **Sprint / objetivo actual:** _(sin definir todavía — completar)_
 
 ---
@@ -29,6 +29,7 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 | | | |
 
 ## ✅ Cerrado esta semana
+- **[2026-07-16] CI + tests de RLS.** GitHub Actions corre lint (techo 260 warnings) + typecheck + tests + build en cada push/PR. Suite de 12 tests de RLS contra el Supabase real (aislamiento de pacientes/sesiones/fichas entre profesionales + anon sin acceso) con usuarios y datos de prueba fijos que se reutilizan. Hallazgo pendiente de decisión en `TASKS.md`: el registro está abierto a cualquiera (signUp crea perfil de profesional activo sin invitación).
 - **[2026-07-15] Hardening de seguridad** (migración `20260715130000_security_hardening.sql`, aplicada y verificada contra la API): funciones RPC sensibles sin acceso anon, trigger functions no invocables, search_path fijo, bucket avatars sin listado público. Además `.env` fuera de git (+ `.env.example`), `.gitignore` arreglado (líneas UTF-16 rotas) y mínimo de contraseña a 8 en los 4 formularios. Pendiente bloqueado por plan Pro: leaked password protection (ver `TASKS.md`).
 - **[2026-07-15] Fix recuperación de contraseña / mails de auth**: el Site URL de Supabase estaba en el default `localhost:3000` y producción no estaba en la allowlist — configurado en dashboard, verificado andando. El cambio de email ahora redirige a `/profile`.
 - **[2026-07-15] Módulo Perfil en `/profile`** (ítem en sidebar debajo de Ejercicios): edición de datos personales (nombre, especialidad, matrícula), foto de avatar (bucket `avatars` público + columna `avatar_url`, con compresión client-side a 512px porque las fotos de cámara superaban el límite de 2MB del bucket), cambio de contraseña (verificando la actual) y cambio de email (flujo de confirmación de Supabase; `profiles.email` se sincroniza client-side en `fetchProfile`, sin trigger). AuthContext ahora expone `refreshProfile`. Verificado: datos personales y avatar. Sin probar todavía: flujo completo de cambio de email (requiere casilla accesible y chequear el redirect URL del mail en el dashboard de Supabase).
@@ -43,6 +44,14 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 ---
 
 ## Última sesión de trabajo
+**Fecha:** 2026-07-16
+**Qué se hizo:** CI con GitHub Actions (lint+typecheck+tests+build) y suite de 12 tests de RLS que corren en CI contra el Supabase real. Backlog actualizado con los pendientes del informe de mejoras (Sentry, e2e, deuda de lint, performance de DB) y el hallazgo del registro abierto.
+**Qué quedó a medio camino:** Nada. El primer run del CI en GitHub queda por verificarse con el próximo push.
+**Próxima sesión debería empezar por:** Decidir sobre el registro abierto (¿cerrar signup y dejar solo invitaciones?) o retomar el asistente de IA si ya llegó el PDF.
+
+---
+
+## Sesión anterior
 **Fecha:** 2026-07-15
 **Qué se hizo:** Módulo Perfil completo en `/profile` (datos personales, avatar con compresión client-side, contraseña, email) — 6 commits chicos, migración `20260715120000_profile_avatar.sql` ya aplicada en Supabase. También se planificó (sin implementar) un asistente de IA para médicos con RAG sobre pgvector — quedó como candidata en `TASKS.md` esperando el PDF fuente.
 **Qué quedó a medio camino:** Del módulo Perfil, solo falta probar el flujo completo de cambio de email (confirmar desde una casilla real + verificar el redirect URL del mail en el dashboard de Supabase — ver `TASKS.md`).

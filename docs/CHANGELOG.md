@@ -15,6 +15,12 @@ Formato: `## [YYYY-MM-DD] Título corto`
 - Decisión tomada: ... (ver DECISIONS.md si aplica)
 - Para la próxima: ...
 
+## [2026-07-16] CI + tests de RLS
+- Se cerró: CI con GitHub Actions (lint con techo de 260 warnings + typecheck + tests + build en cada push/PR — antes nada validaba lo que llegaba a producción). Para destrabarlo, no-explicit-any pasó a warning y se arreglaron los 4 errores reales de lint.
+- Se cerró: suite de 12 tests de RLS contra el Supabase real — un profesional no puede acceder a pacientes/sesiones/fichas de otro; corren en CI.
+- Hallazgo anotado en TASKS: el registro está abierto (signUp sin invitación crea perfil de profesional activo) — decidir si se cierra.
+- Para la próxima: pendientes del informe cargados en TASKS (Sentry, e2e, deuda de lint, performance de DB).
+
 ## [2026-07-15] Hardening de seguridad + fix de URLs de auth
 - Se cerró: revisión completa del proyecto (código + advisors de Supabase) y fix de todas las urgentes de seguridad — REVOKE de funciones RPC expuestas a anon, trigger functions no invocables, search_path fijo, bucket avatars sin listado público, `.env` fuera de git, mínimo de contraseña a 8.
 - Se cerró: fix de recuperación de contraseña — el Site URL de Supabase estaba en el default `localhost:3000` y el dominio de producción no estaba en la allowlist de redirects; configurado en el dashboard.

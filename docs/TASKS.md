@@ -23,6 +23,7 @@ señal de que estás cayendo en el patrón de siempre.
 - [ ] Decidir si la fricción de Jitsi (moderador tiene que loguearse con Google/GitHub/Facebook, paciente no) amerita migrar a Daily.co o Whereby embebido — discutido, no decidido. Poco detalle, afinar.
 
 ## 🗄️ Base de datos / Supabase
+- [ ] **Revisar que el registro esté abierto a cualquiera**: `signUp` sin invitación funciona (autoconfirm activado) y `handle_new_user` crea un perfil de profesional activo automáticamente. RLS aísla los datos así que no ve nada ajeno, pero cualquiera que descubra la URL puede crearse una cuenta de profesional. Decidir: ¿cerrar signup y dejar solo invitaciones? Encontrado el 2026-07-16 armando los tests de RLS.
 - [ ] Activar "Prevent use of leaked passwords" en el dashboard de Supabase (Auth → Providers → Email) — **bloqueada: requiere plan Pro**. Retomarla si/cuando se upgradee el plan (mismo momento en que conviene evaluar PITR para backups, ver Ideas). El resto del hardening de seguridad ya se hizo (2026-07-15: REVOKEs de RPC, search_path, listado del bucket, mínimo de contraseña 8 client-side).
 - [x] Verificar que "Minimum password length" esté en 8 en el dashboard (Auth → Providers → Email) — hecho 2026-07-16, ahora el mínimo de 8 se aplica client-side y server-side.
 - [ ] Probar el flujo completo de cambio de email del módulo Perfil: cambiar a una casilla accesible, confirmar desde el mail, y verificar en el dashboard de Supabase que el redirect URL del mail de cambio de email apunte al dominio de la app (misma config que reset-password).
@@ -33,7 +34,12 @@ señal de que estás cayendo en el patrón de siempre.
 - [ ] 
 
 ## 🔧 Infraestructura / DevOps
-- [ ] 
+- [x] CI con GitHub Actions (lint con techo de warnings + typecheck + tests + build) — hecho 2026-07-16.
+- [x] Tests de RLS (pacientes, sesiones, fichas clínicas, perfiles, anon) — hecho 2026-07-16, corren en CI.
+- [ ] Monitoreo de errores en producción (Sentry o similar) — hay ErrorBoundary pero nada reporta. Del informe de mejoras del 2026-07-15.
+- [ ] Tests e2e de flujos críticos (login, crear paciente, cargar sesión) — a propósito para más adelante, cuando el producto se estabilice (el churn de UI actual los rompería seguido).
+- [ ] Bajar la deuda de lint: 212 warnings de no-explicit-any (los tipos de Supabase ya existen, se pisan con any) y 15 de exhaustive-deps. El CI tiene techo de 260 warnings para que no crezca; bajarlo a medida que se limpie.
+- [ ] Performance de DB (del informe 2026-07-15): 58 políticas RLS re-evalúan auth.uid() por fila (envolver en select), 15 FKs sin índice, 7 tablas con políticas permisivas duplicadas. Migración mecánica, hacerla antes de tener volumen.
 
 ## 💡 Ideas / Backlog sin priorizar
 (Todo lo que se te ocurre a mitad de otra tarea va ACÁ, no se empieza ahí nomás)
