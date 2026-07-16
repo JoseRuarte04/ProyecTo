@@ -10,6 +10,26 @@ import { Camera, Loader2 } from "lucide-react";
 
 const AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // debe coincidir con el límite del bucket
+const AVATAR_MAX_DIMENSION = 512; // px — el avatar se muestra a 80px como mucho
+
+// Las fotos de cámara pesan 4-8MB y el bucket admite 2MB: redimensionar y
+// recomprimir en el navegador antes de subir.
+async function compressAvatar(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const scale = Math.min(1, AVATAR_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("No se pudo procesar la imagen"))),
+      "image/jpeg",
+      0.85,
+    ),
+  );
+}
 
 interface Props {
   profile: {
@@ -48,19 +68,30 @@ export default function PersonalDataCard({ profile }: Props) {
       toast.error("La foto debe ser JPG, PNG o WebP");
       return;
     }
-    if (file.size > AVATAR_MAX_BYTES) {
-      toast.error("La foto no puede superar los 2MB");
+    setUploading(true);
+
+    let blob: Blob;
+    try {
+      blob = await compressAvatar(file);
+    } catch {
+      setUploading(false);
+      toast.error("No se pudo procesar la imagen", {
+        description: "Probá con otra foto en formato JPG o PNG.",
+      });
       return;
     }
-    setUploading(true);
+    if (blob.size > AVATAR_MAX_BYTES) {
+      setUploading(false);
+      toast.error("La foto sigue siendo demasiado pesada tras comprimirla");
+      return;
+    }
 
     // Filename con timestamp: reusar el mismo path haría que el CDN siga
     // sirviendo la imagen vieja aunque el archivo cambie.
-    const ext = file.type.split("/")[1] === "jpeg" ? "jpg" : file.type.split("/")[1];
-    const path = `${profile.id}/${Date.now()}.${ext}`;
+    const path = `${profile.id}/${Date.now()}.jpg`;
     const { error: uploadError } = await supabase.storage
       .from("avatars")
-      .upload(path, file, { contentType: file.type });
+      .upload(path, blob, { contentType: "image/jpeg" });
     if (uploadError) {
       setUploading(false);
       toast.error("Error al subir la foto", { description: uploadError.message });
@@ -142,7 +173,7 @@ export default function PersonalDataCard({ profile }: Props) {
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <><Camera className="h-4 w-4 mr-2" />Cambiar foto</>}
           </Button>
-          <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG o WebP, hasta 2MB.</p>
+          <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG o WebP — se ajusta automáticamente.</p>
         </div>
       </div>
 
