@@ -36,7 +36,7 @@ señal de que estás cayendo en el patrón de siempre.
 ## 🔧 Infraestructura / DevOps
 - [x] CI con GitHub Actions (lint con techo de warnings + typecheck + tests + build) — hecho 2026-07-16.
 - [x] Tests de RLS (pacientes, sesiones, fichas clínicas, perfiles, anon) — hecho 2026-07-16, corren en CI.
-- [~] Monitoreo de errores en producción (Sentry) — código listo 2026-07-16 (init opt-in por `VITE_SENTRY_DSN`, captura global + ErrorBoundary, sin PII). **Falta el paso manual de Jose:** crear el proyecto en sentry.io, copiar el DSN y cargarlo como env var `VITE_SENTRY_DSN` en Vercel + redeploy.
+- [x] Monitoreo de errores en producción (Sentry) — hecho 2026-07-16. Init opt-in por `VITE_SENTRY_DSN` (solo builds de producción), captura global + ErrorBoundary, sin PII/replay/tracing. DSN cargado en Vercel, verificado en el bundle de producción y con evento de prueba ingresado.
 - [ ] Tests e2e de flujos críticos (login, crear paciente, cargar sesión) — a propósito para más adelante, cuando el producto se estabilice (el churn de UI actual los rompería seguido).
 - [ ] Bajar la deuda de lint: 212 warnings de no-explicit-any (los tipos de Supabase ya existen, se pisan con any) y 15 de exhaustive-deps. El CI tiene techo de 260 warnings para que no crezca; bajarlo a medida que se limpie.
 - [ ] Performance de DB (del informe 2026-07-15): 58 políticas RLS re-evalúan auth.uid() por fila (envolver en select), 15 FKs sin índice, 7 tablas con políticas permisivas duplicadas. Migración mecánica, hacerla antes de tener volumen.
