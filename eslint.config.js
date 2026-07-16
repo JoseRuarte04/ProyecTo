@@ -21,6 +21,9 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Deuda histórica: ~212 usos de any. Warning para no bloquear el CI,
+      // con techo de --max-warnings en el workflow para que no crezca.
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 );

@@ -311,7 +311,7 @@ export default function NewPatientForm() {
 
   // ── Validation helpers ──
   const isNumericOnly = (v: string) => /^\d+$/.test(v.trim());
-  const isValidName   = (v: string) => !v.trim() || /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s'\-]+$/.test(v.trim());
+  const isValidName   = (v: string) => !v.trim() || /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s'-]+$/.test(v.trim());
   const isValidPhone  = (v: string) => !v.trim() || /^[+\d][\d\s\-()+]*$/.test(v.trim());
   const isValidEmail  = (v: string) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
