@@ -1,4 +1,5 @@
 import { Component, ReactNode } from "react";
+import * as Sentry from "@sentry/react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -20,6 +21,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    // No-op si Sentry no está inicializado (dev, CI, o sin DSN configurado)
+    Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
   }
 
   reset = () => this.setState({ hasError: false, error: null });
