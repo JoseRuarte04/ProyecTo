@@ -9,6 +9,7 @@ interface Profile {
   role: string;
   specialty: string | null;
   license_number: string | null;
+  avatar_url: string | null;
 }
 
 interface AuthContextType {
@@ -17,6 +18,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -25,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -38,13 +41,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // supabase-js entrega una `session` nueva pero el usuario es el mismo.
   const profileUserId = useRef<string | null>(null);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, authEmail?: string | null) => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, full_name, email, role, specialty, license_number")
+      .select("id, full_name, email, role, specialty, license_number, avatar_url")
       .eq("id", userId)
       .single();
-    if (data) setProfile(data);
+    if (!data) return;
+    // El cambio de email se confirma en auth.users y no hay trigger que lo
+    // propague a profiles: reconciliar acá (puede confirmarse en otra pestaña).
+    if (authEmail && data.email !== authEmail) {
+      await supabase.from("profiles").update({ email: authEmail }).eq("id", userId);
+      data.email = authEmail;
+    }
+    setProfile(data);
   };
 
   useEffect(() => {
@@ -52,9 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (_event, session) => {
         setSession(session);
         if (session?.user) {
-          if (profileUserId.current !== session.user.id) {
+          // USER_UPDATED llega al confirmar cambio de email o password:
+          // hay que re-fetchear aunque el userId no haya cambiado.
+          if (profileUserId.current !== session.user.id || _event === "USER_UPDATED") {
             profileUserId.current = session.user.id;
-            setTimeout(() => fetchProfile(session.user.id), 0);
+            setTimeout(() => fetchProfile(session.user.id, session.user.email), 0);
           }
         } else {
           profileUserId.current = null;
@@ -68,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       if (session?.user) {
         profileUserId.current = session.user.id;
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.email);
       }
       setLoading(false);
     });
@@ -82,9 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
+  const refreshProfile = async () => {
+    if (session?.user) await fetchProfile(session.user.id, session.user.email);
+  };
+
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, profile, loading, signOut }}
+      value={{ session, user: session?.user ?? null, profile, loading, signOut, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>
