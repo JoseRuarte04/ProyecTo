@@ -207,7 +207,8 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-5 border-t border-sidebar-border">
+      {/* Colapsado el sidebar mide 3rem: con p-5 al botón le quedaban ~8px clickeables */}
+      <SidebarFooter className={cn("border-t border-sidebar-border", collapsed ? "p-1 items-center" : "p-5")}>
         {!collapsed && profile && (
           <div className="flex items-center gap-3 mb-4">
             <Avatar className="h-9 w-9 border border-border">
@@ -230,7 +231,11 @@ export function AppSidebar() {
           variant="ghost"
           size={collapsed ? "icon" : "default"}
           onClick={signOut}
-          className="w-full justify-start text-muted-foreground hover:text-destructive text-[13px]"
+          title={collapsed ? "Cerrar sesión" : undefined}
+          className={cn(
+            "text-muted-foreground hover:text-destructive text-[13px]",
+            collapsed ? "h-9 w-9 shrink-0" : "w-full justify-start",
+          )}
         >
           <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span className="ml-2">Cerrar sesión</span>}
