@@ -9,6 +9,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Los tests de RLS pegan contra el Supabase real por red
+    testTimeout: 15_000,
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
