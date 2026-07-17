@@ -1017,10 +1017,13 @@ export type Database = {
           dash_score: number | null
           dominance: string | null
           education: string | null
+          education_level: string | null
+          employment_status: string | null
           health_management: string | null
           id: string
           job: string | null
           leisure: string | null
+          marital_status: string | null
           notes: string | null
           patient_id: string
           physical_activity: string | null
@@ -1035,10 +1038,13 @@ export type Database = {
           dash_score?: number | null
           dominance?: string | null
           education?: string | null
+          education_level?: string | null
+          employment_status?: string | null
           health_management?: string | null
           id?: string
           job?: string | null
           leisure?: string | null
+          marital_status?: string | null
           notes?: string | null
           patient_id: string
           physical_activity?: string | null
@@ -1053,10 +1059,13 @@ export type Database = {
           dash_score?: number | null
           dominance?: string | null
           education?: string | null
+          education_level?: string | null
+          employment_status?: string | null
           health_management?: string | null
           id?: string
           job?: string | null
           leisure?: string | null
+          marital_status?: string | null
           notes?: string | null
           patient_id?: string
           physical_activity?: string | null
