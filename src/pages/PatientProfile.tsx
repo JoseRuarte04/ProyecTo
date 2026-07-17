@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, ArrowLeft, Calendar, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, ArrowLeft, Calendar, CheckCircle2, UserX, RotateCcw } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -19,6 +19,8 @@ import { EditFichaDialog } from "@/components/patients/dialogs/EditFichaDialog";
 import { NewFuncEvalDialog } from "@/components/patients/dialogs/NewFuncEvalDialog";
 import { NewPatientApptDialog } from "@/components/patients/dialogs/NewPatientApptDialog";
 import { NewEpisodeDialog } from "@/components/patients/dialogs/NewEpisodeDialog";
+import { MarkAbandonDialog, ReactivateDialog } from "@/components/patients/dialogs/MarkAbandonDialog";
+import { StatusBadge } from "@/components/status";
 import { NewPlanDialog, PlanDetailDialog, EditPlanDialog, DeletePlanConfirm } from "@/components/patients/dialogs/PlanDialogs";
 
 export default function PatientProfile() {
@@ -44,6 +46,8 @@ export default function PatientProfile() {
 
   // Dialog states
   const [showNewEpisode, setShowNewEpisode] = useState(false);
+  const [showAbandon, setShowAbandon] = useState(false);
+  const [showReactivate, setShowReactivate] = useState(false);
   const [showNewFuncEval, setShowNewFuncEval] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [showNewPlan, setShowNewPlan] = useState(false);
@@ -166,10 +170,21 @@ export default function PatientProfile() {
               <p className="text-xs text-muted-foreground mt-1.5">
                 {age !== null && <>{age} años</>}{age !== null && patient.dni ? " · " : ""}{patient.dni && <>DNI {patient.dni}</>}
               </p>
-              {activeEpisode && (
+              {activeEpisode && patient.status === "active" && (
                 <div className="flex items-center gap-1.5 mt-3">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   <span className="text-[11px] font-semibold text-emerald-700">Episodio activo</span>
+                </div>
+              )}
+              {patient.status !== "active" && (
+                <div className="mt-3 space-y-1.5">
+                  <StatusBadge status={patient.status} />
+                  {patient.status === "abandoned" && patient.abandoned_at && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Abandonó el {format(new Date(patient.abandoned_at), "d MMM yyyy", { locale: es })}
+                      {patient.abandon_reason ? ` — ${patient.abandon_reason}` : ""}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -226,6 +241,16 @@ export default function PatientProfile() {
                   }}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" /> Dar de alta
+                </Button>
+              )}
+              {patient?.status === "active" && (
+                <Button variant="ghost" size="sm" className="w-full text-destructive hover:text-destructive" onClick={() => setShowAbandon(true)}>
+                  <UserX className="h-4 w-4 mr-2" /> Marcar abandono
+                </Button>
+              )}
+              {patient?.status === "abandoned" && (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setShowReactivate(true)}>
+                  <RotateCcw className="h-4 w-4 mr-2" /> Reactivar paciente
                 </Button>
               )}
             </div>
@@ -308,7 +333,7 @@ export default function PatientProfile() {
               </TabsContent>
 
               <TabsContent value="sessions">
-                <SessionsTab sessions={sessions} analEvals={analEvals} funcEvals={funcEvals} patientId={id!} activeEpisodeId={activeEpisodeId} isDischargedPatient={patient?.status === "discharged"} onDeleted={fetchAll} />
+                <SessionsTab sessions={sessions} analEvals={analEvals} funcEvals={funcEvals} patientId={id!} activeEpisodeId={activeEpisodeId} isDischargedPatient={patient?.status === "discharged" || patient?.status === "abandoned"} onDeleted={fetchAll} />
               </TabsContent>
 
               <TabsContent value="evolucion">
@@ -349,6 +374,8 @@ export default function PatientProfile() {
       {/* Dialogs */}
       <NewEpisodeDialog open={showNewEpisode} onClose={() => setShowNewEpisode(false)} patientId={id!} userId={user!.id} episodes={episodes} onSaved={async (newEpId: string) => { setActiveEpisodeId(newEpId); await fetchPatientBase(); await fetchEpisodeData(newEpId); }} />
       <EditFichaDialog open={showEditFicha} onClose={() => setShowEditFicha(false)} patient={patient} clinical={clinical} occupational={occupational} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
+      <MarkAbandonDialog open={showAbandon} onClose={() => setShowAbandon(false)} patientId={id!} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
+      <ReactivateDialog open={showReactivate} onClose={() => setShowReactivate(false)} patientId={id!} onSaved={fetchAll} />
       <NewFuncEvalDialog open={showNewFuncEval} onClose={() => setShowNewFuncEval(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
       <NewPatientApptDialog open={showNewAppt} onClose={() => setShowNewAppt(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
       <NewPlanDialog open={showNewPlan} onClose={() => setShowNewPlan(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
