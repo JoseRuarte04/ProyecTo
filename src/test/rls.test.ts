@@ -54,6 +54,7 @@ const clientAnon = makeClient();
 let userAId: string;
 let patientId: string;
 let sessionId: string;
+let episodeId: string;
 
 beforeAll(async () => {
   userAId = await signInOrSignUp(clientA, USER_A);
@@ -107,6 +108,39 @@ beforeAll(async () => {
 
   if (records.length === 0) {
     const { error } = await clientA.from("patient_clinical_records").insert({ patient_id: patientId });
+    if (error) throw error;
+  }
+
+  const { data: episodes, error: epFindErr } = await clientA
+    .from("treatment_episodes")
+    .select("id")
+    .eq("patient_id", patientId)
+    .limit(1);
+  if (epFindErr) throw epFindErr;
+
+  if (episodes.length > 0) {
+    episodeId = episodes[0].id;
+  } else {
+    const { data, error } = await clientA
+      .from("treatment_episodes")
+      .insert({ patient_id: patientId, professional_id: userAId })
+      .select("id")
+      .single();
+    if (error) throw error;
+    episodeId = data.id;
+  }
+
+  const { data: diagnoses, error: dxFindErr } = await clientA
+    .from("episode_diagnoses")
+    .select("id")
+    .eq("episode_id", episodeId)
+    .limit(1);
+  if (dxFindErr) throw dxFindErr;
+
+  if (diagnoses.length === 0) {
+    const { error } = await clientA
+      .from("episode_diagnoses")
+      .insert({ episode_id: episodeId, patient_id: patientId, label: "RLS — diagnóstico de prueba" });
     if (error) throw error;
   }
 }, 60_000);
@@ -168,6 +202,31 @@ describe("RLS: aislamiento entre profesionales", () => {
     expect(data).toHaveLength(0);
   });
 
+  it("B no puede ver los diagnósticos del episodio de A", async () => {
+    const { data, error } = await clientB
+      .from("episode_diagnoses")
+      .select("id")
+      .eq("patient_id", patientId);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(0);
+  });
+
+  it("B no puede agregar un diagnóstico al episodio de A", async () => {
+    const { data, error } = await clientB
+      .from("episode_diagnoses")
+      .insert({ episode_id: episodeId, patient_id: patientId, label: "Forjado" })
+      .select("id");
+    // RLS puede rechazar con error o filtrar silenciosamente; lo prohibido
+    // es que la fila se inserte.
+    if (!error) expect(data).toHaveLength(0);
+    const { data: check } = await clientA
+      .from("episode_diagnoses")
+      .select("id")
+      .eq("episode_id", episodeId)
+      .eq("label", "Forjado");
+    expect(check).toHaveLength(0);
+  });
+
   it("B no puede editar el perfil de A", async () => {
     const { data, error } = await clientB
       .from("profiles")
@@ -201,6 +260,10 @@ describe("RLS: sin sesión (anon)", () => {
 
   it("anon no ve perfiles de profesionales", async () => {
     await expectDenied(clientAnon.from("profiles").select("id").limit(5));
+  });
+
+  it("anon no ve diagnósticos de episodios", async () => {
+    await expectDenied(clientAnon.from("episode_diagnoses").select("id").limit(5));
   });
 
   it("no se puede crear una cuenta sin invitación (signup cerrado)", async () => {
