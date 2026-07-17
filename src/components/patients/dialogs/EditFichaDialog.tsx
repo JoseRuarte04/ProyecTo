@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
 
 interface Props {
   open: boolean;
@@ -159,8 +160,14 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
               </div>
               <div><Label>Teléfono</Label><Input value={form.phone || ""} onChange={(e) => u("phone", e.target.value)} /></div>
               <div><Label>Email</Label><Input type="email" value={form.email || ""} onChange={(e) => u("email", e.target.value)} /></div>
-              <div><Label>Obra social</Label><Input value={form.insurance || ""} onChange={(e) => u("insurance", e.target.value)} /></div>
-              <div><Label>Nº de afiliado</Label><Input value={form.insurance_number || ""} onChange={(e) => u("insurance_number", e.target.value)} /></div>
+              <div><Label>Obra social</Label>
+                <InsuranceField
+                  value={form.insurance || ""}
+                  onChange={(v) => setForm((prev: any) => ({ ...prev, insurance: v, insurance_number: v === NO_INSURANCE ? "" : prev.insurance_number }))}
+                  placeholder="Buscar obra social…"
+                />
+              </div>
+              <div><Label>Nº de afiliado</Label><Input value={form.insurance_number || ""} onChange={(e) => u("insurance_number", e.target.value)} disabled={form.insurance === NO_INSURANCE} /></div>
               <div className="sm:col-span-2"><Label>Dirección</Label><Input value={form.address || ""} onChange={(e) => u("address", e.target.value)} /></div>
               <div><Label>Fecha de admisión</Label><Input type="date" value={form.admission_date || ""} onChange={(e) => u("admission_date", e.target.value)} /></div>
             </div>
