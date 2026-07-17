@@ -15,6 +15,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 - Decisión tomada: ... (ver DECISIONS.md si aplica)
 - Para la próxima: ...
 
+## [2026-07-17] Admisión, diagnósticos múltiples, alta/abandono y perfil ocupacional
+- Se cerró: checkbox "No posee obra social" en alta y edición (campo unificado con autocomplete); diagnósticos múltiples por episodio (tabla `episode_diagnoses` + backfill, editor en los 4 formularios); botón "Dar de alta" directo y "Marcar abandono" con nuevo estado `abandoned` (fecha + motivo + reactivar); situación laboral, estado civil y nivel educativo como selects estandarizados.
+- Decisión tomada: los diagnósticos viven en `episode_diagnoses` pero el principal se sigue escribiendo en las columnas legacy (ver DECISIONS.md).
+- Suite RLS ampliada a 16 tests (aislamiento de `episode_diagnoses`); lint quedó en el techo (239).
+
 ## [2026-07-16] Registro solo por invitación
 - Se cerró: el signup abierto — `handle_new_user` ahora rechaza altas sin invitación (nativa o de equipo). Los flujos `/registro` y `/accept-invite` siguen andando. Verificado contra la API + test de regresión (suite RLS: 13 tests).
 - Decisión tomada: guard en el trigger en vez del toggle del dashboard, para no romper el flujo de invitación de equipos que usa signUp (ver DECISIONS.md).

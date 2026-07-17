@@ -28,6 +28,56 @@ motivo real de negocio/técnico).
 
 ---
 
+## [2026-07-17] Diagnósticos múltiples: tabla nueva + columnas legacy denormalizadas
+
+**Contexto:** El diagnóstico era un solo string en `patient_clinical_records.diagnosis`
+y `treatment_episodes.diagnosis`; con dos diagnósticos se mezclaban en un texto
+imposible de agrupar en estadísticas futuras. Jose eligió lista abierta (N por episodio).
+
+**Opciones consideradas:**
+1. Segunda columna `diagnosis_2` (simple pero tope de 2)
+2. Tabla `episode_diagnoses` reemplazando del todo a las columnas viejas
+3. Tabla `episode_diagnoses` + seguir escribiendo el principal en las columnas legacy
+
+**Decisión:** Opción 3. `episode_diagnoses` (code CIE-10 nullable, label, position;
+0 = principal) es la fuente de verdad y se escribe primero; el principal se
+sincroniza en cada save a las dos columnas viejas.
+
+**Por qué:** El sidebar del paciente, el selector de episodios, el header de
+SessionForm y la edge function `generate-discharge-report` leen las columnas
+legacy — mantenerlas escritas evitó tocar todo eso y el informe de alta IA
+siguió funcionando sin cambios. Backfill idempotente migró los 15 episodios
+existentes (regex extrae el código del formato "CODE — desc").
+
+**Consecuencias / trade-offs aceptados:** Doble escritura sin transacción
+client-side: si un save falla a mitad pueden divergir (mitigado escribiendo
+primero la tabla nueva; la lectura prioriza la tabla con fallback al legacy).
+Estadísticas futuras deben leer `episode_diagnoses`, no las columnas viejas.
+
+**Quién lo decidió:** Jose (lista abierta) + implementación propuesta por Claude.
+
+---
+
+## [2026-07-17] Estado "abandonó" como valor nuevo del enum patient_status
+
+**Contexto:** No había forma de registrar que un paciente dejó el tratamiento;
+el enum solo tenía active/discharged/paused y "pausado" mentía sobre el motivo.
+
+**Decisión:** `ALTER TYPE patient_status ADD VALUE 'abandoned'` (migración
+aislada, no puede usarse en su misma transacción) + `abandoned_at` /
+`abandon_reason` en `patients`; el episodio activo se cierra con
+`status='abandoned'`. Guards nuevos: `soft_delete_session` y la edición de
+sesiones solo revierten a `active` si el paciente estaba `discharged`, y crear
+un episodio nuevo reactiva a un paciente abandonado.
+
+**Por qué:** Un enum nuevo mantiene la semántica limpia para filtros y
+estadísticas (abandono ≠ alta) y el motivo/fecha quedan auditables. Se descartó
+registrarlo como sesión de cierre por ser más pesado de usar.
+
+**Quién lo decidió:** Jose (botón + estado con fecha y motivo opcional).
+
+---
+
 ## [2026-07-16] Registro solo por invitación: guard en el trigger, no toggle del dashboard
 
 **Contexto:** Cualquiera podía hacer `signUp` sin invitación y `handle_new_user`
