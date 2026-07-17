@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionCard, FieldLabel, inputClass, textareaClass } from "../shared";
-import { Cie10Autocomplete } from "../Cie10Autocomplete";
+import { DiagnosisListEditor, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
 
 interface FichaClinicaStepProps {
-  cli_diagnosis: string; setCliDiagnosis: (v: string) => void;
+  cli_diagnoses: DiagnosisItem[]; setCliDiagnoses: (v: DiagnosisItem[]) => void;
   cli_doctor_name: string; setCliDoctorName: (v: string) => void;
   cli_injury_date: string; setCliInjuryDate: (v: string) => void;
   cli_surgery_date: string; setCliSurgeryDate: (v: string) => void;
@@ -22,7 +22,7 @@ interface FichaClinicaStepProps {
 }
 
 export function FichaClinicaStep({
-  cli_diagnosis, setCliDiagnosis,
+  cli_diagnoses, setCliDiagnoses,
   cli_doctor_name, setCliDoctorName,
   cli_injury_date, setCliInjuryDate,
   cli_surgery_date, setCliSurgeryDate,
@@ -40,8 +40,8 @@ export function FichaClinicaStep({
     <SectionCard id="sec-ficha" icon={Stethoscope} title="Ficha clínica">
       <div className="space-y-4">
         <div>
-          <FieldLabel>Diagnóstico (CIE-10)</FieldLabel>
-          <Cie10Autocomplete value={cli_diagnosis} onChange={setCliDiagnosis} placeholder="Buscar por código o descripción…" className={inputClass} />
+          <FieldLabel>Diagnósticos (CIE-10)</FieldLabel>
+          <DiagnosisListEditor value={cli_diagnoses} onChange={setCliDiagnoses} placeholder="Buscar por código o descripción…" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div><FieldLabel>Médico derivante</FieldLabel><Input value={cli_doctor_name} onChange={(e) => setCliDoctorName(e.target.value)} className={inputClass} /></div>

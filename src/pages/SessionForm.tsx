@@ -12,6 +12,7 @@ import { STEPS_ADMISSION, STEPS_SESSION, GONIO_PARTS, emptyPain, parseDyn } from
 import { numFieldErr } from "@/components/session/shared";
 import type { GonioPartKey, GonioBySide, PainEntry, PainTipo, TestResult } from "@/components/session/types";
 import { SPECIFIC_TESTS } from "@/components/session/constants";
+import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
 import { DatosStep } from "@/components/session/steps/DatosStep";
 import { FichaClinicaStep } from "@/components/session/steps/FichaClinicaStep";
 import { PerfilOcupacionalStep } from "@/components/session/steps/PerfilOcupacionalStep";
@@ -66,7 +67,7 @@ export default function SessionForm() {
   const isAdmission = session_type === "admission";
 
   // Ficha clínica
-  const [cli_diagnosis, setCliDiagnosis] = useState("");
+  const [cli_diagnoses, setCliDiagnoses] = useState<DiagnosisItem[]>([]);
   const [cli_doctor_name, setCliDoctorName] = useState("");
   const [cli_injury_date, setCliInjuryDate] = useState("");
   const [cli_surgery_date, setCliSurgeryDate] = useState("");
@@ -190,7 +191,7 @@ export default function SessionForm() {
     session_date, session_type, session_number, week_at_session,
     general_observations, symptom_changes, clinical_changes, discharge_summary, avd_followup,
     func_dominance, func_avd, func_aivd, func_sleep, func_health, fim_items, barthel_items,
-    cli_diagnosis, cli_doctor_name, cli_injury_date, cli_surgery_date, cli_injury_mechanism,
+    cli_diagnoses, cli_doctor_name, cli_injury_date, cli_surgery_date, cli_injury_mechanism,
     cli_treatment_type, cli_immob_weeks, cli_immob_days, cli_immob_type, cli_medical_history, cli_pharma, cli_studies,
     occ_dominance, occ_employment_status, occ_marital_status, occ_education_level, occ_support_network, occ_education, occ_job, occ_leisure, occ_physical_activity, occ_sleep_rest, occ_health_management,
     showFunctional, show_measurements,
@@ -247,7 +248,8 @@ export default function SessionForm() {
         if (d.func_health !== undefined) setFuncHealth(d.func_health);
         if (d.fim_items !== undefined) setFimItems(d.fim_items);
         if (d.barthel_items !== undefined) setBarthelItems(d.barthel_items);
-        if (d.cli_diagnosis !== undefined) setCliDiagnosis(d.cli_diagnosis);
+        if (d.cli_diagnoses !== undefined) setCliDiagnoses(d.cli_diagnoses);
+        else if (d.cli_diagnosis) setCliDiagnoses([{ code: null, label: d.cli_diagnosis }]); // draft viejo
         if (d.cli_doctor_name !== undefined) setCliDoctorName(d.cli_doctor_name);
         if (d.cli_injury_date !== undefined) setCliInjuryDate(d.cli_injury_date);
         if (d.cli_surgery_date !== undefined) setCliSurgeryDate(d.cli_surgery_date);
@@ -538,7 +540,6 @@ export default function SessionForm() {
       const { data: cliRow } = epId ? await cliQuery.eq("episode_id", epId).maybeSingle() : await cliQuery.maybeSingle();
       if (cliRow) {
         setEditingClinicalId(cliRow.id);
-        setCliDiagnosis(cliRow.diagnosis || "");
         setCliDoctorName(cliRow.doctor_name || "");
         setCliInjuryDate(cliRow.injury_date || "");
         setCliSurgeryDate(cliRow.surgery_date || "");
@@ -551,6 +552,10 @@ export default function SessionForm() {
         setCliPharma(cliRow.pharmacological_treatment || "");
         setCliStudies(cliRow.studies || "");
       }
+      // Diagnósticos: tabla nueva con fallback al string legacy de la ficha
+      const dxList = epId ? await fetchEpisodeDiagnoses(epId) : [];
+      if (dxList.length > 0) setCliDiagnoses(dxList);
+      else if (cliRow?.diagnosis) setCliDiagnoses([{ code: null, label: cliRow.diagnosis }]);
       const { data: occRow } = await supabase.from("patient_occupational_profiles").select("*").eq("patient_id", patientId).maybeSingle();
       if (occRow) {
         setEditingOccId(occRow.id);
@@ -759,7 +764,7 @@ export default function SessionForm() {
     if (isAdmission) {
       const cliPayload: any = {
         patient_id: patientId!, episode_id: activeEpisodeId,
-        diagnosis: cli_diagnosis.trim() || null, doctor_name: cli_doctor_name.trim() || null,
+        diagnosis: primaryLabel(cli_diagnoses), doctor_name: cli_doctor_name.trim() || null,
         injury_date: cli_injury_date || null, surgery_date: cli_surgery_date || null,
         injury_mechanism: cli_injury_mechanism.trim() || null, treatment_type: cli_treatment_type || null,
         immobilization_weeks: cli_immob_weeks ? parseInt(cli_immob_weeks) : null,
@@ -768,7 +773,9 @@ export default function SessionForm() {
         pharmacological_treatment: cli_pharma.trim() || null, studies: cli_studies.trim() || null,
       };
       if (activeEpisodeId) {
-        await supabase.from("treatment_episodes").update({ affected_side: affected_side ?? null, referral_date: referral_date || null }).eq("id", activeEpisodeId);
+        // Primero la tabla nueva, después el principal en las columnas legacy
+        await saveEpisodeDiagnoses(activeEpisodeId, patientId!, cli_diagnoses);
+        await supabase.from("treatment_episodes").update({ affected_side: affected_side ?? null, referral_date: referral_date || null, diagnosis: primaryLabel(cli_diagnoses) }).eq("id", activeEpisodeId);
       }
       if (editingClinicalId) {
         const { error: cliErr } = await supabase.from("patient_clinical_records").update(cliPayload).eq("id", editingClinicalId);
@@ -894,7 +901,7 @@ export default function SessionForm() {
 
   const sectionDone: Record<string, boolean> = {
     "sec-datos": !!session_date,
-    "sec-ficha": !!cli_diagnosis,
+    "sec-ficha": cli_diagnoses.length > 0,
     "sec-ocupacional": !!(occ_job || occ_dominance),
     "sec-funcional": showFunctional && (Object.values(fim_items).some(v => v !== null) || Object.values(barthel_items).some(v => v !== null)),
     "sec-evolucion": !!general_observations,
@@ -1010,7 +1017,7 @@ export default function SessionForm() {
 
             {isAdmission && currentSections.includes("sec-ficha") && (
               <FichaClinicaStep
-                cli_diagnosis={cli_diagnosis} setCliDiagnosis={setCliDiagnosis}
+                cli_diagnoses={cli_diagnoses} setCliDiagnoses={setCliDiagnoses}
                 cli_doctor_name={cli_doctor_name} setCliDoctorName={setCliDoctorName}
                 cli_injury_date={cli_injury_date} setCliInjuryDate={setCliInjuryDate}
                 cli_surgery_date={cli_surgery_date} setCliSurgeryDate={setCliSurgeryDate}
