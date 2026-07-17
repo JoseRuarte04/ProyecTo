@@ -1085,6 +1085,8 @@ export type Database = {
       }
       patients: {
         Row: {
+          abandon_reason: string | null
+          abandoned_at: string | null
           address: string | null
           admission_date: string
           birth_date: string | null
@@ -1114,6 +1116,8 @@ export type Database = {
           user_profile_id: string | null
         }
         Insert: {
+          abandon_reason?: string | null
+          abandoned_at?: string | null
           address?: string | null
           admission_date?: string
           birth_date?: string | null
@@ -1143,6 +1147,8 @@ export type Database = {
           user_profile_id?: string | null
         }
         Update: {
+          abandon_reason?: string | null
+          abandoned_at?: string | null
           address?: string | null
           admission_date?: string
           birth_date?: string | null
@@ -1964,7 +1970,7 @@ export type Database = {
         | "sport"
         | "joint_protection"
         | "skin_care"
-      patient_status: "active" | "discharged" | "paused"
+      patient_status: "active" | "discharged" | "paused" | "abandoned"
       profile_role: "professional" | "admin" | "patient"
       treatment_plan_status: "active" | "completed" | "archived"
     }
@@ -2115,7 +2121,7 @@ export const Constants = {
         "joint_protection",
         "skin_care",
       ],
-      patient_status: ["active", "discharged", "paused"],
+      patient_status: ["active", "discharged", "paused", "abandoned"],
       profile_role: ["professional", "admin", "patient"],
       treatment_plan_status: ["active", "completed", "archived"],
     },
