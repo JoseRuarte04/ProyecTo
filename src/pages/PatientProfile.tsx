@@ -20,6 +20,7 @@ import { NewFuncEvalDialog } from "@/components/patients/dialogs/NewFuncEvalDial
 import { NewPatientApptDialog } from "@/components/patients/dialogs/NewPatientApptDialog";
 import { NewEpisodeDialog } from "@/components/patients/dialogs/NewEpisodeDialog";
 import { MarkAbandonDialog, ReactivateDialog } from "@/components/patients/dialogs/MarkAbandonDialog";
+import { fetchEpisodeDiagnoses, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
 import { StatusBadge } from "@/components/status";
 import { NewPlanDialog, PlanDetailDialog, EditPlanDialog, DeletePlanConfirm } from "@/components/patients/dialogs/PlanDialogs";
 
@@ -30,6 +31,7 @@ export default function PatientProfile() {
 
   const [patient, setPatient] = useState<any>(null);
   const [clinical, setClinical] = useState<any>(null);
+  const [diagnoses, setDiagnoses] = useState<DiagnosisItem[]>([]);
   const [occupational, setOccupational] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [funcEvals, setFuncEvals] = useState<any[]>([]);
@@ -103,7 +105,7 @@ export default function PatientProfile() {
       ]);
       setClinical(c.data); setSessions(s.data || []); setFuncEvals(fe.data || []);
       setAnalEvals(ae.data || []); setPlans(pl.data || []); setAppointments(ap.data || []);
-      setQuickdashTokens([]);
+      setQuickdashTokens([]); setDiagnoses([]);
       const files = cf.data || []; setClinicalFiles(files); setLoading(false); fetchSignedUrls(files);
       return;
     }
@@ -121,6 +123,7 @@ export default function PatientProfile() {
     setClinical(c.data); setSessions(s.data || []); setFuncEvals(fe.data || []);
     setAnalEvals(ae.data || []); setPlans(pl.data || []); setAppointments(ap.data || []);
     setQuickdashTokens(qt.data || []);
+    setDiagnoses(await fetchEpisodeDiagnoses(episodeId));
     const files = cf.data || []; setClinicalFiles(files); setLoading(false); fetchSignedUrls(files);
   };
 
@@ -190,10 +193,18 @@ export default function PatientProfile() {
             </div>
 
             <div className="space-y-4">
-              {clinical?.diagnosis && (
+              {(diagnoses.length > 0 || clinical?.diagnosis) && (
                 <div>
-                  <p className="field-label mb-1">Diagnóstico</p>
-                  <p className="text-[13px] text-foreground">{clinical.diagnosis}</p>
+                  <p className="field-label mb-1">{diagnoses.length > 1 ? "Diagnósticos" : "Diagnóstico"}</p>
+                  {diagnoses.length > 0 ? (
+                    <div className="space-y-1">
+                      {diagnoses.map((d, i) => (
+                        <p key={i} className="text-[13px] text-foreground">{d.label}</p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[13px] text-foreground">{clinical.diagnosis}</p>
+                  )}
                 </div>
               )}
               <div>
@@ -329,7 +340,7 @@ export default function PatientProfile() {
               </TabsList>
 
               <TabsContent value="clinica">
-                <FichaTab patient={patient} clinical={clinical} occupational={occupational} activeEpisode={activeEpisode ?? null} onEditFicha={() => setShowEditFicha(true)} />
+                <FichaTab patient={patient} clinical={clinical} occupational={occupational} diagnoses={diagnoses} activeEpisode={activeEpisode ?? null} onEditFicha={() => setShowEditFicha(true)} />
               </TabsContent>
 
               <TabsContent value="sessions">

@@ -8,6 +8,7 @@ interface Props {
   patient: any;
   clinical: any;
   occupational: any;
+  diagnoses?: { code: string | null; label: string }[];
   activeEpisode: any;
   onEditFicha: () => void;
 }
@@ -37,7 +38,9 @@ const Section = ({ title, icon, children }: { title: string; icon: React.ReactNo
   </div>
 );
 
-export function FichaTab({ patient, clinical, occupational, activeEpisode, onEditFicha }: Props) {
+export function FichaTab({ patient, clinical, occupational, diagnoses = [], activeEpisode, onEditFicha }: Props) {
+  const primaryDx = diagnoses[0]?.label || clinical?.diagnosis || null;
+  const secondaryDx = diagnoses.slice(1);
   const treatmentLabel = clinical?.treatment_type
     ? ({ conservative: "Conservador", surgery: "Quirúrgico", mixed: "Mixto" } as Record<string, string>)[clinical.treatment_type] || clinical.treatment_type
     : null;
@@ -66,7 +69,10 @@ export function FichaTab({ patient, clinical, occupational, activeEpisode, onEdi
       </div>
 
       <Section title="Episodio activo" icon={<ClipboardList className="h-4 w-4" />}>
-        {clinical?.diagnosis && <Field label="Diagnóstico principal" value={clinical.diagnosis} full />}
+        {primaryDx && <Field label="Diagnóstico principal" value={primaryDx} full />}
+        {secondaryDx.length > 0 && (
+          <Field label="Diagnósticos secundarios" value={secondaryDx.map((d) => d.label).join("\n")} full />
+        )}
         <Field label="Tipo de tratamiento" value={treatmentLabel} />
         <Field label="Médico derivante" value={clinical?.doctor_name} />
         <Field label="Fecha de admisión" value={patient.admission_date ? format(new Date(patient.admission_date), "d MMM yyyy", { locale: es }) : null} />
