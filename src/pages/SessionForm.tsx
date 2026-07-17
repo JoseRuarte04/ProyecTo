@@ -80,6 +80,9 @@ export default function SessionForm() {
 
   // Perfil ocupacional
   const [occ_dominance, setOccDominance] = useState("");
+  const [occ_employment_status, setOccEmploymentStatus] = useState("");
+  const [occ_marital_status, setOccMaritalStatus] = useState("");
+  const [occ_education_level, setOccEducationLevel] = useState("");
   const [occ_support_network, setOccSupportNetwork] = useState("");
   const [occ_education, setOccEducation] = useState("");
   const [occ_job, setOccJob] = useState("");
@@ -187,7 +190,7 @@ export default function SessionForm() {
     func_dominance, func_avd, func_aivd, func_sleep, func_health, fim_items, barthel_items,
     cli_diagnosis, cli_doctor_name, cli_injury_date, cli_surgery_date, cli_injury_mechanism,
     cli_treatment_type, cli_immob_weeks, cli_immob_days, cli_immob_type, cli_medical_history, cli_pharma, cli_studies,
-    occ_dominance, occ_support_network, occ_education, occ_job, occ_leisure, occ_physical_activity, occ_sleep_rest, occ_health_management,
+    occ_dominance, occ_employment_status, occ_marital_status, occ_education_level, occ_support_network, occ_education, occ_job, occ_leisure, occ_physical_activity, occ_sleep_rest, occ_health_management,
     showFunctional, show_measurements,
     showPain, showEdema, showMobility, showStrength, affected_side, showSensitivity, showCicatriz, showSpecificTests, showOtros,
     pains, referral_date,
@@ -255,6 +258,9 @@ export default function SessionForm() {
         if (d.cli_pharma !== undefined) setCliPharma(d.cli_pharma);
         if (d.cli_studies !== undefined) setCliStudies(d.cli_studies);
         if (d.occ_dominance !== undefined) setOccDominance(d.occ_dominance);
+        if (d.occ_employment_status !== undefined) setOccEmploymentStatus(d.occ_employment_status);
+        if (d.occ_marital_status !== undefined) setOccMaritalStatus(d.occ_marital_status);
+        if (d.occ_education_level !== undefined) setOccEducationLevel(d.occ_education_level);
         if (d.occ_support_network !== undefined) setOccSupportNetwork(d.occ_support_network);
         if (d.occ_education !== undefined) setOccEducation(d.occ_education);
         if (d.occ_job !== undefined) setOccJob(d.occ_job);
@@ -547,6 +553,9 @@ export default function SessionForm() {
       if (occRow) {
         setEditingOccId(occRow.id);
         setOccDominance(occRow.dominance || "");
+        setOccEmploymentStatus(occRow.employment_status || "");
+        setOccMaritalStatus(occRow.marital_status || "");
+        setOccEducationLevel(occRow.education_level || "");
         setOccSupportNetwork(occRow.support_network || "");
         setOccEducation(occRow.education || "");
         setOccJob(occRow.job || "");
@@ -769,6 +778,8 @@ export default function SessionForm() {
       }
       const occPayload: any = {
         patient_id: patientId!, dominance: occ_dominance || null,
+        employment_status: occ_employment_status || null, marital_status: occ_marital_status || null,
+        education_level: occ_education_level || null,
         support_network: occ_support_network.trim() || null, education: occ_education.trim() || null,
         job: occ_job.trim() || null, leisure: occ_leisure.trim() || null,
         physical_activity: occ_physical_activity.trim() || null, sleep_rest: occ_sleep_rest.trim() || null,
@@ -1014,6 +1025,9 @@ export default function SessionForm() {
             {isAdmission && currentSections.includes("sec-ocupacional") && (
               <PerfilOcupacionalStep
                 occ_dominance={occ_dominance} setOccDominance={setOccDominance}
+                occ_employment_status={occ_employment_status} setOccEmploymentStatus={setOccEmploymentStatus}
+                occ_marital_status={occ_marital_status} setOccMaritalStatus={setOccMaritalStatus}
+                occ_education_level={occ_education_level} setOccEducationLevel={setOccEducationLevel}
                 occ_support_network={occ_support_network} setOccSupportNetwork={setOccSupportNetwork}
                 occ_education={occ_education} setOccEducation={setOccEducation}
                 occ_job={occ_job} setOccJob={setOccJob}
