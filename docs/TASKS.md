@@ -20,7 +20,7 @@ señal de que estás cayendo en el patrón de siempre.
 - [ ] 
 
 ## 📅 Turnos / Agenda
-- [~] **Recordatorios de turnos** — en progreso desde 2026-07-16. Hoy el link de WhatsApp es manual y depende de que la terapeuta se acuerde; el objetivo es que el sistema empuje los recordatorios (reduce ausentismo). Alcance a definir en el plan: semi-automático (panel de "recordatorios de mañana" con wa.me con un click + tracking de enviados, gratis) vs. automático (cron + edge function + proveedor de email/WhatsApp API, requiere servicio externo).
+- [⏸] **Recordatorios de turnos** (pausada 2026-07-16 — Jose priorizó otra cosa; el plan quedó completo y listo para ejecutar en **`docs/PLAN_recordatorios_turnos.md`**). Alcance ya decidido: email automático (cron + edge function + Resend, que YA está configurado en el proyecto) + panel de WhatsApp manual con tracking en Dashboard y Turnos + modelo de datos preparado para el futuro bot "RehaBot". Dato clave del plan: el `from` actual de Resend es el dominio de prueba (solo entrega al dueño de la cuenta) — para pacientes reales hay que verificar un dominio propio.
 - [ ] Decidir si la fricción de Jitsi (moderador tiene que loguearse con Google/GitHub/Facebook, paciente no) amerita migrar a Daily.co o Whereby embebido — discutido, no decidido. Poco detalle, afinar.
 
 ## 🗄️ Base de datos / Supabase

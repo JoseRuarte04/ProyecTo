@@ -17,14 +17,16 @@ _(sin definir todavía — completar)_
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Recordatorios de turnos | Planificando | — | Definir alcance (semi-automático con WhatsApp manual asistido vs. automático con cron+email) y ejecutar |
+| | | | |
+
+**Vacío** — Recordatorios de turnos pasó a Pausado con plan listo; decidir qué arranca.
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
 ## ⏸️ Pausado (con motivo — esto es lo que normalmente se pierde)
 | Tarea | Por qué se pausó | Qué falta para retomarla |
 |---|---|---|
-| | | |
+| Recordatorios de turnos | Jose priorizó otra cosa (2026-07-16); el plan quedó completo | Nada — ejecutar `docs/PLAN_recordatorios_turnos.md` de punta a punta (6 commits planificados) |
 
 ## ✅ Cerrado esta semana
 - **[2026-07-16] CI + tests de RLS.** GitHub Actions corre lint (techo 260 warnings) + typecheck + tests + build en cada push/PR. Suite de 12 tests de RLS contra el Supabase real (aislamiento de pacientes/sesiones/fichas entre profesionales + anon sin acceso) con usuarios y datos de prueba fijos que se reutilizan. Hallazgo pendiente de decisión en `TASKS.md`: el registro está abierto a cualquiera (signUp crea perfil de profesional activo sin invitación).
