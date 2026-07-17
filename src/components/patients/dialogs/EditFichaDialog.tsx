@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
+import { EMPLOYMENT_STATUS_OPTIONS, MARITAL_STATUS_OPTIONS, EDUCATION_LEVEL_OPTIONS } from "@/components/patients/occupationalOptions";
 
 interface Props {
   open: boolean;
@@ -61,12 +62,16 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       referral_reason: clinical?.referral_reason || "",
       clinical_notes: clinical?.notes || "",
       dominance: occupational?.dominance || "",
+      employment_status: occupational?.employment_status || "",
+      marital_status: occupational?.marital_status || "",
+      education_level: occupational?.education_level || "",
       job: occupational?.job || "",
       education: occupational?.education || "",
       support_network: occupational?.support_network || "",
       leisure: occupational?.leisure || "",
       physical_activity: occupational?.physical_activity || "",
       sleep_rest: occupational?.sleep_rest || "",
+      health_management: occupational?.health_management || "",
       occupational_notes: occupational?.notes || "",
     });
   }, [open, patient, clinical, occupational]);
@@ -109,9 +114,13 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
 
     const occupationalPayload = {
       patient_id: patient.id, dominance: emptyToNull(form.dominance),
+      employment_status: emptyToNull(form.employment_status),
+      marital_status: emptyToNull(form.marital_status),
+      education_level: emptyToNull(form.education_level),
       job: emptyToNull(form.job), education: emptyToNull(form.education),
       support_network: emptyToNull(form.support_network), leisure: emptyToNull(form.leisure),
       physical_activity: emptyToNull(form.physical_activity), sleep_rest: emptyToNull(form.sleep_rest),
+      health_management: emptyToNull(form.health_management),
       notes: emptyToNull(form.occupational_notes),
     } as any;
 
@@ -239,12 +248,37 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
                   </SelectContent>
                 </Select>
               </div>
+              <div><Label>Situación laboral</Label>
+                <Select value={form.employment_status || ""} onValueChange={(v) => u("employment_status", v)}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                  <SelectContent>
+                    {EMPLOYMENT_STATUS_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Estado civil</Label>
+                <Select value={form.marital_status || ""} onValueChange={(v) => u("marital_status", v)}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                  <SelectContent>
+                    {MARITAL_STATUS_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Nivel educativo</Label>
+                <Select value={form.education_level || ""} onValueChange={(v) => u("education_level", v)}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                  <SelectContent>
+                    {EDUCATION_LEVEL_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Trabajo</Label><Input value={form.job || ""} onChange={(e) => u("job", e.target.value)} /></div>
-              <div><Label>Educación</Label><Input value={form.education || ""} onChange={(e) => u("education", e.target.value)} /></div>
+              <div><Label>Educación (detalle)</Label><Input value={form.education || ""} onChange={(e) => u("education", e.target.value)} /></div>
               <div><Label>Red de apoyo</Label><Input value={form.support_network || ""} onChange={(e) => u("support_network", e.target.value)} /></div>
               <div><Label>Ocio</Label><Textarea value={form.leisure || ""} onChange={(e) => u("leisure", e.target.value)} /></div>
               <div><Label>Actividad física</Label><Textarea value={form.physical_activity || ""} onChange={(e) => u("physical_activity", e.target.value)} /></div>
               <div><Label>Sueño y descanso</Label><Textarea value={form.sleep_rest || ""} onChange={(e) => u("sleep_rest", e.target.value)} /></div>
+              <div><Label>Gestión de la salud</Label><Textarea value={form.health_management || ""} onChange={(e) => u("health_management", e.target.value)} /></div>
               <div><Label>Notas ocupacionales</Label><Textarea value={form.occupational_notes || ""} onChange={(e) => u("occupational_notes", e.target.value)} /></div>
             </div>
           </div>
