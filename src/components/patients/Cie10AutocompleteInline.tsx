@@ -7,9 +7,12 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  // Si está definido, al elegir un resultado se llama onSelect en lugar de
+  // escribir "CODE — desc" en el input (modo "agregar a una lista").
+  onSelect?: (r: { code: string; description: string }) => void;
 }
 
-export function Cie10AutocompleteInline({ value, onChange, placeholder }: Props) {
+export function Cie10AutocompleteInline({ value, onChange, placeholder, onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<Array<{ code: string; description: string }>>([]);
   const [loading, setLoading] = useState(false);
@@ -58,7 +61,7 @@ export function Cie10AutocompleteInline({ value, onChange, placeholder }: Props)
             <button
               key={r.code}
               type="button"
-              onClick={() => { onChange(`${r.code} — ${r.description}`); setOpen(false); }}
+              onClick={() => { if (onSelect) onSelect(r); else onChange(`${r.code} — ${r.description}`); setOpen(false); }}
               className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
             >
               <span className="font-medium">{r.code}</span> — {r.description}
