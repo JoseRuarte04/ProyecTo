@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Edit, ClipboardList, Stethoscope, User } from "lucide-react";
+import { employmentStatusLabel, maritalStatusLabel, educationLevelLabel } from "@/components/patients/occupationalOptions";
 
 interface Props {
   patient: any;
@@ -111,12 +112,16 @@ export function FichaTab({ patient, clinical, occupational, activeEpisode, onEdi
       {occupational && (
         <Section title="Perfil ocupacional" icon={<User className="h-4 w-4" />}>
           <Field label="Lateralidad" value={dominanceLabel} />
+          <Field label="Situación laboral" value={employmentStatusLabel(occupational.employment_status)} />
+          <Field label="Estado civil" value={maritalStatusLabel(occupational.marital_status)} />
+          <Field label="Nivel educativo" value={educationLevelLabel(occupational.education_level)} />
           <Field label="Trabajo" value={occupational.job} />
-          <Field label="Educación" value={occupational.education} />
+          <Field label="Educación (detalle)" value={occupational.education} />
           <Field label="Red de apoyo" value={occupational.support_network} />
           <Field label="Ocio" value={occupational.leisure} />
           <Field label="Actividad física" value={occupational.physical_activity} />
           <Field label="Sueño y descanso" value={occupational.sleep_rest} />
+          <Field label="Gestión de la salud" value={occupational.health_management} />
           {occupational.dash_score != null && (
             <Field label="Puntaje DASH" value={`${occupational.dash_score} / 100`} />
           )}
