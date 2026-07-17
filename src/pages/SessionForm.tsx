@@ -12,7 +12,7 @@ import { STEPS_ADMISSION, STEPS_SESSION, GONIO_PARTS, emptyPain, parseDyn } from
 import { numFieldErr } from "@/components/session/shared";
 import type { GonioPartKey, GonioBySide, PainEntry, PainTipo, TestResult } from "@/components/session/types";
 import { SPECIFIC_TESTS } from "@/components/session/constants";
-import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
+import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
 import { DatosStep } from "@/components/session/steps/DatosStep";
 import { FichaClinicaStep } from "@/components/session/steps/FichaClinicaStep";
 import { PerfilOcupacionalStep } from "@/components/session/steps/PerfilOcupacionalStep";

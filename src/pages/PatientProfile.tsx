@@ -20,7 +20,7 @@ import { NewFuncEvalDialog } from "@/components/patients/dialogs/NewFuncEvalDial
 import { NewPatientApptDialog } from "@/components/patients/dialogs/NewPatientApptDialog";
 import { NewEpisodeDialog } from "@/components/patients/dialogs/NewEpisodeDialog";
 import { MarkAbandonDialog, ReactivateDialog } from "@/components/patients/dialogs/MarkAbandonDialog";
-import { fetchEpisodeDiagnoses, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
+import { fetchEpisodeDiagnoses, type DiagnosisItem } from "@/components/patients/diagnoses";
 import { StatusBadge } from "@/components/status";
 import { NewPlanDialog, PlanDetailDialog, EditPlanDialog, DeletePlanConfirm } from "@/components/patients/dialogs/PlanDialogs";
 

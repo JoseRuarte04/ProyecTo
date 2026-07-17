@@ -3,7 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SectionCard, FieldLabel, inputClass, textareaClass } from "../shared";
-import { DiagnosisListEditor, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
+import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
+import type { DiagnosisItem } from "@/components/patients/diagnoses";
 
 interface FichaClinicaStepProps {
   cli_diagnoses: DiagnosisItem[]; setCliDiagnoses: (v: DiagnosisItem[]) => void;

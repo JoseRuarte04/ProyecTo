@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { DiagnosisListEditor, primaryLabel, type DiagnosisItem } from "../DiagnosisListEditor";
+import { DiagnosisListEditor } from "../DiagnosisListEditor";
+import { primaryLabel, type DiagnosisItem } from "../diagnoses";
 
 interface Props {
   open: boolean;

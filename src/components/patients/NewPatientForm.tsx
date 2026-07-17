@@ -12,7 +12,8 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, Check, User, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
-import { DiagnosisListEditor, primaryLabel, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
+import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
+import { primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (

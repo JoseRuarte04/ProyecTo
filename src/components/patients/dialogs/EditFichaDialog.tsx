@@ -11,7 +11,8 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
 import { EMPLOYMENT_STATUS_OPTIONS, MARITAL_STATUS_OPTIONS, EDUCATION_LEVEL_OPTIONS } from "@/components/patients/occupationalOptions";
-import { DiagnosisListEditor, fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
+import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
+import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
 
 interface Props {
   open: boolean;
@@ -183,7 +184,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
               <div><Label>Obra social</Label>
                 <InsuranceField
                   value={form.insurance || ""}
-                  onChange={(v) => setForm((prev: any) => ({ ...prev, insurance: v, insurance_number: v === NO_INSURANCE ? "" : prev.insurance_number }))}
+                  onChange={(v) => setForm((prev) => ({ ...prev, insurance: v, insurance_number: v === NO_INSURANCE ? "" : prev.insurance_number }))}
                   placeholder="Buscar obra social…"
                 />
               </div>
