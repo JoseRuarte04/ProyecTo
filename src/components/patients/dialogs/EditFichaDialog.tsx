@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
 import { EMPLOYMENT_STATUS_OPTIONS, MARITAL_STATUS_OPTIONS, EDUCATION_LEVEL_OPTIONS } from "@/components/patients/occupationalOptions";
+import { DiagnosisListEditor, fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
 
 interface Props {
   open: boolean;
@@ -26,6 +27,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({});
+  const [diagnoses, setDiagnoses] = useState<DiagnosisItem[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,7 +46,6 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       emergency_contact_name: patient?.emergency_contact_name || "",
       emergency_contact_phone: patient?.emergency_contact_phone || "",
       emergency_contact_relation: patient?.emergency_contact_relation || "",
-      diagnosis: clinical?.diagnosis || "",
       treatment_type: clinical?.treatment_type || "",
       injury_date: clinical?.injury_date || "",
       surgery_date: clinical?.surgery_date || "",
@@ -74,7 +75,12 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       health_management: occupational?.health_management || "",
       occupational_notes: occupational?.notes || "",
     });
-  }, [open, patient, clinical, occupational]);
+    (async () => {
+      const list = activeEpisodeId ? await fetchEpisodeDiagnoses(activeEpisodeId) : [];
+      if (list.length > 0) setDiagnoses(list);
+      else setDiagnoses(clinical?.diagnosis ? [{ code: null, label: clinical.diagnosis }] : []);
+    })();
+  }, [open, patient, clinical, occupational, activeEpisodeId]);
 
   const u = (field: string, value: string) => setForm((prev: any) => ({ ...prev, [field]: value }));
   const emptyToNull = (v: any) => v === "" || v === undefined ? null : v;
@@ -98,7 +104,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
 
     const clinicalPayload = {
       patient_id: patient.id, episode_id: activeEpisodeId,
-      diagnosis: emptyToNull(form.diagnosis), treatment_type: emptyToNull(form.treatment_type),
+      diagnosis: primaryLabel(diagnoses), treatment_type: emptyToNull(form.treatment_type),
       injury_date: emptyToNull(form.injury_date), surgery_date: emptyToNull(form.surgery_date),
       symptom_start_date: emptyToNull(form.symptom_start_date),
       injury_mechanism: emptyToNull(form.injury_mechanism),
@@ -124,6 +130,11 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       notes: emptyToNull(form.occupational_notes),
     } as any;
 
+    // Primero la tabla nueva de diagnósticos, después el principal en legacy
+    if (activeEpisodeId) {
+      await saveEpisodeDiagnoses(activeEpisodeId, patient.id, diagnoses);
+      await supabase.from("treatment_episodes").update({ diagnosis: primaryLabel(diagnoses) }).eq("id", activeEpisodeId);
+    }
     const patientRes = await supabase.from("patients").update(patientPayload).eq("id", patient.id);
     const clinicalRes = clinical?.id
       ? await supabase.from("patient_clinical_records").update(clinicalPayload).eq("id", clinical.id)
@@ -206,7 +217,9 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
           <div className="space-y-3">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Datos clínicos</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2"><Label>Diagnóstico</Label><Input value={form.diagnosis || ""} onChange={(e) => u("diagnosis", e.target.value)} /></div>
+              <div className="sm:col-span-2"><Label>Diagnósticos</Label>
+                <div className="mt-1"><DiagnosisListEditor value={diagnoses} onChange={setDiagnoses} /></div>
+              </div>
               <div><Label>Tipo de tratamiento</Label>
                 <Select value={form.treatment_type || ""} onValueChange={(v) => u("treatment_type", v)}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>

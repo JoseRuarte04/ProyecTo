@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Cie10AutocompleteInline } from "../Cie10AutocompleteInline";
+import { DiagnosisListEditor, primaryLabel, type DiagnosisItem } from "../DiagnosisListEditor";
 
 interface Props {
   open: boolean;
@@ -21,7 +21,7 @@ interface Props {
 
 const emptyForm = () => ({
   admission_date: new Date().toISOString().split("T")[0],
-  diagnosis: "", treatment_type: "",
+  diagnoses: [] as DiagnosisItem[], treatment_type: "",
   affected_side: "" as "" | "MSD" | "MSI" | "both",
   doctor_name: "", injury_mechanism: "", weeks_post_injury: "",
 });
@@ -34,7 +34,7 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
   const resetForm = () => setForm(emptyForm());
 
   const handleSave = async () => {
-    if (!form.diagnosis.trim()) return;
+    if (form.diagnoses.length === 0) return;
     setSaving(true);
     try {
       const maxEpNum = Math.max(...episodes.map((e: any) => e.episode_number), 0);
@@ -47,7 +47,7 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
           episode_number: maxEpNum + 1,
           admission_date: form.admission_date,
           status: "active",
-          diagnosis: form.diagnosis.trim(),
+          diagnosis: primaryLabel(form.diagnoses),
           affected_side: (form.affected_side || null) as "MSD" | "MSI" | "both" | null,
         })
         .select("id")
@@ -55,10 +55,14 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
 
       if (epErr || !newEp) throw epErr || new Error("Failed to create episode");
 
+      await supabase.from("episode_diagnoses").insert(
+        form.diagnoses.map((d, i) => ({ episode_id: newEp.id, patient_id: patientId, code: d.code, label: d.label, position: i }))
+      );
+
       await supabase.from("patient_clinical_records").insert({
         patient_id: patientId,
         episode_id: newEp.id,
-        diagnosis: form.diagnosis.trim(),
+        diagnosis: primaryLabel(form.diagnoses),
         treatment_type: form.treatment_type || null,
         doctor_name: form.doctor_name || null,
         injury_mechanism: form.injury_mechanism || null,
@@ -99,8 +103,8 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
             <Input type="date" value={form.admission_date} onChange={e => setForm({ ...form, admission_date: e.target.value })} />
           </div>
           <div className="space-y-2">
-            <Label>Diagnóstico *</Label>
-            <Cie10AutocompleteInline value={form.diagnosis} onChange={(v) => setForm({ ...form, diagnosis: v })} placeholder="Buscar por código o descripción CIE-10…" />
+            <Label>Diagnósticos *</Label>
+            <DiagnosisListEditor value={form.diagnoses} onChange={(v) => setForm({ ...form, diagnoses: v })} placeholder="Buscar por código o descripción CIE-10…" />
           </div>
           <div className="space-y-2">
             <Label>Tipo de tratamiento</Label>
@@ -138,7 +142,7 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => { resetForm(); onClose(); }}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !form.diagnosis.trim()}>
+            <Button onClick={handleSave} disabled={saving || form.diagnoses.length === 0}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear episodio"}
             </Button>
           </div>
