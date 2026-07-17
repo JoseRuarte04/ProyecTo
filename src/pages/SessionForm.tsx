@@ -43,7 +43,9 @@ export default function SessionForm() {
 
   // Session basics
   const [session_date, setSessionDate] = useState(new Date().toISOString().split("T")[0]);
-  const [session_type, setSessionType] = useState(typeParam === "admission" ? "admission" : "follow_up");
+  const [session_type, setSessionType] = useState(
+    typeParam === "admission" ? "admission" : typeParam === "discharge" ? "discharge" : "follow_up"
+  );
   const [session_number, setSessionNumber] = useState("");
   const [week_at_session, setWeekAtSession] = useState("");
   const [general_observations, setGeneralObservations] = useState("");
@@ -230,7 +232,7 @@ export default function SessionForm() {
       try {
         const d = JSON.parse(raw);
         if (d.session_date !== undefined) setSessionDate(d.session_date);
-        if (d.session_type !== undefined) setSessionType(d.session_type);
+        if (d.session_type !== undefined && !typeParam) setSessionType(d.session_type);
         if (d.session_number !== undefined) setSessionNumber(d.session_number);
         if (d.week_at_session !== undefined) setWeekAtSession(d.week_at_session);
         if (d.general_observations !== undefined) setGeneralObservations(d.general_observations);

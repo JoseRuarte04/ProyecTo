@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, ArrowLeft, Calendar } from "lucide-react";
+import { Loader2, Plus, ArrowLeft, Calendar, CheckCircle2 } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -215,6 +215,19 @@ export default function PatientProfile() {
               <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setShowNewAppt(true)}>
                 <Calendar className="h-4 w-4 mr-2" /> Nuevo turno
               </Button>
+              {patient?.status === "active" && sessions.length > 0 && (
+                <Button
+                  variant="outline" size="sm" className="w-full"
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    if (activeEpisodeId) params.set("episode", activeEpisodeId);
+                    params.set("type", "discharge");
+                    navigate(`/patients/${id}/sessions/new?${params.toString()}`);
+                  }}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" /> Dar de alta
+                </Button>
+              )}
             </div>
 
             {episodes.length > 1 && (
