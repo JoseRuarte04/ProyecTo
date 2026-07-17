@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +12,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, Check, User, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
+import { DiagnosisListEditor, primaryLabel, type DiagnosisItem } from "@/components/patients/DiagnosisListEditor";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -68,97 +68,6 @@ function SummaryRow({ label, value }: { label: string; value: string | null | un
   );
 }
 
-// ── CIE-10 autocomplete ──
-function Cie10Autocomplete({ value, onChange, placeholder, className }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [results, setResults] = useState<Array<{ code: string; description: string }>>([]);
-  const [loading, setLoading] = useState(false);
-  const [rect, setRect] = useState({ top: 0, left: 0, width: 0, height: 0 });
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  const updateRect = () => {
-    if (wrapperRef.current) {
-      const r = wrapperRef.current.getBoundingClientRect();
-      setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
-    }
-  };
-
-  useEffect(() => {
-    const term = value.trim();
-    if (term.length < 2) { setResults([]); setOpen(false); return; }
-    let cancelled = false;
-    setLoading(true);
-    const t = setTimeout(async () => {
-      const { data } = await supabase.rpc('search_cie10', { search_input: term, max_results: 10 });
-      if (cancelled) return;
-      setResults(data || []);
-      updateRect();
-      setOpen(true);
-      setLoading(false);
-    }, 250);
-    return () => { cancelled = true; clearTimeout(t); setLoading(false); };
-  }, [value]);
-
-  useEffect(() => {
-    if (!open) return;
-    updateRect();
-    const onResize = () => updateRect();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("scroll", onResize, true);
-    return () => { window.removeEventListener("resize", onResize); window.removeEventListener("scroll", onResize, true); };
-  }, [open]);
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (wrapperRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
-  }, []);
-
-  return (
-    <div ref={wrapperRef} className="relative">
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => { if (results.length > 0) { updateRect(); setOpen(true); } }}
-        placeholder={placeholder}
-        className={className}
-        autoComplete="off"
-      />
-      {loading && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
-      {open && results.length > 0 && createPortal(
-        <div
-          ref={panelRef}
-          style={{ position: "fixed", top: rect.top + rect.height + 4, left: rect.left, width: rect.width, zIndex: 60 }}
-          className="max-h-64 overflow-auto rounded-md border bg-popover shadow-md"
-        >
-          {results.map((r) => (
-            <button
-              key={r.code}
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { onChange(`${r.code} — ${r.description}`); setOpen(false); }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-            >
-              <span className="font-medium">{r.code}</span> — {r.description}
-            </button>
-          ))}
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
 export default function NewPatientForm() {
   const { user } = useAuth();
   const { workspace } = useWorkspace();
@@ -179,7 +88,7 @@ export default function NewPatientForm() {
   // Step 2 — Información clínica
   const [insurance, setInsurance] = useState("");
   const [insuranceNumber, setInsuranceNumber] = useState("");
-  const [diagnosis, setDiagnosis] = useState("");
+  const [diagnoses, setDiagnoses] = useState<DiagnosisItem[]>([]);
   const [doctorName, setDoctorName] = useState("");
   const [referralReason, setReferralReason] = useState("");
 
@@ -287,15 +196,22 @@ export default function NewPatientForm() {
         episode_number: 1,
         admission_date: admissionDate,
         status: "active",
+        diagnosis: primaryLabel(diagnoses),
       }).select("id").single();
       if (epErr) throw epErr;
 
+      if (diagnoses.length > 0) {
+        await supabase.from("episode_diagnoses").insert(
+          diagnoses.map((d, i) => ({ episode_id: episode.id, patient_id: pid, code: d.code, label: d.label, position: i }))
+        );
+      }
+
       // Save clinical record if any clinical fields filled
-      if (diagnosis || doctorName || referralReason) {
+      if (diagnoses.length > 0 || doctorName || referralReason) {
         await supabase.from("patient_clinical_records").insert({
           patient_id: pid,
           episode_id: episode.id,
-          diagnosis: or(diagnosis),
+          diagnosis: primaryLabel(diagnoses),
           doctor_name: or(doctorName),
           referral_reason: or(referralReason),
         });
@@ -446,8 +362,8 @@ export default function NewPatientForm() {
                 <Input value={doctorName} onChange={(e) => setDoctorName(e.target.value)} className={inputClass} />
               </div>
               <div className="sm:col-span-2">
-                <FieldLabel>Diagnóstico de derivación</FieldLabel>
-                <Cie10Autocomplete value={diagnosis} onChange={setDiagnosis} placeholder="Buscar por código o nombre CIE-10…" className={inputClass} />
+                <FieldLabel>Diagnósticos de derivación</FieldLabel>
+                <DiagnosisListEditor value={diagnoses} onChange={setDiagnoses} />
               </div>
               <div className="sm:col-span-2">
                 <FieldLabel>Motivo de consulta</FieldLabel>
@@ -529,7 +445,7 @@ export default function NewPatientForm() {
                 <SummaryRow label="Ingreso" value={admissionDate} />
                 {insurance && <SummaryRow label="Obra social" value={insurance} />}
                 {insuranceNumber && <SummaryRow label="N° afiliado" value={insuranceNumber} />}
-                {diagnosis && <SummaryRow label="Diagnóstico" value={diagnosis} />}
+                {diagnoses.length > 0 && <SummaryRow label={diagnoses.length > 1 ? "Diagnósticos" : "Diagnóstico"} value={diagnoses.map((d) => d.label).join(" · ")} />}
                 {doctorName && <SummaryRow label="Médico" value={doctorName} />}
                 {phone && <SummaryRow label="Teléfono" value={phone} />}
                 {email && <SummaryRow label="Email" value={email} />}
