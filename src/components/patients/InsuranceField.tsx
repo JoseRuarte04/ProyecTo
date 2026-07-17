@@ -1,8 +1,41 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+
+// Valor sentinela guardado en patients.insurance cuando el paciente no tiene
+// cobertura. Distinto de null (= dato no cargado) para estadísticas futuras.
+export const NO_INSURANCE = "No posee";
+
+// ── Campo obra social: autocomplete + checkbox "No posee" ──
+export function InsuranceField({ value, onChange, placeholder, className }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
+}) {
+  const checkboxId = useId();
+  const noInsurance = value === NO_INSURANCE;
+  return (
+    <div className="space-y-2">
+      {noInsurance ? (
+        <Input value={NO_INSURANCE} disabled className={className} />
+      ) : (
+        <ObrasSocialesAutocomplete value={value} onChange={onChange} placeholder={placeholder} className={className} />
+      )}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={checkboxId}
+          checked={noInsurance}
+          onCheckedChange={(checked) => onChange(checked ? NO_INSURANCE : "")}
+        />
+        <Label htmlFor={checkboxId} className="text-xs font-normal text-muted-foreground cursor-pointer">
+          No posee obra social
+        </Label>
+      </div>
+    </div>
+  );
+}
 
 // ── Obras Sociales autocomplete ──
 export function ObrasSocialesAutocomplete({ value, onChange, placeholder, className }: {

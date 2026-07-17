@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Check, User, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ObrasSocialesAutocomplete } from "@/components/patients/InsuranceField";
+import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -430,11 +430,16 @@ export default function NewPatientForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <FieldLabel>Obra social</FieldLabel>
-                <ObrasSocialesAutocomplete value={insurance} onChange={setInsurance} placeholder="Buscar obra social…" className={inputClass} />
+                <InsuranceField
+                  value={insurance}
+                  onChange={(v) => { setInsurance(v); if (v === NO_INSURANCE) setInsuranceNumber(""); }}
+                  placeholder="Buscar obra social…"
+                  className={inputClass}
+                />
               </div>
               <div>
                 <FieldLabel>N° de afiliado</FieldLabel>
-                <Input value={insuranceNumber} onChange={(e) => setInsuranceNumber(e.target.value)} className={inputClass} />
+                <Input value={insuranceNumber} onChange={(e) => setInsuranceNumber(e.target.value)} disabled={insurance === NO_INSURANCE} className={inputClass} />
               </div>
               <div>
                 <FieldLabel>Médico derivante</FieldLabel>
