@@ -443,6 +443,51 @@ export type Database = {
           },
         ]
       }
+      episode_diagnoses: {
+        Row: {
+          code: string | null
+          created_at: string
+          episode_id: string
+          id: string
+          label: string
+          patient_id: string
+          position: number
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          episode_id: string
+          id?: string
+          label: string
+          patient_id: string
+          position?: number
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          episode_id?: string
+          id?: string
+          label?: string
+          patient_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "episode_diagnoses_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episode_diagnoses_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_body_regions: {
         Row: {
           created_at: string
