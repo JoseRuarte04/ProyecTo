@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-type FilterStatus = "all" | "active" | "paused" | "discharged";
+type FilterStatus = "all" | "active" | "paused" | "discharged" | "abandoned";
 type Workspace = { type: "personal" | "team"; teamId?: string; teamName?: string };
 
 export function usePatients(workspace: Workspace, userId: string | undefined, filter: FilterStatus) {

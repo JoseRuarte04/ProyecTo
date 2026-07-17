@@ -70,6 +70,12 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
         await supabase.from("treatment_episodes").update({ status: "discharged", discharge_date: form.admission_date }).eq("id", ep.id);
       }
 
+      // Un episodio nuevo sobre un paciente que había abandonado lo reactiva
+      await supabase.from("patients")
+        .update({ status: "active", abandoned_at: null, abandon_reason: null })
+        .eq("id", patientId)
+        .eq("status", "abandoned");
+
       toast.success("Nuevo episodio creado correctamente");
       onSaved(newEp.id);
       navigate(`/patients/${patientId}/sessions/new?episode=${newEp.id}&type=admission`);

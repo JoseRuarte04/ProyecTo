@@ -12,13 +12,14 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-type FilterStatus = "all" | "active" | "paused" | "discharged";
+type FilterStatus = "all" | "active" | "paused" | "discharged" | "abandoned";
 
 const statusTabs: { label: string; value: FilterStatus }[] = [
   { label: "Todos",    value: "all" },
   { label: "Activos",  value: "active" },
   { label: "Pausados", value: "paused" },
   { label: "Alta",     value: "discharged" },
+  { label: "Abandono", value: "abandoned" },
 ];
 
 export default function Patients() {

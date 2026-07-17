@@ -7,6 +7,7 @@ const STATUS_CONFIG: Record<string, { label: string; badgeClass: string; dotClas
   active:     { label: "Activo",     badgeClass: "status-active",     dotClass: "bg-emerald-500" },
   paused:     { label: "Pausado",    badgeClass: "status-paused",     dotClass: "bg-amber-400" },
   discharged: { label: "Alta",       badgeClass: "status-discharged", dotClass: "bg-slate-400" },
+  abandoned:  { label: "Abandonó",   badgeClass: "status-cancelled",  dotClass: "bg-red-400" },
   scheduled:  { label: "Pendiente",  badgeClass: "status-scheduled",  dotClass: "bg-blue-400" },
   completed:  { label: "Completado", badgeClass: "status-completed",  dotClass: "bg-slate-400" },
   cancelled:  { label: "Cancelado",  badgeClass: "status-cancelled",  dotClass: "bg-red-400" },
