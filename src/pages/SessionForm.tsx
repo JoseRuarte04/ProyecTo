@@ -872,7 +872,9 @@ export default function SessionForm() {
     if (session_type === "discharge") {
       await supabase.from("patients").update({ status: "discharged" }).eq("id", patientId!);
       if (activeEpisodeId) await supabase.from("treatment_episodes").update({ status: "discharged", discharge_date: session_date }).eq("id", activeEpisodeId);
-    } else if (isEditMode) {
+    } else if (isEditMode && patient?.status === "discharged") {
+      // Solo revertir el alta: un paciente abandonado o pausado no debe volver
+      // a activo por editar una sesión vieja.
       const { data: remainingDischarges } = await supabase.from("therapy_sessions").select("id").eq("patient_id", patientId!).eq("session_type", "discharge").eq("is_deleted", false).limit(1);
       if (!remainingDischarges || remainingDischarges.length === 0) {
         await supabase.from("patients").update({ status: "active" }).eq("id", patientId!);
