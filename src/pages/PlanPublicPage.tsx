@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, XCircle, AlertTriangle } from "lucide-react";
+import { Loader2, XCircle, AlertTriangle, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getExerciseType, extractYoutubeId } from "@/components/exercises/exerciseLibrary";
+import { format, addWeeks } from "date-fns";
+import { es } from "date-fns/locale";
 
 type PageStatus = "loading" | "valid" | "expired" | "revoked" | "not_found";
 
@@ -28,6 +30,8 @@ interface PlanItem {
 
 interface PlanData {
   plan_notes: string | null;
+  start_date: string | null;
+  duration_weeks: number | null;
   items: PlanItem[];
 }
 
@@ -109,6 +113,18 @@ export default function PlanPublicPage() {
         {/* ── PLAN ── */}
         {status === "valid" && planData && (
           <div className="space-y-4 pb-10">
+            {(planData.start_date || planData.duration_weeks) && (
+              <div className="rounded-[12px] border border-border bg-muted/30 px-4 py-3 flex items-center gap-2 text-sm text-foreground">
+                <CalendarRange className="h-4 w-4 text-muted-foreground shrink-0" />
+                {planData.start_date && <span>Desde {format(new Date(planData.start_date), "d MMM yyyy", { locale: es })}</span>}
+                {planData.duration_weeks && (
+                  <span className="text-muted-foreground">
+                    · {planData.duration_weeks} semana{planData.duration_weeks === 1 ? "" : "s"}
+                    {planData.start_date && ` (hasta ${format(addWeeks(new Date(planData.start_date), planData.duration_weeks), "d MMM yyyy", { locale: es })})`}
+                  </span>
+                )}
+              </div>
+            )}
             {planData.plan_notes && (
               <div className="rounded-[12px] border border-primary/20 bg-primary/5 px-4 py-3">
                 <p className="field-label text-primary mb-1">Indicaciones generales</p>
