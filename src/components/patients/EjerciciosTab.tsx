@@ -105,7 +105,7 @@ export function EjerciciosTab({ patientId }: Props) {
       .eq("patient_id", patientId)
       .maybeSingle();
 
-    if (error) { toast.error("Error al cargar el plan"); setLoading(false); return; }
+    if (error) { toast.error("Error al cargar el programa"); setLoading(false); return; }
     setPlan(data);
 
     if (data) {
@@ -170,8 +170,8 @@ export function EjerciciosTab({ patientId }: Props) {
       .from("exercise_plans")
       .insert({ patient_id: patientId, professional_id: user.id, notes: createNotes.trim() || null });
     setSaving(false);
-    if (error) { toast.error("Error al crear el plan"); return; }
-    toast.success("Plan creado");
+    if (error) { toast.error("Error al crear el programa"); return; }
+    toast.success("Programa creado");
     setShowCreate(false);
     setCreateNotes("");
     await fetchPlan();
@@ -322,15 +322,15 @@ export function EjerciciosTab({ patientId }: Props) {
             <Dumbbell className="h-7 w-7 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">Sin plan de ejercicios</p>
-            <p className="text-xs text-muted-foreground mt-1">Creá un plan para asignar ejercicios domiciliarios.</p>
+            <p className="text-sm font-medium text-foreground">Sin programa de ejercicios</p>
+            <p className="text-xs text-muted-foreground mt-1">Creá un programa para asignar ejercicios domiciliarios.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => setShowApplyRoutine(true)}>
-              <Layers className="h-4 w-4 mr-1.5" /> Aplicar rutina
+              <Layers className="h-4 w-4 mr-1.5" /> Aplicar plan o programa
             </Button>
             <Button size="sm" onClick={() => setShowCreate(true)}>
-              <Plus className="h-4 w-4 mr-1.5" /> Crear plan
+              <Plus className="h-4 w-4 mr-1.5" /> Crear programa
             </Button>
           </div>
         </div>
@@ -340,7 +340,7 @@ export function EjerciciosTab({ patientId }: Props) {
           <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-muted">
             <div className="flex items-center gap-2.5">
               <ClipboardList className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Plan de ejercicios domiciliarios</h3>
+              <h3 className="text-sm font-semibold text-foreground">Programa de ejercicios domiciliarios</h3>
             </div>
             <div className="flex items-center gap-2">
               {orderDirty && (
@@ -350,7 +350,7 @@ export function EjerciciosTab({ patientId }: Props) {
                 </Button>
               )}
               <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowApplyRoutine(true)}>
-                <Layers className="h-3.5 w-3.5" /> Aplicar rutina
+                <Layers className="h-3.5 w-3.5" /> Aplicar plan o programa
               </Button>
               <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={openAdd}>
                 <Plus className="h-3.5 w-3.5" /> Agregar ejercicio
@@ -373,7 +373,7 @@ export function EjerciciosTab({ patientId }: Props) {
 
           {plan.notes && (
             <div className="px-5 py-3 border-b border-border">
-              <p className="field-label mb-1">Notas del plan</p>
+              <p className="field-label mb-1">Notas del programa</p>
               <p className="text-sm text-foreground whitespace-pre-wrap">{plan.notes}</p>
             </div>
           )}
@@ -381,7 +381,7 @@ export function EjerciciosTab({ patientId }: Props) {
           <div className="px-5 py-4">
             {items.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-sm text-muted-foreground">No hay ejercicios en el plan.</p>
+                <p className="text-sm text-muted-foreground">No hay ejercicios en el programa.</p>
                 <p className="text-xs text-muted-foreground mt-1">Usá "Agregar ejercicio" para comenzar.</p>
               </div>
             ) : (
@@ -465,17 +465,17 @@ export function EjerciciosTab({ patientId }: Props) {
         />
       )}
 
-      {/* ── Dialog crear plan ── */}
+      {/* ── Dialog crear programa ── */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Crear plan de ejercicios</DialogTitle>
+            <DialogTitle>Crear programa de ejercicios</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
               <p className="field-label mb-1.5">Notas (opcional)</p>
               <Textarea
-                placeholder="Indicaciones generales del plan..."
+                placeholder="Indicaciones generales del programa..."
                 value={createNotes}
                 onChange={(e) => setCreateNotes(e.target.value)}
                 rows={3}
@@ -487,7 +487,7 @@ export function EjerciciosTab({ patientId }: Props) {
               </Button>
               <Button onClick={handleCreatePlan} disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                Crear plan
+                Crear programa
               </Button>
             </div>
           </div>
@@ -664,7 +664,7 @@ export function EjerciciosTab({ patientId }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar ejercicio</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Eliminar "{deleteTarget?.exercise.name}" del plan? Esta acción no se puede deshacer.
+              ¿Eliminar "{deleteTarget?.exercise.name}" del programa? Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
