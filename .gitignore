@@ -30,3 +30,5 @@ _bmad-output/
 .env
 .env.*
 !.env.example
+.claude/settings.local.json
+supabase/.temp/
