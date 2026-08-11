@@ -4,13 +4,13 @@
 > Se actualiza al FINAL de cada sesión de trabajo (con Claude Code o sin él).
 > Si algo no está acá, no pasó — o no está confirmado.
 
-**Última actualización:** 2026-07-17
-**Sprint / objetivo actual:** _(sin definir todavía — completar)_
+**Última actualización:** 2026-08-10
+**Sprint / objetivo actual:** Rediseño de la sección Ejercicios (Rutina + Programa)
 
 ---
 
 ## 🎯 Objetivo de esta semana
-_(sin definir todavía — completar)_
+Simplificar la sección Ejercicios a 3 niveles (Ejercicio → Rutina → Programa) según lo hablado en reunión de equipo.
 
 ---
 
@@ -19,7 +19,7 @@ _(sin definir todavía — completar)_
 |---|---|---|---|
 | | | | |
 
-**Vacío** — Recordatorios de turnos pasó a Pausado con plan listo; decidir qué arranca.
+**Vacío** — Rediseño de Ejercicios (Rutina + Programa) cerrado esta sesión; falta solo el commit (ver abajo). Decidir qué arranca: Recordatorios de turnos (plan listo) u otra cosa.
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
@@ -29,6 +29,7 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 | Recordatorios de turnos | Jose priorizó otra cosa (2026-07-16); el plan quedó completo | Nada — ejecutar `docs/PLAN_recordatorios_turnos.md` de punta a punta (6 commits planificados) |
 
 ## ✅ Cerrado esta semana
+- **[2026-08-10] Ejercicios: Rutinas reutilizables + Programa con fecha/duración** (pedido en reunión de equipo, ver DECISIONS): nivel intermedio "Rutina" (tab nueva en Biblioteca de Ejercicios, CRUD completo con reorder/dosis sugerida) entre el Ejercicio y el Programa del paciente. Wizard de 3 pasos ("Aplicar rutina") en `EjerciciosTab` para armar el plan del paciente a partir de una rutina — cantidades editables sin tocar la plantilla, más fecha de inicio + duración en semanas. Link público del paciente y guard de borrado de ejercicios actualizados. 4 migraciones (`exercise_routines`/`exercise_routine_items`, columnas de programa + `UNIQUE(patient_id)` en `exercise_plans`, RPC `add_routine_to_exercise_plan`, `get_exercise_plan_public` extendido) aplicadas por Jose y verificadas de punta a punta en el navegador (login real, crear rutina, aplicar al paciente, link público, guard de borrado — 0 errores de consola). Lint en el techo (239), typecheck y build OK. **Sin commitear todavía** (no se pidió explícitamente en la sesión).
 - **[2026-07-17] Cuatro mejoras del flujo de pacientes** (20 commits, todo verificado con lint/typecheck/tests/build):
   1. **Obra social**: checkbox "No posee obra social" en alta y edición; el campo de edición ahora usa el mismo autocomplete que el alta (`InsuranceField.tsx`). Guarda el string fijo `"No posee"` (null = sin dato).
   2. **Diagnósticos múltiples**: tabla `episode_diagnoses` (N por episodio, position 0 = principal, RLS igual que fichas) con backfill de los 15 episodios existentes. Editor compartido (`DiagnosisListEditor.tsx` + helpers en `diagnoses.ts`) en alta, sesión de admisión, nuevo episodio y edición de ficha. El principal se sigue escribiendo en las columnas legacy — ver DECISIONS.
@@ -48,19 +49,21 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 - El servidor de desarrollo local corre en el puerto **8080** (no el 5173 default de Vite) — está fijado en `vite.config.ts`.
 - Los diagnósticos viven en `episode_diagnoses` (fuente de verdad) pero el principal se sincroniza a `patient_clinical_records.diagnosis` y `treatment_episodes.diagnosis` en cada save. Estadísticas futuras deben leer la tabla nueva. Obra social: `"No posee"` es un valor sentinela distinto de null.
 - El lint está EXACTAMENTE en el techo del CI (239 warnings) — cualquier warning nuevo rompe el build. Ojo con `react-refresh/only-export-components`: no exportar helpers desde archivos de componentes.
+- El checkout local no tenía `.env` (solo `.env.example`) hasta el 2026-08-10 — se creó uno local (gitignorado) con la `anon key` para poder probar en el navegador. Si se clona el repo de nuevo hace falta recrearlo a mano.
+- No hay borrado duro de pacientes desde la UI (solo alta/abandono) — al limpiar datos de prueba hay que borrar a mano vía SQL. Ojo: `exercise_plan_tokens.patient_id` no tiene `ON DELETE CASCADE` (a diferencia de `plan_id`), hay que borrar el `exercise_plans` del paciente antes que el paciente mismo. Candidato de limpieza anotado en `TASKS.md`.
 
 ---
 
 ## Última sesión de trabajo
-**Fecha:** 2026-07-17
-**Qué se hizo:** Las cuatro mejoras del flujo de pacientes pedidas por Jose (obra social "No posee", diagnósticos múltiples por episodio, botones Dar de alta / Marcar abandono con estado nuevo, perfil ocupacional estandarizado) — 20 commits, 5 migraciones aplicadas en remoto, 2 entradas en DECISIONS. Verificado: typecheck, lint en el techo (239), 16 tests RLS en verde contra el Supabase real, build OK.
-**Qué quedó a medio camino:** Nada del frente. Falta la verificación manual en el navegador de los flujos nuevos (checklist en el plan: `~/.claude/plans/analiza-todo-el-proyecto-hidden-hennessy.md`).
-**Próxima sesión debería empezar por:** Probar los flujos nuevos en la app (puerto 8080) y pushear para que corra el CI. Después: retomar Recordatorios de turnos (plan completo en `docs/PLAN_recordatorios_turnos.md`) o el asistente de IA si llegó el PDF.
+**Fecha:** 2026-08-10
+**Qué se hizo:** Rediseño de la sección Ejercicios pedido en reunión de equipo — 3 niveles Ejercicio → Rutina → Programa. Plan diseñado y aprobado (plan mode), 4 migraciones escritas y aplicadas por Jose, frontend completo (tab Rutinas en Biblioteca, wizard de 3 pasos "Aplicar rutina" en la ficha del paciente, link público y guard de borrado actualizados). Verificado de punta a punta en el navegador con Playwright headless (login real, crear rutina, aplicar a un paciente de prueba, link público, ambos casos del guard de borrado) — 0 errores de consola. Typecheck, lint (239, en el techo) y build OK. Se armó `.env` local (faltaba) para poder probar. Datos de prueba generados en la limpieza posterior (SQL pasado a Jose, ya corrido).
+**Qué quedó a medio camino:** Falta commitear (no se pidió explícitamente en la sesión) y pushear para que corra el CI.
+**Próxima sesión debería empezar por:** Confirmar con Jose si commitear/pushear el rediseño de Ejercicios. Después: retomar Recordatorios de turnos (plan completo en `docs/PLAN_recordatorios_turnos.md`) o el asistente de IA si llegó el PDF.
 
 ---
 
 ## Sesión anterior
-**Fecha:** 2026-07-16
-**Qué se hizo:** CI con GitHub Actions (lint+typecheck+tests+build) y suite de 12 tests de RLS que corren en CI contra el Supabase real. Backlog actualizado con los pendientes del informe de mejoras (Sentry, e2e, deuda de lint, performance de DB) y el hallazgo del registro abierto.
-**Qué quedó a medio camino:** Nada. El primer run del CI en GitHub queda por verificarse con el próximo push.
-**Próxima sesión debería empezar por:** Decidir sobre el registro abierto (¿cerrar signup y dejar solo invitaciones?) o retomar el asistente de IA si ya llegó el PDF.
+**Fecha:** 2026-07-17
+**Qué se hizo:** Las cuatro mejoras del flujo de pacientes pedidas por Jose (obra social "No posee", diagnósticos múltiples por episodio, botones Dar de alta / Marcar abandono con estado nuevo, perfil ocupacional estandarizado) — 20 commits, 5 migraciones aplicadas en remoto, 2 entradas en DECISIONS. Verificado: typecheck, lint en el techo (239), 16 tests RLS en verde contra el Supabase real, build OK.
+**Qué quedó a medio camino:** Nada del frente.
+**Próxima sesión debería empezar por:** Retomar Recordatorios de turnos (plan completo en `docs/PLAN_recordatorios_turnos.md`) o el asistente de IA si llegó el PDF.

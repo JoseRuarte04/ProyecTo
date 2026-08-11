@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-08-10] Ejercicios: Rutinas reutilizables + Programa con fecha/duración
+- Se cerró: nivel intermedio "Rutina" (tab nueva en Biblioteca de Ejercicios, CRUD completo) entre el Ejercicio y el Programa del paciente. Wizard de 3 pasos ("Aplicar rutina") en la ficha del paciente para armar el plan a partir de una rutina, con cantidades editables sin tocar la plantilla y programación (fecha de inicio + duración en semanas). Link público del paciente actualizado para mostrar la programación. Guard de borrado de ejercicios extendido para rutinas. 4 migraciones (`exercise_routines`/`exercise_routine_items`, columnas de programa + `UNIQUE(patient_id)` en `exercise_plans`, RPC `add_routine_to_exercise_plan`, `get_exercise_plan_public` con fecha/duración) aplicadas y verificadas en el navegador de punta a punta.
+- Decisión tomada: Programa como instancia única por paciente, no biblioteca reutilizable de programas (ver DECISIONS.md).
+- Para la próxima: candidato chico anotado — `exercise_plan_tokens.patient_id` sin `ON DELETE CASCADE` (inconsistente con `plan_id`, no urgente porque no hay borrado duro de pacientes desde la UI).
+
 ## [2026-07-15] Ejemplo de formato
 - Se cerró: ...
 - Se pausó: ... (motivo: ...)

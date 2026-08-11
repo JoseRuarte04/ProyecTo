@@ -17,6 +17,11 @@ import ExerciseRow from "@/components/exercises/ExerciseRow";
 import ExerciseDetailDialog from "@/components/exercises/ExerciseDetailDialog";
 import ExerciseFormDialog from "@/components/exercises/ExerciseFormDialog";
 import { type Exercise, EXERCISE_TYPES, type ExerciseTypeValue } from "@/components/exercises/exerciseLibrary";
+import RoutineList from "@/components/exercises/routines/RoutineList";
+import RoutineItemsPanel from "@/components/exercises/routines/RoutineItemsPanel";
+import type { Routine } from "@/components/exercises/routines/routineLibrary";
+
+type ActiveTab = ExerciseTypeValue | "rutinas";
 
 export default function Exercises() {
   const { user } = useAuth();
@@ -26,8 +31,12 @@ export default function Exercises() {
   const [apartados, setApartados] = useState<Apartado[]>([]);
   const [autoSelectedDone, setAutoSelectedDone] = useState(false);
   const [selectedApartadoId, setSelectedApartadoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ExerciseTypeValue>("activo");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("activo");
   const [search, setSearch] = useState("");
+
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [routineItemCounts, setRoutineItemCounts] = useState<Record<string, number>>({});
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
 
   const [showNew, setShowNew] = useState(false);
   const [detailEx, setDetailEx] = useState<Exercise | null>(null);
@@ -71,9 +80,27 @@ export default function Exercises() {
     }
   };
 
+  const fetchRoutines = async () => {
+    if (!user) return;
+    const [{ data: routineData, error: routineErr }, { data: itemData }] = await Promise.all([
+      supabase.from("exercise_routines").select("*").eq("professional_id", user.id).order("name"),
+      supabase.from("exercise_routine_items").select("routine_id"),
+    ]);
+    if (routineErr) {
+      toast.error("Error al cargar las rutinas", { description: routineErr.message });
+    }
+    const list = routineData || [];
+    setRoutines(list);
+    const counts: Record<string, number> = {};
+    (itemData || []).forEach((row) => { counts[row.routine_id] = (counts[row.routine_id] ?? 0) + 1; });
+    setRoutineItemCounts(counts);
+    setSelectedRoutineId((prev) => (prev && list.some((r) => r.id === prev)) ? prev : (list[0]?.id ?? null));
+  };
+
   useEffect(() => {
     fetchExercises();
     fetchApartados();
+    fetchRoutines();
   }, [user]);
 
   // ── Filtrado ──
@@ -101,7 +128,7 @@ export default function Exercises() {
 
   const handleDelete = async () => {
     if (!deleteEx) return;
-    const [{ count: treatmentCount }, { count: planItemCount }] = await Promise.all([
+    const [{ count: treatmentCount }, { count: planItemCount }, { count: routineItemCount }] = await Promise.all([
       supabase
         .from("treatment_plan_exercises")
         .select("id", { count: "exact", head: true })
@@ -110,9 +137,18 @@ export default function Exercises() {
         .from("exercise_plan_items")
         .select("id", { count: "exact", head: true })
         .eq("exercise_id", deleteEx.id),
+      supabase
+        .from("exercise_routine_items")
+        .select("id", { count: "exact", head: true })
+        .eq("exercise_id", deleteEx.id),
     ]);
     if ((treatmentCount ?? 0) + (planItemCount ?? 0) > 0) {
       toast.error("Este ejercicio está en uso en el plan de uno o más pacientes");
+      setDeleteEx(null);
+      return;
+    }
+    if ((routineItemCount ?? 0) > 0) {
+      toast.error("Este ejercicio está en uso en una o más rutinas");
       setDeleteEx(null);
       return;
     }
@@ -168,50 +204,84 @@ export default function Exercises() {
         }
       />
 
-      {/* Tablet: apartado select */}
+      {/* Tablet: apartado / rutina select */}
       <div className="lg:hidden">
-        <Select
-          value={selectedApartadoId ?? "__sin_apartado__"}
-          onValueChange={(v) => setSelectedApartadoId(v === "__sin_apartado__" ? null : v)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Seleccioná un apartado" />
-          </SelectTrigger>
-          <SelectContent>
-            {apartados.map((ap) => (
-              <SelectItem key={ap.id} value={ap.id}>{ap.name}</SelectItem>
-            ))}
-            <SelectItem value="__sin_apartado__">Sin apartado</SelectItem>
-          </SelectContent>
-        </Select>
+        {activeTab === "rutinas" ? (
+          <Select
+            value={selectedRoutineId ?? ""}
+            onValueChange={setSelectedRoutineId}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleccioná una rutina" />
+            </SelectTrigger>
+            <SelectContent>
+              {routines.map((r) => (
+                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Select
+            value={selectedApartadoId ?? "__sin_apartado__"}
+            onValueChange={(v) => setSelectedApartadoId(v === "__sin_apartado__" ? null : v)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleccioná un apartado" />
+            </SelectTrigger>
+            <SelectContent>
+              {apartados.map((ap) => (
+                <SelectItem key={ap.id} value={ap.id}>{ap.name}</SelectItem>
+              ))}
+              <SelectItem value="__sin_apartado__">Sin apartado</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Two-panel layout */}
       <div className="dashboard-card overflow-hidden flex flex-1 min-h-0">
         {/* Left panel — desktop */}
         <div className="hidden lg:flex flex-col w-52 shrink-0 border-r border-border bg-muted/30 p-4 gap-0">
-          <p className="field-label text-muted-foreground mb-3">Apartados</p>
-          <ApartadosPanel
-            apartados={apartados}
-            onRefetch={fetchApartados}
-            selectedApartadoId={selectedApartadoId}
-            onSelectApartado={setSelectedApartadoId}
-          />
+          {activeTab === "rutinas" ? (
+            <>
+              <p className="field-label text-muted-foreground mb-3">Rutinas</p>
+              <RoutineList
+                routines={routines}
+                itemCounts={routineItemCounts}
+                selectedRoutineId={selectedRoutineId}
+                onSelectRoutine={setSelectedRoutineId}
+                professionalId={user!.id}
+                onRefetch={fetchRoutines}
+              />
+            </>
+          ) : (
+            <>
+              <p className="field-label text-muted-foreground mb-3">Apartados</p>
+              <ApartadosPanel
+                apartados={apartados}
+                onRefetch={fetchApartados}
+                selectedApartadoId={selectedApartadoId}
+                onSelectApartado={setSelectedApartadoId}
+              />
+            </>
+          )}
         </div>
 
         {/* Main panel */}
         <div className="flex-1 min-w-0 flex flex-col gap-0">
           {/* Search + Tabs header */}
           <div className="px-5 pt-4 pb-0 flex flex-col gap-3 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar ejercicios..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 max-w-sm h-9 text-sm"
-              />
-            </div>
+            {activeTab !== "rutinas" && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar ejercicios..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10 max-w-sm h-9 text-sm"
+                />
+              </div>
+            )}
 
             <div className="flex">
               {EXERCISE_TYPES.map((tab) => {
@@ -239,10 +309,52 @@ export default function Exercises() {
                   </button>
                 );
               })}
+              <button
+                onClick={() => setActiveTab("rutinas")}
+                className={cn(
+                  "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                  activeTab === "rutinas"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Rutinas
+                {routines.length > 0 && (
+                  <span className={cn(
+                    "ml-1.5 text-xs tabular-nums",
+                    activeTab === "rutinas" ? "text-muted-foreground" : "text-muted-foreground/60"
+                  )}>
+                    {routines.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Lista de ejercicios */}
+          {/* Contenido: rutina seleccionada, o lista de ejercicios */}
+          {activeTab === "rutinas" ? (
+            <div className="overflow-y-auto flex-1 p-5">
+              {(() => {
+                const selectedRoutine = routines.find((r) => r.id === selectedRoutineId);
+                if (!selectedRoutine) {
+                  return (
+                    <div className="bg-card rounded-[10px] border border-dashed border-border p-10 text-center text-muted-foreground text-sm">
+                      {routines.length === 0
+                        ? <>No creaste ninguna rutina todavía. Usá <span className="font-medium text-primary">Nueva rutina</span> para armar la primera.</>
+                        : "Seleccioná una rutina para ver sus ejercicios."}
+                    </div>
+                  );
+                }
+                return (
+                  <RoutineItemsPanel
+                    routine={selectedRoutine}
+                    apartados={apartados}
+                    onItemsChanged={fetchRoutines}
+                  />
+                );
+              })()}
+            </div>
+          ) : (
           <div className="overflow-y-auto flex-1">
             {loading ? (
               <RowsSkeleton rows={6} />
@@ -277,6 +389,7 @@ export default function Exercises() {
               </>
             )}
           </div>
+          )}
         </div>
       </div>
 

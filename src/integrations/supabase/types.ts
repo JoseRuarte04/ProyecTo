@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       admin_users: {
@@ -792,37 +817,131 @@ export type Database = {
       exercise_plans: {
         Row: {
           created_at: string
+          duration_weeks: number | null
           id: string
           notes: string | null
           patient_id: string
           professional_id: string
+          routine_id: string | null
+          start_date: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          duration_weeks?: number | null
           id?: string
           notes?: string | null
           patient_id: string
           professional_id: string
+          routine_id?: string | null
+          start_date?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          duration_weeks?: number | null
           id?: string
           notes?: string | null
           patient_id?: string
           professional_id?: string
+          routine_id?: string | null
+          start_date?: string | null
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "exercise_plans_patient_id_fkey"
             columns: ["patient_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "exercise_plans_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_routines"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      exercise_routine_items: {
+        Row: {
+          created_at: string
+          exercise_id: string
+          frequency: string | null
+          id: string
+          notes: string | null
+          order_index: number
+          routine_id: string
+          suggested_reps: number | null
+          suggested_sets: number | null
+        }
+        Insert: {
+          created_at?: string
+          exercise_id: string
+          frequency?: string | null
+          id?: string
+          notes?: string | null
+          order_index?: number
+          routine_id: string
+          suggested_reps?: number | null
+          suggested_sets?: number | null
+        }
+        Update: {
+          created_at?: string
+          exercise_id?: string
+          frequency?: string | null
+          id?: string
+          notes?: string | null
+          order_index?: number
+          routine_id?: string
+          suggested_reps?: number | null
+          suggested_sets?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_routine_items_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_routine_items_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercise_routines: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          professional_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          professional_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          professional_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       functional_evaluations: {
         Row: {
@@ -1785,6 +1904,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_routine_to_exercise_plan: {
+        Args: {
+          p_duration_weeks: number
+          p_items: Json
+          p_notes: string
+          p_patient_id: string
+          p_routine_id: string
+          p_start_date: string
+        }
+        Returns: string
+      }
       admin_create_team: {
         Args: {
           p_admin_user_id: string
@@ -2143,6 +2273,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       appointment_modality: ["in_person", "virtual"],

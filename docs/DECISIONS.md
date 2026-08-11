@@ -28,6 +28,40 @@ motivo real de negocio/técnico).
 
 ---
 
+## [2026-08-10] Ejercicios: 3 niveles (Ejercicio → Rutina → Programa), Programa como instancia única por paciente
+
+**Contexto:** Terminología confusa en el equipo (ejercicio/prescripción/bloque/rutina/programa)
+al armar el plan de ejercicios domiciliarios de un paciente. Se acordó en reunión simplificar
+a 3 niveles claros y armar un flujo de 3 pasos para aplicar una rutina a un paciente.
+
+**Opciones consideradas:**
+1. Programa como instancia única por paciente: Rutina = plantilla reutilizable (sin tiempo);
+   Programa = lo que nace al aplicar una Rutina a un paciente puntual, con su propia fecha/duración.
+2. Programa como plantilla reutilizable aparte (biblioteca de programas con rutina + duración
+   sugerida por defecto, instanciable en varios pacientes).
+
+**Decisión:** Opción 1. `exercise_routines`/`exercise_routine_items` son la única plantilla
+reutilizable (sin paciente ni fechas). `exercise_plans` (ya existente) suma `start_date`,
+`duration_weeks` y `routine_id` (trazabilidad) y pasa a tener `UNIQUE(patient_id)` — el paciente
+siempre tiene un único plan/programa, reforzado a nivel DB (antes era solo convención de UI vía
+`.maybeSingle()`, sin constraint real). Aplicar una rutina copia sus ítems al plan del paciente
+vía el RPC `add_routine_to_exercise_plan` (crea el plan si no existe, o le suma ítems si ya
+existe) — las cantidades quedan editables por paciente sin tocar la plantilla.
+
+**Por qué:** Es el alcance que el equipo definió en la reunión; no hay necesidad hoy de un
+programa reutilizable separado de la rutina, y mantener "1 plan por paciente" es más simple de
+razonar en la UI (`EjerciciosTab`) que un historial de programas por paciente.
+
+**Consecuencias / trade-offs aceptados:** No hay historial de programas — aplicar una rutina
+nueva se suma/actualiza sobre el plan existente del paciente, no crea uno paralelo. Si en el
+futuro se necesita reutilizar un "programa completo" (rutina + duración default) entre pacientes,
+o versionar programas en el tiempo, es un cambio de modelo más grande (evaluado y descartado por
+ahora, ver opción 2).
+
+**Quién lo decidió:** con Jose (reunión de equipo, resumen pasado el 2026-08-10).
+
+---
+
 ## [2026-07-17] Diagnósticos múltiples: tabla nueva + columnas legacy denormalizadas
 
 **Contexto:** El diagnóstico era un solo string en `patient_clinical_records.diagnosis`
