@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-08-11] Ejercicios: se corrige el rediseño — Ejercicio → Plan → Programa (3 pestañas)
+- Feedback del usuario: el rediseño del 08-10 no era lo pedido. Biblioteca de Ejercicios reordenada en 3 pestañas de primer nivel: Ejercicios (con filtro por Activo/Activo asistido/Fortalecimiento en vez de sub-pestañas), Planes (renombre de "Rutina", solo texto/UI) y Programas (nuevo nivel reutilizable que agrupa varios Planes, sin Bloques ni Prescripciones). El wizard de aplicar a un paciente ahora deja elegir entre un Plan o un Programa completo. El "programa del paciente" (antes "plan del paciente") se relabeleó para no colisionar con el nuevo "Plan" reutilizable. 2 migraciones nuevas (`exercise_programs`/`exercise_program_routines`, `exercise_plans.program_id` + RPC extendido) escritas y listas — **pendientes de que Jose las corra**. Typecheck/lint/build OK; verificado en el navegador contra Supabase real que la Biblioteca funciona y degrada bien (sin romper la página) hasta que se apliquen las migraciones.
+- Decisión tomada: se revierte parcialmente la decisión del 08-10 — "Programa" pasa a ser también reutilizable, no solo instancia única por paciente (ver DECISIONS.md).
+- Sin commitear todavía (no se pidió explícitamente en la sesión).
+
 ## [2026-08-10] Ejercicios: Rutinas reutilizables + Programa con fecha/duración
 - Se cerró: nivel intermedio "Rutina" (tab nueva en Biblioteca de Ejercicios, CRUD completo) entre el Ejercicio y el Programa del paciente. Wizard de 3 pasos ("Aplicar rutina") en la ficha del paciente para armar el plan a partir de una rutina, con cantidades editables sin tocar la plantilla y programación (fecha de inicio + duración en semanas). Link público del paciente actualizado para mostrar la programación. Guard de borrado de ejercicios extendido para rutinas. 4 migraciones (`exercise_routines`/`exercise_routine_items`, columnas de programa + `UNIQUE(patient_id)` en `exercise_plans`, RPC `add_routine_to_exercise_plan`, `get_exercise_plan_public` con fecha/duración) aplicadas y verificadas en el navegador de punta a punta.
 - Decisión tomada: Programa como instancia única por paciente, no biblioteca reutilizable de programas (ver DECISIONS.md).

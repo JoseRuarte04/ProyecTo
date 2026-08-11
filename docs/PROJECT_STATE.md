@@ -4,8 +4,8 @@
 > Se actualiza al FINAL de cada sesión de trabajo (con Claude Code o sin él).
 > Si algo no está acá, no pasó — o no está confirmado.
 
-**Última actualización:** 2026-08-10
-**Sprint / objetivo actual:** Rediseño de la sección Ejercicios (Rutina + Programa)
+**Última actualización:** 2026-08-11
+**Sprint / objetivo actual:** Rediseño de la sección Ejercicios (Ejercicio → Plan → Programa)
 
 ---
 
@@ -17,9 +17,9 @@ Simplificar la sección Ejercicios a 3 niveles (Ejercicio → Rutina → Program
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| | | | |
+| Ejercicios: reordenar a Ejercicio → Plan → Programa | Código listo, falta migrar | Jose tiene que correr 2 migraciones en Supabase | Correr `supabase/migrations/20260811100000_exercise_programs.sql` y `20260811110000_exercise_plans_program_id_rpc.sql`, regenerar `types.ts`, y probar en el navegador el wizard "Aplicar plan o programa" eligiendo un Programa (hoy solo se probó la rama Plan, que no depende de las tablas nuevas) |
 
-**Vacío** — Rediseño de Ejercicios (Rutina + Programa) cerrado esta sesión; falta solo el commit (ver abajo). Decidir qué arranca: Recordatorios de turnos (plan listo) u otra cosa.
+Reabierta: el cierre del 2026-08-10 ("Rutina reutilizable") no era lo que se había pedido en la reunión de equipo — feedback del usuario con foto de referencia. Implementación terminada esta sesión (2026-08-11), bloqueada solo en las migraciones.
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
@@ -45,6 +45,8 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 
 ## 🧠 Contexto que Claude Code necesita saber HOY
 (Decisiones recientes, cosas raras del schema, cosas que no están en el código ni importan)
+- Ejercicios ahora es Ejercicio → Plan → Programa (3 pestañas en `/exercises`). "Plan" es el nombre nuevo de lo que en la base sigue siendo `exercise_routines` (no se renombró la tabla, solo el texto de la UI — carpeta `src/components/exercises/plans/`). "Programa" es un nivel nuevo y reutilizable que agrupa varios Planes (tablas `exercise_programs` / `exercise_program_routines`, migraciones del 2026-08-11 **todavía sin aplicar**). El "programa del paciente" (antes "plan del paciente") sigue siendo la tabla `exercise_plans` de siempre, con una columna `program_id` nueva agregada en la misma migración pendiente.
+- Hasta que Jose corra esas 2 migraciones, la pestaña Programas de la Biblioteca muestra un toast de error (`Could not find the table 'public.exercise_programs'`) pero no rompe la página — verificado en el navegador. La rama "Plan" del wizard "Aplicar plan o programa" no depende de las tablas nuevas y ya se probó.
 - Turnos virtuales usan Jitsi Meet (links generados en el cliente en `src/lib/videoRoom.ts`, sin API key ni edge function). Daily.co se probó primero y se descartó — hay una edge function `create-daily-room` huérfana deployada en Supabase (`pvuaqatdendcgumwktid`) que se puede borrar del dashboard. Caveat conocido: en `meet.jit.si` el que inicia la reunión necesita loguearse como moderador; los pacientes entran sin cuenta. Ver candidato en `TASKS.md`.
 - El servidor de desarrollo local corre en el puerto **8080** (no el 5173 default de Vite) — está fijado en `vite.config.ts`.
 - Los diagnósticos viven en `episode_diagnoses` (fuente de verdad) pero el principal se sincroniza a `patient_clinical_records.diagnosis` y `treatment_episodes.diagnosis` en cada save. Estadísticas futuras deben leer la tabla nueva. Obra social: `"No posee"` es un valor sentinela distinto de null.
@@ -55,14 +57,22 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 ---
 
 ## Última sesión de trabajo
-**Fecha:** 2026-08-10
-**Qué se hizo:** Rediseño de la sección Ejercicios pedido en reunión de equipo — 3 niveles Ejercicio → Rutina → Programa. Plan diseñado y aprobado (plan mode), 4 migraciones escritas y aplicadas por Jose, frontend completo (tab Rutinas en Biblioteca, wizard de 3 pasos "Aplicar rutina" en la ficha del paciente, link público y guard de borrado actualizados). Verificado de punta a punta en el navegador con Playwright headless (login real, crear rutina, aplicar a un paciente de prueba, link público, ambos casos del guard de borrado) — 0 errores de consola. Typecheck, lint (239, en el techo) y build OK. Se armó `.env` local (faltaba) para poder probar. Datos de prueba generados en la limpieza posterior (SQL pasado a Jose, ya corrido).
-**Qué quedó a medio camino:** Falta commitear (no se pidió explícitamente en la sesión) y pushear para que corra el CI.
-**Próxima sesión debería empezar por:** Confirmar con Jose si commitear/pushear el rediseño de Ejercicios. Después: retomar Recordatorios de turnos (plan completo en `docs/PLAN_recordatorios_turnos.md`) o el asistente de IA si llegó el PDF.
+**Fecha:** 2026-08-11
+**Qué se hizo:** El usuario marcó que el rediseño del 08-10 no era lo pedido (feedback con foto de referencia). Se re-planeó en modo plan y se implementó: Biblioteca de Ejercicios reordenada en 3 pestañas de primer nivel (Ejercicios/Planes/Programas), filtro por Activo/Activo asistido/Fortalecimiento dentro de Ejercicios (ya no sub-pestañas), "Rutina" renombrada a "Plan" en toda la UI (solo texto, la tabla sigue siendo `exercise_routines`), y nivel nuevo "Programa" reutilizable que agrupa varios Planes (tablas `exercise_programs`/`exercise_program_routines`, componentes nuevos en `src/components/exercises/programs/`). El wizard "Aplicar plan o programa" en la ficha del paciente ahora deja elegir entre un Plan o un Programa completo. 2 migraciones nuevas escritas (`20260811100000_exercise_programs.sql`, `20260811110000_exercise_plans_program_id_rpc.sql`) — **todavía no aplicadas, hay que pasárselas a Jose**. `types.ts` parcheado a mano mientras tanto para que compile. Typecheck, lint (239, en el techo) y build OK. Verificado en el navegador con Playwright headless contra el Supabase real (login con usuario de test `rls-test-a@example.com`): las 3 pestañas renderizan, el filtro por tipo funciona, la pestaña Planes funciona de punta a punta (tabla ya existe), y la pestaña Programas degrada bien (toast de error controlado, no rompe la página) porque las tablas nuevas todavía no existen — como se esperaba.
+**Qué quedó a medio camino:** Faltan las 2 migraciones (Jose). Después de aplicarlas: regenerar `types.ts` desde Supabase (reemplaza el parche manual), y probar en el navegador la rama "Programa" del wizard (crear un Programa con 2 Planes, aplicarlo a un paciente, confirmar que los ítems de ambos Planes llegan en orden). Sin commitear todavía.
+**Próxima sesión debería empezar por:** Confirmar con Jose si ya corrió las migraciones; si sí, terminar la verificación de la rama Programa y commitear. Si no, pasárselas. Después: retomar Recordatorios de turnos (plan completo en `docs/PLAN_recordatorios_turnos.md`) o el asistente de IA si llegó el PDF.
 
 ---
 
 ## Sesión anterior
+**Fecha:** 2026-08-10
+**Qué se hizo:** Rediseño de la sección Ejercicios pedido en reunión de equipo — 3 niveles Ejercicio → Rutina → Programa. Plan diseñado y aprobado (plan mode), 4 migraciones escritas y aplicadas por Jose, frontend completo (tab Rutinas en Biblioteca, wizard de 3 pasos "Aplicar rutina" en la ficha del paciente, link público y guard de borrado actualizados). Verificado de punta a punta en el navegador con Playwright headless (login real, crear rutina, aplicar a un paciente de prueba, link público, ambos casos del guard de borrado) — 0 errores de consola. Typecheck, lint (239, en el techo) y build OK. Se armó `.env` local (faltaba) para poder probar. Datos de prueba generados en la limpieza posterior (SQL pasado a Jose, ya corrido).
+**Qué quedó a medio camino:** Este rediseño resultó no ser lo pedido — corregido en la sesión del 2026-08-11 (ver arriba).
+**Próxima sesión debería empezar por:** (superado por la sesión del 2026-08-11)
+
+---
+
+## Dos sesiones atrás
 **Fecha:** 2026-07-17
 **Qué se hizo:** Las cuatro mejoras del flujo de pacientes pedidas por Jose (obra social "No posee", diagnósticos múltiples por episodio, botones Dar de alta / Marcar abandono con estado nuevo, perfil ocupacional estandarizado) — 20 commits, 5 migraciones aplicadas en remoto, 2 entradas en DECISIONS. Verificado: typecheck, lint en el techo (239), 16 tests RLS en verde contra el Supabase real, build OK.
 **Qué quedó a medio camino:** Nada del frente.

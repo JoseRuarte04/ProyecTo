@@ -28,6 +28,46 @@ motivo real de negocio/técnico).
 
 ---
 
+## [2026-08-11] Ejercicios: se agrega "Programa" reutilizable (agrupa Planes) — corrige la decisión del 08-10
+
+**Contexto:** El rediseño del 2026-08-10 (ver entrada de abajo) no era lo que el equipo había
+pedido — feedback directo del usuario con una captura de referencia de otra app. El pedido real:
+la Biblioteca de Ejercicios se organiza en 3 pestañas de primer nivel — Ejercicio, Plan, Programa
+— y "Programa" tiene que ser algo que se arma en la biblioteca sin elegir paciente (no solo la
+instancia del paciente), igual que Ejercicio y Plan.
+
+**Opciones consideradas:**
+1. Copiar la jerarquía completa de la referencia (Programas / Rutinas / Bloques / Prescripciones /
+   Materiales / Cuestionarios — 6 secciones).
+2. 3 niveles simples y reutilizables: Ejercicio → Plan (renombre de "Rutina") → Programa (nuevo,
+   agrupa varios Planes), sin Bloques ni Prescripciones.
+
+**Decisión:** Opción 2 — exactamente la "opción 2" que se había evaluado y descartado el 08-10
+("Programa como plantilla reutilizable aparte"), ahora sí necesaria porque el pedido real del
+usuario la pide explícitamente. Tablas nuevas `exercise_programs` / `exercise_program_routines`
+(agrupan Planes con orden, sin paciente ni fechas). `exercise_routines` no se renombra a nivel DB
+—solo cambia el texto de la UI a "Plan" (carpeta `src/components/exercises/plans/`)— para no
+arriesgar nada ya verificado en producción. La instancia del paciente sigue siendo `exercise_plans`
+(ahora con `program_id` además de `routine_id` para trazabilidad), relabeleada "Programa del
+paciente" en la UI para no colisionar con el nuevo "Plan" reutilizable.
+
+**Por qué:** El usuario confirmó explícitamente (2 rondas de preguntas) que quería un nivel
+reutilizable de verdad, no solo la instancia del paciente — y que la clasificación
+Activo/Activo asistido/Fortalecimiento (que ya existía como pestañas) pasa a ser un filtro dentro
+de la pestaña Ejercicio, no pestañas separadas.
+
+**Consecuencias / trade-offs aceptados:** Vocabulario "Plan" ahora se usa para dos cosas
+distintas en la app si se mira sin contexto (el "Plan de tratamiento" de la ficha clínica, y el
+"Plan" reutilizable de la Biblioteca de Ejercicios) — mitigado con nombres de tipo específicos en
+el código (`ExercisePlanTemplate`, no `Plan` a secas) y porque en la UI aparecen en secciones
+claramente distintas. Migraciones nuevas (`20260811100000`, `20260811110000`) quedan pendientes
+de que Jose las corra — hasta entonces la pestaña Programas muestra un error de tabla inexistente
+mostrado con degradación grácil (no rompe la página).
+
+**Quién lo decidió:** El usuario, corrigiendo el rediseño del 08-10 (con Claude, en modo plan).
+
+---
+
 ## [2026-08-10] Ejercicios: 3 niveles (Ejercicio → Rutina → Programa), Programa como instancia única por paciente
 
 **Contexto:** Terminología confusa en el equipo (ejercicio/prescripción/bloque/rutina/programa)
