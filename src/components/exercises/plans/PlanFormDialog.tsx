@@ -7,20 +7,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import type { Routine } from "./routineLibrary";
+import type { ExercisePlanTemplate } from "./planLibrary";
 
-interface RoutineFormDialogProps {
+interface PlanFormDialogProps {
   open: boolean;
   onClose: () => void;
   professionalId: string;
-  onSaved: (routine: Routine) => void;
-  routine?: Routine;
+  onSaved: (plan: ExercisePlanTemplate) => void;
+  plan?: ExercisePlanTemplate;
 }
 
-export default function RoutineFormDialog({ open, onClose, professionalId, onSaved, routine }: RoutineFormDialogProps) {
-  const isEdit = !!routine;
-  const [name, setName] = useState(routine?.name ?? "");
-  const [description, setDescription] = useState(routine?.description ?? "");
+export default function PlanFormDialog({ open, onClose, professionalId, onSaved, plan }: PlanFormDialogProps) {
+  const isEdit = !!plan;
+  const [name, setName] = useState(plan?.name ?? "");
+  const [description, setDescription] = useState(plan?.description ?? "");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -31,12 +31,12 @@ export default function RoutineFormDialog({ open, onClose, professionalId, onSav
       const { data, error } = await supabase
         .from("exercise_routines")
         .update({ name: name.trim(), description: description.trim() || null })
-        .eq("id", routine.id)
+        .eq("id", plan.id)
         .select()
         .single();
       setSaving(false);
-      if (error || !data) { toast.error("Error al actualizar la rutina", { description: error?.message }); return; }
-      toast.success("Rutina actualizada");
+      if (error || !data) { toast.error("Error al actualizar el plan", { description: error?.message }); return; }
+      toast.success("Plan actualizado");
       onSaved(data);
     } else {
       const { data, error } = await supabase
@@ -45,8 +45,8 @@ export default function RoutineFormDialog({ open, onClose, professionalId, onSav
         .select()
         .single();
       setSaving(false);
-      if (error || !data) { toast.error("Error al crear la rutina", { description: error?.message }); return; }
-      toast.success("Rutina creada");
+      if (error || !data) { toast.error("Error al crear el plan", { description: error?.message }); return; }
+      toast.success("Plan creado");
       onSaved(data);
     }
     onClose();
@@ -56,7 +56,7 @@ export default function RoutineFormDialog({ open, onClose, professionalId, onSav
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar rutina" : "Nueva rutina"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar plan" : "Nuevo plan"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="space-y-2">
@@ -74,14 +74,14 @@ export default function RoutineFormDialog({ open, onClose, professionalId, onSav
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="Para qué se usa esta rutina..."
+              placeholder="Para qué se usa este plan..."
             />
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !name.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-              {isEdit ? "Guardar cambios" : "Crear rutina"}
+              {isEdit ? "Guardar cambios" : "Crear plan"}
             </Button>
           </div>
         </div>
