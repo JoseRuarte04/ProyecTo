@@ -8,14 +8,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Dumbbell, Plus, ClipboardList, Pencil, Trash2, Search, X, ChevronUp, ChevronDown, Save } from "lucide-react";
+import { Loader2, Dumbbell, Plus, ClipboardList, Pencil, Trash2, Search, X, ChevronUp, ChevronDown, Save, CalendarRange, Layers } from "lucide-react";
 import { ExercisePlanLinkManager } from "@/components/patients/ExercisePlanLinkManager";
+import { ApplyRoutineWizard } from "@/components/patients/ApplyRoutineWizard";
 import { EXERCISE_TYPES } from "@/components/exercises/exerciseLibrary";
 import { toast } from "sonner";
+import { format, addWeeks } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface ExercisePlan {
   id: string;
   notes: string | null;
+  start_date: string | null;
+  duration_weeks: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +65,9 @@ export function EjerciciosTab({ patientId }: Props) {
   const [createNotes, setCreateNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Apply routine wizard
+  const [showApplyRoutine, setShowApplyRoutine] = useState(false);
+
   // Apartados for filter
   const [apartados, setApartados] = useState<Apartado[]>([]);
 
@@ -93,7 +101,7 @@ export function EjerciciosTab({ patientId }: Props) {
     setLoading(true);
     const { data, error } = await supabase
       .from("exercise_plans")
-      .select("id, notes, created_at, updated_at")
+      .select("id, notes, start_date, duration_weeks, created_at, updated_at")
       .eq("patient_id", patientId)
       .maybeSingle();
 
@@ -317,9 +325,14 @@ export function EjerciciosTab({ patientId }: Props) {
             <p className="text-sm font-medium text-foreground">Sin plan de ejercicios</p>
             <p className="text-xs text-muted-foreground mt-1">Creá un plan para asignar ejercicios domiciliarios.</p>
           </div>
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> Crear plan
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowApplyRoutine(true)}>
+              <Layers className="h-4 w-4 mr-1.5" /> Aplicar rutina
+            </Button>
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4 mr-1.5" /> Crear plan
+            </Button>
+          </div>
         </div>
       ) : (
         /* ── Plan view ── */
@@ -336,11 +349,27 @@ export function EjerciciosTab({ patientId }: Props) {
                   Guardar orden
                 </Button>
               )}
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setShowApplyRoutine(true)}>
+                <Layers className="h-3.5 w-3.5" /> Aplicar rutina
+              </Button>
               <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={openAdd}>
                 <Plus className="h-3.5 w-3.5" /> Agregar ejercicio
               </Button>
             </div>
           </div>
+
+          {(plan.start_date || plan.duration_weeks) && (
+            <div className="px-5 py-3 border-b border-border flex items-center gap-2 text-sm text-foreground">
+              <CalendarRange className="h-4 w-4 text-muted-foreground shrink-0" />
+              {plan.start_date && <span>Desde {format(new Date(plan.start_date), "d MMM yyyy", { locale: es })}</span>}
+              {plan.duration_weeks && (
+                <span className="text-muted-foreground">
+                  · {plan.duration_weeks} semana{plan.duration_weeks === 1 ? "" : "s"}
+                  {plan.start_date && ` (hasta ${format(addWeeks(new Date(plan.start_date), plan.duration_weeks), "d MMM yyyy", { locale: es })})`}
+                </span>
+              )}
+            </div>
+          )}
 
           {plan.notes && (
             <div className="px-5 py-3 border-b border-border">
@@ -423,6 +452,17 @@ export function EjerciciosTab({ patientId }: Props) {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Wizard aplicar rutina ── */}
+      {showApplyRoutine && (
+        <ApplyRoutineWizard
+          open
+          onClose={() => setShowApplyRoutine(false)}
+          patientId={patientId}
+          currentPlan={plan ? { start_date: plan.start_date, duration_weeks: plan.duration_weeks, notes: plan.notes } : null}
+          onApplied={fetchPlan}
+        />
       )}
 
       {/* ── Dialog crear plan ── */}
