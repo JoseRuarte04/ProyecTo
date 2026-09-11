@@ -6,26 +6,26 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Save, ClipboardList } from "lucide-react";
 import { EXERCISE_TYPES } from "@/components/exercises/exerciseLibrary";
 import type { Apartado } from "@/components/exercises/ApartadosPanel";
-import RoutineItemFormDialog from "./RoutineItemFormDialog";
-import type { Routine, RoutineItem } from "./routineLibrary";
+import PlanItemFormDialog from "./PlanItemFormDialog";
+import type { ExercisePlanTemplate, ExercisePlanTemplateItem } from "./planLibrary";
 import { toast } from "sonner";
 
 const TYPE_BADGE: Record<string, { label: string; className: string }> = Object.fromEntries(
   EXERCISE_TYPES.map((t) => [t.value, { label: t.label, className: t.badgeClass }])
 );
 
-interface RoutineItemsPanelProps {
-  routine: Routine;
+interface PlanItemsPanelProps {
+  plan: ExercisePlanTemplate;
   apartados: Apartado[];
   onItemsChanged: () => void;
 }
 
-export default function RoutineItemsPanel({ routine, apartados, onItemsChanged }: RoutineItemsPanelProps) {
-  const [items, setItems] = useState<RoutineItem[]>([]);
+export default function PlanItemsPanel({ plan, apartados, onItemsChanged }: PlanItemsPanelProps) {
+  const [items, setItems] = useState<ExercisePlanTemplateItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [editingItem, setEditingItem] = useState<RoutineItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<RoutineItem | null>(null);
+  const [editingItem, setEditingItem] = useState<ExercisePlanTemplateItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ExercisePlanTemplateItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [orderDirty, setOrderDirty] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
@@ -35,16 +35,16 @@ export default function RoutineItemsPanel({ routine, apartados, onItemsChanged }
     const { data, error } = await supabase
       .from("exercise_routine_items")
       .select("id, routine_id, exercise_id, order_index, suggested_sets, suggested_reps, frequency, notes, created_at, exercise:exercise_id(id, name, exercise_type)")
-      .eq("routine_id", routine.id)
+      .eq("routine_id", plan.id)
       .order("order_index");
-    if (!error && data) setItems(data as unknown as RoutineItem[]);
+    if (!error && data) setItems(data as unknown as ExercisePlanTemplateItem[]);
     else setItems([]);
     setOrderDirty(false);
     setLoading(false);
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchItems(); }, [routine.id]);
+  useEffect(() => { fetchItems(); }, [plan.id]);
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
@@ -60,7 +60,7 @@ export default function RoutineItemsPanel({ routine, apartados, onItemsChanged }
     }
     setDeleting(false);
     setDeleteTarget(null);
-    toast.success("Ejercicio eliminado de la rutina");
+    toast.success("Ejercicio eliminado del plan");
     await fetchItems();
     onItemsChanged();
   };
@@ -90,10 +90,10 @@ export default function RoutineItemsPanel({ routine, apartados, onItemsChanged }
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0" />
-            <h3 className="text-sm font-semibold text-foreground truncate">{routine.name}</h3>
+            <h3 className="text-sm font-semibold text-foreground truncate">{plan.name}</h3>
           </div>
-          {routine.description && (
-            <p className="text-xs text-muted-foreground mt-1 ml-6">{routine.description}</p>
+          {plan.description && (
+            <p className="text-xs text-muted-foreground mt-1 ml-6">{plan.description}</p>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -116,7 +116,7 @@ export default function RoutineItemsPanel({ routine, apartados, onItemsChanged }
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">Esta rutina todavía no tiene ejercicios.</p>
+            <p className="text-sm text-muted-foreground">Este plan todavía no tiene ejercicios.</p>
             <p className="text-xs text-muted-foreground mt-1">Usá "Agregar ejercicio" para comenzar.</p>
           </div>
         ) : (
@@ -171,20 +171,20 @@ export default function RoutineItemsPanel({ routine, apartados, onItemsChanged }
       </div>
 
       {showAdd && (
-        <RoutineItemFormDialog
+        <PlanItemFormDialog
           open
           onClose={() => setShowAdd(false)}
-          routineId={routine.id}
+          planId={plan.id}
           apartados={apartados}
           nextOrderIndex={items.length}
           onSaved={async () => { await fetchItems(); onItemsChanged(); }}
         />
       )}
       {editingItem && (
-        <RoutineItemFormDialog
+        <PlanItemFormDialog
           open
           onClose={() => setEditingItem(null)}
-          routineId={routine.id}
+          planId={plan.id}
           apartados={apartados}
           nextOrderIndex={items.length}
           onSaved={fetchItems}
@@ -197,7 +197,7 @@ export default function RoutineItemsPanel({ routine, apartados, onItemsChanged }
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar ejercicio</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Eliminar "{deleteTarget?.exercise.name}" de la rutina? Esta acción no se puede deshacer.
+              ¿Eliminar "{deleteTarget?.exercise.name}" del plan? Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

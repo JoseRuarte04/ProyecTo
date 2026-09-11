@@ -69,7 +69,7 @@ export default function PlanPublicPage() {
           <div>
             <p className="field-label text-primary">RehabOT</p>
             <h1 className="font-serif text-base font-semibold text-foreground leading-tight">
-              Plan de ejercicios domiciliarios
+              Programa de ejercicios domiciliarios
             </h1>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function PlanPublicPage() {
         {status === "loading" && (
           <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm">Cargando tu plan...</p>
+            <p className="text-sm">Cargando tu programa...</p>
           </div>
         )}
 
@@ -133,7 +133,7 @@ export default function PlanPublicPage() {
             )}
 
             {planData.items.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">El plan no tiene ejercicios cargados todavía.</p>
+              <p className="text-center text-sm text-muted-foreground py-8">El programa no tiene ejercicios cargados todavía.</p>
             ) : (
               planData.items.map((item, idx) => {
                 const ex = item.exercise;

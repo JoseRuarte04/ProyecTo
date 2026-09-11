@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, X } from "lucide-react";
 import { EXERCISE_TYPES } from "@/components/exercises/exerciseLibrary";
 import type { Apartado } from "@/components/exercises/ApartadosPanel";
-import type { RoutineItem } from "./routineLibrary";
+import type { ExercisePlanTemplateItem } from "./planLibrary";
 import { toast } from "sonner";
 
 const TYPE_BADGE: Record<string, { label: string; className: string }> = Object.fromEntries(
@@ -23,17 +23,17 @@ interface ExerciseResult {
   exercise_type: string | null;
 }
 
-interface RoutineItemFormDialogProps {
+interface PlanItemFormDialogProps {
   open: boolean;
   onClose: () => void;
-  routineId: string;
+  planId: string;
   apartados: Apartado[];
   nextOrderIndex: number;
   onSaved: () => void;
-  editingItem?: RoutineItem;
+  editingItem?: ExercisePlanTemplateItem;
 }
 
-export default function RoutineItemFormDialog({ open, onClose, routineId, apartados, nextOrderIndex, onSaved, editingItem }: RoutineItemFormDialogProps) {
+export default function PlanItemFormDialog({ open, onClose, planId, apartados, nextOrderIndex, onSaved, editingItem }: PlanItemFormDialogProps) {
   const { user } = useAuth();
   const isEdit = !!editingItem;
 
@@ -113,7 +113,7 @@ export default function RoutineItemFormDialog({ open, onClose, routineId, aparta
       const { error } = await supabase
         .from("exercise_routine_items")
         .insert({
-          routine_id: routineId,
+          routine_id: planId,
           exercise_id: selectedEx.id,
           order_index: nextOrderIndex,
           suggested_sets: sets,
@@ -123,7 +123,7 @@ export default function RoutineItemFormDialog({ open, onClose, routineId, aparta
         });
       setSaving(false);
       if (error) { toast.error("Error al agregar ejercicio", { description: error.message }); return; }
-      toast.success("Ejercicio agregado a la rutina");
+      toast.success("Ejercicio agregado al plan");
     }
     onSaved();
     onClose();
@@ -133,7 +133,7 @@ export default function RoutineItemFormDialog({ open, onClose, routineId, aparta
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar ejercicio de la rutina" : "Agregar ejercicio a la rutina"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar ejercicio del plan" : "Agregar ejercicio al plan"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-1">
           {!isEdit ? (

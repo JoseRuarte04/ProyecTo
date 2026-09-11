@@ -17,11 +17,15 @@ import ExerciseRow from "@/components/exercises/ExerciseRow";
 import ExerciseDetailDialog from "@/components/exercises/ExerciseDetailDialog";
 import ExerciseFormDialog from "@/components/exercises/ExerciseFormDialog";
 import { type Exercise, EXERCISE_TYPES, type ExerciseTypeValue } from "@/components/exercises/exerciseLibrary";
-import RoutineList from "@/components/exercises/routines/RoutineList";
-import RoutineItemsPanel from "@/components/exercises/routines/RoutineItemsPanel";
-import type { Routine } from "@/components/exercises/routines/routineLibrary";
+import PlanList from "@/components/exercises/plans/PlanList";
+import PlanItemsPanel from "@/components/exercises/plans/PlanItemsPanel";
+import type { ExercisePlanTemplate } from "@/components/exercises/plans/planLibrary";
+import ProgramList from "@/components/exercises/programs/ProgramList";
+import ProgramRoutinesPanel from "@/components/exercises/programs/ProgramRoutinesPanel";
+import type { ExerciseProgram } from "@/components/exercises/programs/programLibrary";
 
-type ActiveTab = ExerciseTypeValue | "rutinas";
+type LibraryTab = "ejercicios" | "planes" | "programas";
+type TypeFilter = ExerciseTypeValue | "all";
 
 export default function Exercises() {
   const { user } = useAuth();
@@ -31,12 +35,17 @@ export default function Exercises() {
   const [apartados, setApartados] = useState<Apartado[]>([]);
   const [autoSelectedDone, setAutoSelectedDone] = useState(false);
   const [selectedApartadoId, setSelectedApartadoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("activo");
+  const [activeTab, setActiveTab] = useState<LibraryTab>("ejercicios");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [search, setSearch] = useState("");
 
-  const [routines, setRoutines] = useState<Routine[]>([]);
-  const [routineItemCounts, setRoutineItemCounts] = useState<Record<string, number>>({});
-  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
+  const [plans, setPlans] = useState<ExercisePlanTemplate[]>([]);
+  const [planItemCounts, setPlanItemCounts] = useState<Record<string, number>>({});
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
+  const [programs, setPrograms] = useState<ExerciseProgram[]>([]);
+  const [programItemCounts, setProgramItemCounts] = useState<Record<string, number>>({});
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
 
   const [showNew, setShowNew] = useState(false);
   const [detailEx, setDetailEx] = useState<Exercise | null>(null);
@@ -80,27 +89,45 @@ export default function Exercises() {
     }
   };
 
-  const fetchRoutines = async () => {
+  const fetchPlans = async () => {
     if (!user) return;
-    const [{ data: routineData, error: routineErr }, { data: itemData }] = await Promise.all([
+    const [{ data: planData, error: planErr }, { data: itemData }] = await Promise.all([
       supabase.from("exercise_routines").select("*").eq("professional_id", user.id).order("name"),
       supabase.from("exercise_routine_items").select("routine_id"),
     ]);
-    if (routineErr) {
-      toast.error("Error al cargar las rutinas", { description: routineErr.message });
+    if (planErr) {
+      toast.error("Error al cargar los planes", { description: planErr.message });
     }
-    const list = routineData || [];
-    setRoutines(list);
+    const list = planData || [];
+    setPlans(list);
     const counts: Record<string, number> = {};
     (itemData || []).forEach((row) => { counts[row.routine_id] = (counts[row.routine_id] ?? 0) + 1; });
-    setRoutineItemCounts(counts);
-    setSelectedRoutineId((prev) => (prev && list.some((r) => r.id === prev)) ? prev : (list[0]?.id ?? null));
+    setPlanItemCounts(counts);
+    setSelectedPlanId((prev) => (prev && list.some((p) => p.id === prev)) ? prev : (list[0]?.id ?? null));
+  };
+
+  const fetchPrograms = async () => {
+    if (!user) return;
+    const [{ data: programData, error: programErr }, { data: itemData }] = await Promise.all([
+      supabase.from("exercise_programs").select("*").eq("professional_id", user.id).order("name"),
+      supabase.from("exercise_program_routines").select("program_id"),
+    ]);
+    if (programErr) {
+      toast.error("Error al cargar los programas", { description: programErr.message });
+    }
+    const list = programData || [];
+    setPrograms(list);
+    const counts: Record<string, number> = {};
+    (itemData || []).forEach((row) => { counts[row.program_id] = (counts[row.program_id] ?? 0) + 1; });
+    setProgramItemCounts(counts);
+    setSelectedProgramId((prev) => (prev && list.some((p) => p.id === prev)) ? prev : (list[0]?.id ?? null));
   };
 
   useEffect(() => {
     fetchExercises();
     fetchApartados();
-    fetchRoutines();
+    fetchPlans();
+    fetchPrograms();
   }, [user]);
 
   // ── Filtrado ──
@@ -112,7 +139,7 @@ export default function Exercises() {
     return exercises.filter((ex) => ex.body_region_id === selectedApartadoId);
   }, [exercises, selectedApartadoId]);
 
-  const filtered = useMemo(() => {
+  const bySearch = useMemo(() => {
     if (!search.trim()) return byApartado;
     const s = search.toLowerCase();
     return byApartado.filter((ex) =>
@@ -120,9 +147,14 @@ export default function Exercises() {
     );
   }, [byApartado, search]);
 
-  // Los ejercicios sin tipo (datos legacy) se muestran en todas las pestañas
-  // para que no queden inaccesibles; al editarlos el form exige asignar tipo.
-  const byTab = (tab: ExerciseTypeValue) => filtered.filter((ex) => ex.exercise_type === tab || !ex.exercise_type);
+  // Los ejercicios sin tipo (datos legacy) se muestran siempre, para que no
+  // queden inaccesibles al filtrar; al editarlos el form exige asignar tipo.
+  const filtered = useMemo(
+    () => bySearch.filter((ex) => typeFilter === "all" || ex.exercise_type === typeFilter || !ex.exercise_type),
+    [bySearch, typeFilter]
+  );
+
+  const typeCount = (type: ExerciseTypeValue) => bySearch.filter((ex) => ex.exercise_type === type || !ex.exercise_type).length;
 
   // ── Delete ──
 
@@ -143,12 +175,12 @@ export default function Exercises() {
         .eq("exercise_id", deleteEx.id),
     ]);
     if ((treatmentCount ?? 0) + (planItemCount ?? 0) > 0) {
-      toast.error("Este ejercicio está en uso en el plan de uno o más pacientes");
+      toast.error("Este ejercicio está en uso en el programa de uno o más pacientes");
       setDeleteEx(null);
       return;
     }
     if ((routineItemCount ?? 0) > 0) {
-      toast.error("Este ejercicio está en uso en una o más rutinas");
+      toast.error("Este ejercicio está en uso en uno o más planes");
       setDeleteEx(null);
       return;
     }
@@ -193,30 +225,40 @@ export default function Exercises() {
       <PageHeader
         title="Biblioteca de Ejercicios"
         actions={
-          <>
-            <Button variant="outline" onClick={handleOpenPdfSelect} disabled={filtered.length === 0}>
-              <FileDown className="h-4 w-4 mr-2" />Exportar PDF
-            </Button>
-            <Button onClick={() => setShowNew(true)}>
-              <Plus className="h-4 w-4 mr-2" />Nuevo Ejercicio
-            </Button>
-          </>
+          activeTab === "ejercicios" ? (
+            <>
+              <Button variant="outline" onClick={handleOpenPdfSelect} disabled={filtered.length === 0}>
+                <FileDown className="h-4 w-4 mr-2" />Exportar PDF
+              </Button>
+              <Button onClick={() => setShowNew(true)}>
+                <Plus className="h-4 w-4 mr-2" />Nuevo Ejercicio
+              </Button>
+            </>
+          ) : undefined
         }
       />
 
-      {/* Tablet: apartado / rutina select */}
+      {/* Tablet: apartado / plan / programa select */}
       <div className="lg:hidden">
-        {activeTab === "rutinas" ? (
-          <Select
-            value={selectedRoutineId ?? ""}
-            onValueChange={setSelectedRoutineId}
-          >
+        {activeTab === "planes" ? (
+          <Select value={selectedPlanId ?? ""} onValueChange={setSelectedPlanId}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Seleccioná una rutina" />
+              <SelectValue placeholder="Seleccioná un plan" />
             </SelectTrigger>
             <SelectContent>
-              {routines.map((r) => (
-                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+              {plans.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : activeTab === "programas" ? (
+          <Select value={selectedProgramId ?? ""} onValueChange={setSelectedProgramId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleccioná un programa" />
+            </SelectTrigger>
+            <SelectContent>
+              {programs.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -242,16 +284,28 @@ export default function Exercises() {
       <div className="dashboard-card overflow-hidden flex flex-1 min-h-0">
         {/* Left panel — desktop */}
         <div className="hidden lg:flex flex-col w-52 shrink-0 border-r border-border bg-muted/30 p-4 gap-0">
-          {activeTab === "rutinas" ? (
+          {activeTab === "planes" ? (
             <>
-              <p className="field-label text-muted-foreground mb-3">Rutinas</p>
-              <RoutineList
-                routines={routines}
-                itemCounts={routineItemCounts}
-                selectedRoutineId={selectedRoutineId}
-                onSelectRoutine={setSelectedRoutineId}
+              <p className="field-label text-muted-foreground mb-3">Planes</p>
+              <PlanList
+                plans={plans}
+                itemCounts={planItemCounts}
+                selectedPlanId={selectedPlanId}
+                onSelectPlan={setSelectedPlanId}
                 professionalId={user!.id}
-                onRefetch={fetchRoutines}
+                onRefetch={fetchPlans}
+              />
+            </>
+          ) : activeTab === "programas" ? (
+            <>
+              <p className="field-label text-muted-foreground mb-3">Programas</p>
+              <ProgramList
+                programs={programs}
+                itemCounts={programItemCounts}
+                selectedProgramId={selectedProgramId}
+                onSelectProgram={setSelectedProgramId}
+                professionalId={user!.id}
+                onRefetch={fetchPrograms}
               />
             </>
           ) : (
@@ -269,87 +323,121 @@ export default function Exercises() {
 
         {/* Main panel */}
         <div className="flex-1 min-w-0 flex flex-col gap-0">
-          {/* Search + Tabs header */}
+          {/* Pestañas de primer nivel + búsqueda/filtro */}
           <div className="px-5 pt-4 pb-0 flex flex-col gap-3 border-b border-border">
-            {activeTab !== "rutinas" && (
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar ejercicios..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 max-w-sm h-9 text-sm"
-                />
-              </div>
-            )}
-
             <div className="flex">
-              {EXERCISE_TYPES.map((tab) => {
-                const count = byTab(tab.value).length;
-                return (
+              {([
+                ["ejercicios", "Ejercicios", exercises.length],
+                ["planes", "Planes", plans.length],
+                ["programas", "Programas", programs.length],
+              ] as const).map(([tab, label, count]) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                    activeTab === tab
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label}
+                  {count > 0 && (
+                    <span className={cn(
+                      "ml-1.5 text-xs tabular-nums",
+                      activeTab === tab ? "text-muted-foreground" : "text-muted-foreground/60"
+                    )}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === "ejercicios" && (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar ejercicios..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10 max-w-sm h-9 text-sm"
+                  />
+                </div>
+
+                {/* Filtro por tipo — no es una pestaña, filtra la lista de abajo */}
+                <div className="flex flex-wrap gap-1.5 pb-3">
                   <button
-                    key={tab.value}
-                    onClick={() => setActiveTab(tab.value)}
+                    onClick={() => setTypeFilter("all")}
                     className={cn(
-                      "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-                      activeTab === tab.value
-                        ? "border-primary text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground"
+                      "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                      typeFilter === "all"
+                        ? "bg-primary/10 text-primary border-primary/30"
+                        : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
                     )}
                   >
-                    {tab.tabLabel}
-                    {count > 0 && (
-                      <span className={cn(
-                        "ml-1.5 text-xs tabular-nums",
-                        activeTab === tab.value ? "text-muted-foreground" : "text-muted-foreground/60"
-                      )}>
-                        {count}
-                      </span>
-                    )}
+                    Todos <span className="opacity-70">{bySearch.length}</span>
                   </button>
-                );
-              })}
-              <button
-                onClick={() => setActiveTab("rutinas")}
-                className={cn(
-                  "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-                  activeTab === "rutinas"
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Rutinas
-                {routines.length > 0 && (
-                  <span className={cn(
-                    "ml-1.5 text-xs tabular-nums",
-                    activeTab === "rutinas" ? "text-muted-foreground" : "text-muted-foreground/60"
-                  )}>
-                    {routines.length}
-                  </span>
-                )}
-              </button>
-            </div>
+                  {EXERCISE_TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      onClick={() => setTypeFilter(t.value)}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                        typeFilter === t.value
+                          ? "bg-primary/10 text-primary border-primary/30"
+                          : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      )}
+                    >
+                      {t.tabLabel} <span className="opacity-70">{typeCount(t.value)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Contenido: rutina seleccionada, o lista de ejercicios */}
-          {activeTab === "rutinas" ? (
+          {/* Contenido */}
+          {activeTab === "planes" ? (
             <div className="overflow-y-auto flex-1 p-5">
               {(() => {
-                const selectedRoutine = routines.find((r) => r.id === selectedRoutineId);
-                if (!selectedRoutine) {
+                const selectedPlan = plans.find((p) => p.id === selectedPlanId);
+                if (!selectedPlan) {
                   return (
                     <div className="bg-card rounded-[10px] border border-dashed border-border p-10 text-center text-muted-foreground text-sm">
-                      {routines.length === 0
-                        ? <>No creaste ninguna rutina todavía. Usá <span className="font-medium text-primary">Nueva rutina</span> para armar la primera.</>
-                        : "Seleccioná una rutina para ver sus ejercicios."}
+                      {plans.length === 0
+                        ? <>No creaste ningún plan todavía. Usá <span className="font-medium text-primary">Nuevo plan</span> para armar el primero.</>
+                        : "Seleccioná un plan para ver sus ejercicios."}
                     </div>
                   );
                 }
                 return (
-                  <RoutineItemsPanel
-                    routine={selectedRoutine}
+                  <PlanItemsPanel
+                    plan={selectedPlan}
                     apartados={apartados}
-                    onItemsChanged={fetchRoutines}
+                    onItemsChanged={fetchPlans}
+                  />
+                );
+              })()}
+            </div>
+          ) : activeTab === "programas" ? (
+            <div className="overflow-y-auto flex-1 p-5">
+              {(() => {
+                const selectedProgram = programs.find((p) => p.id === selectedProgramId);
+                if (!selectedProgram) {
+                  return (
+                    <div className="bg-card rounded-[10px] border border-dashed border-border p-10 text-center text-muted-foreground text-sm">
+                      {programs.length === 0
+                        ? <>No creaste ningún programa todavía. Usá <span className="font-medium text-primary">Nuevo programa</span> para armar el primero.</>
+                        : "Seleccioná un programa para ver sus planes."}
+                    </div>
+                  );
+                }
+                return (
+                  <ProgramRoutinesPanel
+                    program={selectedProgram}
+                    onItemsChanged={fetchPrograms}
                   />
                 );
               })()}
@@ -358,9 +446,9 @@ export default function Exercises() {
           <div className="overflow-y-auto flex-1">
             {loading ? (
               <RowsSkeleton rows={6} />
-            ) : byTab(activeTab).length === 0 ? (
+            ) : filtered.length === 0 ? (
               <div className="m-5 bg-card rounded-[10px] border border-dashed border-border p-10 text-center text-muted-foreground text-sm">
-                {filtered.length === 0
+                {bySearch.length === 0
                   ? <>No hay ejercicios en este apartado. Creá uno con <span className="font-medium text-primary">Nuevo Ejercicio</span>.</>
                   : "No hay ejercicios de este tipo en este apartado."}
               </div>
@@ -376,7 +464,7 @@ export default function Exercises() {
 
                 {/* Filas */}
                 <div>
-                  {byTab(activeTab).map((ex) => (
+                  {filtered.map((ex) => (
                     <ExerciseRow
                       key={ex.id}
                       exercise={ex}

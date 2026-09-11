@@ -822,6 +822,7 @@ export type Database = {
           notes: string | null
           patient_id: string
           professional_id: string
+          program_id: string | null
           routine_id: string | null
           start_date: string | null
           updated_at: string
@@ -833,6 +834,7 @@ export type Database = {
           notes?: string | null
           patient_id: string
           professional_id: string
+          program_id?: string | null
           routine_id?: string | null
           start_date?: string | null
           updated_at?: string
@@ -844,6 +846,7 @@ export type Database = {
           notes?: string | null
           patient_id?: string
           professional_id?: string
+          program_id?: string | null
           routine_id?: string | null
           start_date?: string | null
           updated_at?: string
@@ -857,6 +860,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "exercise_plans_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_programs"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "exercise_plans_routine_id_fkey"
             columns: ["routine_id"]
             isOneToOne: false
@@ -864,6 +874,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      exercise_program_routines: {
+        Row: {
+          created_at: string
+          id: string
+          order_index: number
+          program_id: string
+          routine_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          program_id: string
+          routine_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          program_id?: string
+          routine_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_program_routines_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_program_routines_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercise_programs: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          professional_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          professional_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          professional_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       exercise_routine_items: {
         Row: {
@@ -1910,6 +1986,7 @@ export type Database = {
           p_items: Json
           p_notes: string
           p_patient_id: string
+          p_program_id?: string
           p_routine_id: string
           p_start_date: string
         }

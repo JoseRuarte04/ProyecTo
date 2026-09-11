@@ -8,13 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search, X, Trash2, ClipboardList } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { EXERCISE_TYPES } from "@/components/exercises/exerciseLibrary";
-import type { Routine } from "@/components/exercises/routines/routineLibrary";
+import type { ExercisePlanTemplate } from "@/components/exercises/plans/planLibrary";
+import type { ExerciseProgram } from "@/components/exercises/programs/programLibrary";
 import { toast } from "sonner";
 
 const TYPE_BADGE: Record<string, { label: string; className: string }> = Object.fromEntries(
   EXERCISE_TYPES.map((t) => [t.value, { label: t.label, className: t.badgeClass }])
 );
+
+type SourceKind = "plan" | "programa";
 
 interface ExerciseResult {
   id: string;
@@ -43,11 +47,14 @@ interface ApplyRoutineWizardProps {
 export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onApplied }: ApplyRoutineWizardProps) {
   const { user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [sourceKind, setSourceKind] = useState<SourceKind>("plan");
 
   // Paso 1
-  const [routines, setRoutines] = useState<Routine[]>([]);
-  const [routinesLoading, setRoutinesLoading] = useState(true);
-  const [selectedRoutine, setSelectedRoutine] = useState<Routine | null>(null);
+  const [exercisePlans, setExercisePlans] = useState<ExercisePlanTemplate[]>([]);
+  const [programs, setPrograms] = useState<ExerciseProgram[]>([]);
+  const [sourcesLoading, setSourcesLoading] = useState(true);
+  const [selectedPlan, setSelectedPlan] = useState<ExercisePlanTemplate | null>(null);
+  const [selectedProgram, setSelectedProgram] = useState<ExerciseProgram | null>(null);
 
   // Paso 2
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
@@ -66,43 +73,69 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
   useEffect(() => {
     if (!open || !user) return;
     setStep(1);
-    setSelectedRoutine(null);
+    setSourceKind("plan");
+    setSelectedPlan(null);
+    setSelectedProgram(null);
     setDraftItems([]);
     setStartDate(currentPlan?.start_date ?? "");
     setDurationWeeks(currentPlan?.duration_weeks?.toString() ?? "");
     setPlanNotes(currentPlan?.notes ?? "");
-    setRoutinesLoading(true);
-    supabase
-      .from("exercise_routines")
-      .select("*")
-      .eq("professional_id", user.id)
-      .order("name")
-      .then(({ data }) => { setRoutines(data ?? []); setRoutinesLoading(false); });
+    setSourcesLoading(true);
+    Promise.all([
+      supabase.from("exercise_routines").select("*").eq("professional_id", user.id).order("name"),
+      supabase.from("exercise_programs").select("*").eq("professional_id", user.id).order("name"),
+    ]).then(([{ data: planData }, { data: programData }]) => {
+      setExercisePlans(planData ?? []);
+      setPrograms(programData ?? []);
+      setSourcesLoading(false);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user]);
 
-  const goToStep2 = async (routine: Routine) => {
-    setSelectedRoutine(routine);
-    setItemsLoading(true);
-    setStep(2);
+  const fetchPlanItemsAsDraft = async (planId: string): Promise<DraftItem[]> => {
     const { data, error } = await supabase
       .from("exercise_routine_items")
       .select("exercise_id, suggested_sets, suggested_reps, frequency, notes, order_index, exercise:exercise_id(id, name, exercise_type)")
-      .eq("routine_id", routine.id)
+      .eq("routine_id", planId)
       .order("order_index");
+    if (error) { toast.error("Error al cargar los ejercicios del plan", { description: error.message }); return []; }
+    return (data ?? []).map((row) => ({
+      exercise_id: row.exercise_id,
+      name: row.exercise?.name ?? "",
+      exercise_type: row.exercise?.exercise_type ?? null,
+      assigned_sets: row.suggested_sets?.toString() ?? "",
+      assigned_reps: row.suggested_reps?.toString() ?? "",
+      frequency: row.frequency ?? "",
+      notes: row.notes ?? "",
+    }));
+  };
+
+  const goToStep2FromPlan = async (plan: ExercisePlanTemplate) => {
+    setSelectedPlan(plan);
+    setSelectedProgram(null);
+    setItemsLoading(true);
+    setStep(2);
+    setDraftItems(await fetchPlanItemsAsDraft(plan.id));
     setItemsLoading(false);
-    if (error) { toast.error("Error al cargar los ejercicios de la rutina", { description: error.message }); return; }
-    setDraftItems(
-      (data ?? []).map((row) => ({
-        exercise_id: row.exercise_id,
-        name: row.exercise?.name ?? "",
-        exercise_type: row.exercise?.exercise_type ?? null,
-        assigned_sets: row.suggested_sets?.toString() ?? "",
-        assigned_reps: row.suggested_reps?.toString() ?? "",
-        frequency: row.frequency ?? "",
-        notes: row.notes ?? "",
-      }))
-    );
+  };
+
+  const goToStep2FromProgram = async (program: ExerciseProgram) => {
+    setSelectedProgram(program);
+    setSelectedPlan(null);
+    setItemsLoading(true);
+    setStep(2);
+    const { data, error } = await supabase
+      .from("exercise_program_routines")
+      .select("routine_id")
+      .eq("program_id", program.id)
+      .order("order_index");
+    if (error) { toast.error("Error al cargar los planes del programa", { description: error.message }); setItemsLoading(false); return; }
+    const allItems: DraftItem[] = [];
+    for (const row of data ?? []) {
+      allItems.push(...(await fetchPlanItemsAsDraft(row.routine_id)));
+    }
+    setDraftItems(allItems);
+    setItemsLoading(false);
   };
 
   // ── Búsqueda para agregar ejercicios extra en el paso 2 ──
@@ -148,7 +181,8 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
     setSaving(true);
     const { error } = await supabase.rpc("add_routine_to_exercise_plan", {
       p_patient_id: patientId,
-      p_routine_id: selectedRoutine?.id ?? null,
+      p_routine_id: selectedPlan?.id ?? null,
+      p_program_id: selectedProgram?.id ?? null,
       p_items: draftItems.map((it, idx) => ({
         exercise_id: it.exercise_id,
         order_index: idx,
@@ -162,8 +196,8 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
       p_notes: planNotes.trim() || null,
     });
     setSaving(false);
-    if (error) { toast.error("Error al aplicar la rutina", { description: error.message }); return; }
-    toast.success("Rutina aplicada al programa del paciente");
+    if (error) { toast.error("Error al aplicar al programa del paciente", { description: error.message }); return; }
+    toast.success("Se aplicó al programa del paciente");
     onApplied();
     onClose();
   };
@@ -174,34 +208,76 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
-            Aplicar rutina — Paso {step} de 3
+            Aplicar al programa del paciente — Paso {step} de 3
           </DialogTitle>
         </DialogHeader>
 
-        {/* ── Paso 1: elegir rutina ── */}
+        {/* ── Paso 1: elegir plan o programa ── */}
         {step === 1 && (
           <div className="space-y-3 pt-1">
-            {routinesLoading ? (
+            <div className="flex gap-1 p-1 bg-muted rounded-md w-fit">
+              <button
+                className={cn(
+                  "px-3 py-1 rounded text-xs font-medium transition-colors",
+                  sourceKind === "plan" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                )}
+                onClick={() => setSourceKind("plan")}
+              >
+                Planes
+              </button>
+              <button
+                className={cn(
+                  "px-3 py-1 rounded text-xs font-medium transition-colors",
+                  sourceKind === "programa" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                )}
+                onClick={() => setSourceKind("programa")}
+              >
+                Programas
+              </button>
+            </div>
+
+            {sourcesLoading ? (
               <div className="flex items-center justify-center py-10">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : routines.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">
-                Todavía no creaste ninguna rutina. Armá una desde Biblioteca de Ejercicios → tab Rutinas.
-              </p>
+            ) : sourceKind === "plan" ? (
+              exercisePlans.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Todavía no creaste ningún plan. Armá uno desde Biblioteca de Ejercicios → pestaña Planes.
+                </p>
+              ) : (
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {exercisePlans.map((p) => (
+                    <button
+                      key={p.id}
+                      className="w-full text-left px-3 py-2.5 rounded-md border border-border hover:bg-muted/50 transition-colors"
+                      onClick={() => goToStep2FromPlan(p)}
+                    >
+                      <p className="text-sm font-medium text-foreground">{p.name}</p>
+                      {p.description && <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>}
+                    </button>
+                  ))}
+                </div>
+              )
             ) : (
-              <div className="space-y-1 max-h-96 overflow-y-auto">
-                {routines.map((r) => (
-                  <button
-                    key={r.id}
-                    className="w-full text-left px-3 py-2.5 rounded-md border border-border hover:bg-muted/50 transition-colors"
-                    onClick={() => goToStep2(r)}
-                  >
-                    <p className="text-sm font-medium text-foreground">{r.name}</p>
-                    {r.description && <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>}
-                  </button>
-                ))}
-              </div>
+              programs.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Todavía no creaste ningún programa. Armá uno desde Biblioteca de Ejercicios → pestaña Programas.
+                </p>
+              ) : (
+                <div className="space-y-1 max-h-96 overflow-y-auto">
+                  {programs.map((p) => (
+                    <button
+                      key={p.id}
+                      className="w-full text-left px-3 py-2.5 rounded-md border border-border hover:bg-muted/50 transition-colors"
+                      onClick={() => goToStep2FromProgram(p)}
+                    >
+                      <p className="text-sm font-medium text-foreground">{p.name}</p>
+                      {p.description && <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>}
+                    </button>
+                  ))}
+                </div>
+              )
             )}
             <div className="flex justify-end">
               <Button variant="outline" onClick={onClose}>Cancelar</Button>
@@ -219,7 +295,7 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
             ) : (
               <>
                 <p className="text-xs text-muted-foreground">
-                  Ajustá las cantidades para este paciente — no modifica la rutina original.
+                  Ajustá las cantidades para este paciente — no modifica el {selectedProgram ? "programa" : "plan"} original.
                 </p>
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {draftItems.map((it, idx) => {
@@ -296,7 +372,7 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
               <Button variant="outline" onClick={() => setStep(2)}>Atrás</Button>
               <Button onClick={handleConfirm} disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                Aplicar rutina
+                Aplicar
               </Button>
             </div>
           </div>
