@@ -66,7 +66,7 @@ export default function Login() {
       {/* Panel de marca — desktop */}
       <div className="hidden lg:flex flex-col justify-between w-[44%] max-w-[560px] bg-primary text-primary-foreground p-12">
         <div>
-          <p className="font-serif text-2xl font-semibold tracking-tight">RehabOT</p>
+          <p className="font-serif text-2xl font-semibold tracking-tight">HisTO</p>
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary-foreground/60 mt-1">
             Clínica · Terapia Ocupacional
           </p>
@@ -89,7 +89,7 @@ export default function Login() {
         </div>
 
         <p className="text-xs text-primary-foreground/50">
-          © {new Date().getFullYear()} RehabOT
+          © {new Date().getFullYear()} HisTO
         </p>
       </div>
 
@@ -98,7 +98,7 @@ export default function Login() {
         <div className="w-full max-w-sm">
           {/* Logo — mobile/tablet */}
           <div className="lg:hidden text-center mb-10">
-            <p className="font-serif text-3xl font-semibold text-foreground tracking-tight">RehabOT</p>
+            <p className="font-serif text-3xl font-semibold text-foreground tracking-tight">HisTO</p>
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground mt-1">
               Clínica · Terapia Ocupacional
             </p>

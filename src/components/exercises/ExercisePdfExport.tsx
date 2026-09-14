@@ -51,7 +51,7 @@ export function exportExercisesPdf(exercises: Exercise[]) {
   // ── Encabezado del documento ──
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text("Biblioteca de Ejercicios — RehabOT", margin, y);
+  doc.text("Biblioteca de Ejercicios — HisTO", margin, y);
   y += 8;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");

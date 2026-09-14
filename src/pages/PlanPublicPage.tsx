@@ -65,9 +65,9 @@ export default function PlanPublicPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-card border-b border-border px-4 py-3">
         <div className="max-w-xl mx-auto flex items-center gap-3">
-          <img src="/favicon.svg" alt="RehabOT" className="h-9 w-9 rounded-[10px] shrink-0" />
+          <img src="/favicon.svg" alt="HisTO" className="h-9 w-9 rounded-[10px] shrink-0" />
           <div>
-            <p className="field-label text-primary">RehabOT</p>
+            <p className="field-label text-primary">HisTO</p>
             <h1 className="font-serif text-base font-semibold text-foreground leading-tight">
               Programa de ejercicios domiciliarios
             </h1>

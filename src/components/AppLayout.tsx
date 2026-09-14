@@ -57,7 +57,7 @@ export function AppLayout() {
           {/* Header mobile */}
           <header className="h-14 flex items-center border-b border-border px-4 bg-card lg:hidden gap-3">
             <SidebarTrigger />
-            <span className="font-semibold text-foreground flex-1">RehabOT</span>
+            <span className="font-semibold text-foreground flex-1">HisTO</span>
             {isTeamMode && (
               <div className="flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-medium px-2.5 py-1 rounded-full">
                 <Building2 className="h-3.5 w-3.5 shrink-0" />

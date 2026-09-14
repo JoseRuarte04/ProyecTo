@@ -31,7 +31,7 @@ Deno.serve(async (req: Request) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Invitación a RehabOT</title>
+  <title>Invitación a HisTO</title>
 </head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 0;">
@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
         <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
           <tr>
             <td style="background:#1a1a2e;padding:28px 40px;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">RehabOT</p>
+              <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">HisTO</p>
               <p style="margin:4px 0 0;font-size:11px;color:#8888aa;letter-spacing:2px;text-transform:uppercase;">Plataforma de Terapia Ocupacional</p>
             </td>
           </tr>
@@ -48,7 +48,7 @@ Deno.serve(async (req: Request) => {
             <td style="padding:36px 40px 28px;">
               <p style="margin:0 0 16px;font-size:22px;font-weight:600;color:#1a1a2e;">Te invitaron a unirse a un equipo</p>
               <p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.6;">
-                <strong>${inviterName}</strong> te invitó a unirte al equipo <strong>${teamName}</strong> en RehabOT.
+                <strong>${inviterName}</strong> te invitó a unirte al equipo <strong>${teamName}</strong> en HisTO.
                 Aceptá la invitación creando tu cuenta con el botón de abajo.
               </p>
               <table cellpadding="0" cellspacing="0">
@@ -91,9 +91,9 @@ Deno.serve(async (req: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "RehabOT <onboarding@resend.dev>",
+        from: "HisTO <onboarding@resend.dev>",
         to: [email],
-        subject: `Te invitaron a unirse a ${teamName} en RehabOT`,
+        subject: `Te invitaron a unirse a ${teamName} en HisTO`,
         html,
       }),
     });

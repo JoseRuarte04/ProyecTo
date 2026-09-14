@@ -121,7 +121,7 @@ export default function InvitationRegister() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-1">
-          <p className="font-serif text-2xl font-semibold text-foreground">RehabOT</p>
+          <p className="font-serif text-2xl font-semibold text-foreground">HisTO</p>
           <p className="text-sm text-muted-foreground">
             Te invitaron a unirte al equipo <strong>{invitation.team_name}</strong>
           </p>

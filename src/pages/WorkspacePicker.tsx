@@ -98,7 +98,7 @@ export default function WorkspacePicker() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       {/* Logo */}
       <div className="text-center mb-10">
-        <p className="font-serif text-3xl font-semibold text-foreground tracking-tight">RehabOT</p>
+        <p className="font-serif text-3xl font-semibold text-foreground tracking-tight">HisTO</p>
         <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground mt-1">
           Terapia Ocupacional
         </p>

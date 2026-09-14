@@ -89,7 +89,7 @@ export function AppSidebar() {
             {/* Logo row */}
             <div className="flex items-center mb-4">
               <div className="flex-1 min-w-0">
-                <p className="font-serif text-xl font-semibold text-foreground tracking-tight">RehabOT</p>
+                <p className="font-serif text-xl font-semibold text-foreground tracking-tight">HisTO</p>
                 <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground mt-0.5">
                   Clínica · Terapia Ocupacional
                 </p>

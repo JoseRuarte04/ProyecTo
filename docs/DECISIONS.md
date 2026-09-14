@@ -1,4 +1,4 @@
-# DECISIONS — RehabOT
+# DECISIONS — HisTO
 
 > Registro de decisiones de arquitectura/producto. La idea NO es documentar todo
 > el código (para eso está el código y los comentarios) sino el "por qué"

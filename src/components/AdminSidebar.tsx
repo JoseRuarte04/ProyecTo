@@ -26,7 +26,7 @@ export function AdminSidebar() {
     <aside className="w-60 shrink-0 border-r border-border bg-card min-h-screen flex flex-col">
       <div className="p-6 border-b border-border">
         <p className="font-serif text-base font-semibold text-foreground">Panel Admin</p>
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">RehabOT</p>
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">HisTO</p>
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-1">

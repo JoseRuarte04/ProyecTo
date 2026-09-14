@@ -1,4 +1,4 @@
-# CHANGELOG — RehabOT
+# CHANGELOG — HisTO
 
 > Log cronológico simple. Una entrada por sesión de trabajo, 2-4 líneas.
 > No es para detalle técnico profundo (para eso están los commits) — es para
