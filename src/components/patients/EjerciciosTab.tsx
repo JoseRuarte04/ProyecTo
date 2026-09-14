@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Dumbbell, Plus, ClipboardList, Pencil, Trash2, Search, X, ChevronUp, ChevronDown, Save, CalendarRange, Layers } from "lucide-react";
 import { ExercisePlanLinkManager } from "@/components/patients/ExercisePlanLinkManager";
 import { ApplyRoutineWizard } from "@/components/patients/ApplyRoutineWizard";
-import { EXERCISE_TYPES } from "@/components/exercises/exerciseLibrary";
+import { EXERCISE_TYPES, getExerciseTypes } from "@/components/exercises/exerciseLibrary";
 import { toast } from "sonner";
 import { format, addWeeks } from "date-fns";
 import { es } from "date-fns/locale";
@@ -45,10 +45,6 @@ interface PlanItem {
   notes: string | null;
   exercise: ExerciseResult;
 }
-
-const TYPE_BADGE: Record<string, { label: string; className: string }> = Object.fromEntries(
-  EXERCISE_TYPES.map((t) => [t.value, { label: t.label, className: t.badgeClass }])
-);
 
 interface Props {
   patientId: string;
@@ -147,12 +143,17 @@ export function EjerciciosTab({ patientId }: Props) {
       let q = supabase
         .from("exercise_library")
         .select("id, name, exercise_type")
-        .eq("professional_id", user.id)
+        .or(`professional_id.eq.${user.id},professional_id.is.null`)
         .eq("is_active", true)
         .limit(15);
 
       if (hasText) q = q.ilike("name", `%${searchQuery.trim()}%`);
-      if (tipoFilter !== "all") q = q.eq("exercise_type", tipoFilter);
+      if (tipoFilter !== "all") {
+        // exercise_type puede ser un valor combinado ("activo; fortalecimiento",
+        // ver catálogo HEP2go) — matchea el filtro exacto o como token dentro
+        // de la lista separada por "; ".
+        q = q.or(`exercise_type.eq.${tipoFilter},exercise_type.ilike.${tipoFilter}; %,exercise_type.ilike.%; ${tipoFilter}`);
+      }
       if (apartadoFilter === "__none__") q = q.is("body_region_id", null);
       else if (apartadoFilter !== "all") q = q.eq("body_region_id", apartadoFilter);
 
@@ -387,7 +388,7 @@ export function EjerciciosTab({ patientId }: Props) {
             ) : (
               <div className="space-y-1">
                 {items.map((item, idx) => {
-                  const badge = item.exercise.exercise_type ? TYPE_BADGE[item.exercise.exercise_type] : null;
+                  const badges = getExerciseTypes(item.exercise.exercise_type);
                   const dosage = item.assigned_sets && item.assigned_reps
                     ? `${item.assigned_sets} series × ${item.assigned_reps} reps`
                     : item.assigned_sets ? `${item.assigned_sets} series`
@@ -423,11 +424,11 @@ export function EjerciciosTab({ patientId }: Props) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium text-foreground">{item.exercise.name}</span>
-                          {badge && (
-                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${badge.className}`}>
+                          {badges.map((badge) => (
+                            <Badge key={badge.value} variant="outline" className={`text-[10px] px-1.5 py-0 border ${badge.badgeClass}`}>
                               {badge.label}
                             </Badge>
-                          )}
+                          ))}
                         </div>
                         <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                           {dosage && <span className="text-xs text-muted-foreground">{dosage}</span>}
@@ -563,7 +564,7 @@ export function EjerciciosTab({ patientId }: Props) {
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             </div>
                           ) : searchResults.map((ex) => {
-                            const b = ex.exercise_type ? TYPE_BADGE[ex.exercise_type] : null;
+                            const types = getExerciseTypes(ex.exercise_type);
                             return (
                               <button
                                 key={ex.id}
@@ -571,7 +572,9 @@ export function EjerciciosTab({ patientId }: Props) {
                                 onClick={() => { setSelectedEx(ex); setSearchQuery(ex.name); setSearchResults([]); }}
                               >
                                 <span className="flex-1">{ex.name}</span>
-                                {b && <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${b.className}`}>{b.label}</Badge>}
+                                {types.map((t) => (
+                                  <Badge key={t.value} variant="outline" className={`text-[10px] px-1.5 py-0 border ${t.badgeClass}`}>{t.label}</Badge>
+                                ))}
                               </button>
                             );
                           })}

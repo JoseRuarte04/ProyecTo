@@ -13,10 +13,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { RowsSkeleton } from "@/components/skeletons";
 import { exportExercisesPdf } from "@/components/exercises/ExercisePdfExport";
 import ApartadosPanel, { type Apartado } from "@/components/exercises/ApartadosPanel";
+import CatalogRegionPanel from "@/components/exercises/CatalogRegionPanel";
 import ExerciseRow from "@/components/exercises/ExerciseRow";
 import ExerciseDetailDialog from "@/components/exercises/ExerciseDetailDialog";
 import ExerciseFormDialog from "@/components/exercises/ExerciseFormDialog";
-import { type Exercise, EXERCISE_TYPES, type ExerciseTypeValue } from "@/components/exercises/exerciseLibrary";
+import { type Exercise, EXERCISE_TYPES, CATALOG_REGIONS, matchesExerciseType, type ExerciseTypeValue } from "@/components/exercises/exerciseLibrary";
 import PlanList from "@/components/exercises/plans/PlanList";
 import PlanItemsPanel from "@/components/exercises/plans/PlanItemsPanel";
 import type { ExercisePlanTemplate } from "@/components/exercises/plans/planLibrary";
@@ -26,6 +27,8 @@ import type { ExerciseProgram } from "@/components/exercises/programs/programLib
 
 type LibraryTab = "ejercicios" | "planes" | "programas";
 type TypeFilter = ExerciseTypeValue | "all";
+type ExerciseSource = "propios" | "catalogo";
+const SIN_SUBCATEGORIA = "__sin_subcategoria__";
 
 export default function Exercises() {
   const { user } = useAuth();
@@ -38,6 +41,14 @@ export default function Exercises() {
   const [activeTab, setActiveTab] = useState<LibraryTab>("ejercicios");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [search, setSearch] = useState("");
+
+  // ── Catálogo global de ejercicios (HEP2go) ──
+  const [source, setSource] = useState<ExerciseSource>("propios");
+  const [catalogExercises, setCatalogExercises] = useState<Exercise[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
 
   const [plans, setPlans] = useState<ExercisePlanTemplate[]>([]);
   const [planItemCounts, setPlanItemCounts] = useState<Record<string, number>>({});
@@ -69,6 +80,25 @@ export default function Exercises() {
     }
     setExercises(data || []);
     setLoading(false);
+  };
+
+  // Fetch perezoso: el catálogo global (2928 ejercicios) solo se pide la
+  // primera vez que el profesional abre la vista "Catálogo", no en cada
+  // visita a la página.
+  const fetchCatalogExercises = async () => {
+    setCatalogLoading(true);
+    const { data, error } = await supabase
+      .from("exercise_library")
+      .select("*")
+      .is("professional_id", null)
+      .eq("is_active", true)
+      .order("name");
+    if (error) {
+      toast.error("Error al cargar el catálogo", { description: error.message });
+    }
+    setCatalogExercises(data || []);
+    setCatalogLoaded(true);
+    setCatalogLoading(false);
   };
 
   const fetchApartados = async () => {
@@ -130,36 +160,86 @@ export default function Exercises() {
     fetchPrograms();
   }, [user]);
 
+  useEffect(() => {
+    if (source === "catalogo" && !catalogLoaded) fetchCatalogExercises();
+  }, [source, catalogLoaded]);
+
   // ── Filtrado ──
 
-  const byApartado = useMemo(() => {
-    if (selectedApartadoId === null) {
-      return exercises.filter((ex) => ex.body_region_id == null);
+  // Región (catálogo) y Apartado (propios) son conceptos separados — el
+  // catálogo global usa una taxonomía fija de 9 regiones (CATALOG_REGIONS),
+  // los apartados son carpetas libres por profesional.
+  const bySourceAndRegion = useMemo(() => {
+    if (source === "catalogo") {
+      let list = selectedRegion === null
+        ? catalogExercises
+        : catalogExercises.filter((ex) => ex.catalog_region === selectedRegion);
+      if (selectedSubcategory === SIN_SUBCATEGORIA) {
+        list = list.filter((ex) => !ex.catalog_subcategory);
+      } else if (selectedSubcategory) {
+        list = list.filter((ex) => ex.catalog_subcategory?.split("; ").includes(selectedSubcategory));
+      }
+      return list;
     }
-    return exercises.filter((ex) => ex.body_region_id === selectedApartadoId);
-  }, [exercises, selectedApartadoId]);
+    return selectedApartadoId === null
+      ? exercises.filter((ex) => ex.body_region_id == null)
+      : exercises.filter((ex) => ex.body_region_id === selectedApartadoId);
+  }, [source, catalogExercises, selectedRegion, selectedSubcategory, exercises, selectedApartadoId]);
 
   const bySearch = useMemo(() => {
-    if (!search.trim()) return byApartado;
+    if (!search.trim()) return bySourceAndRegion;
     const s = search.toLowerCase();
-    return byApartado.filter((ex) =>
+    return bySourceAndRegion.filter((ex) =>
       ex.name?.toLowerCase().includes(s) || ex.instructions?.toLowerCase().includes(s)
     );
-  }, [byApartado, search]);
+  }, [bySourceAndRegion, search]);
 
-  // Los ejercicios sin tipo (datos legacy) se muestran siempre, para que no
-  // queden inaccesibles al filtrar; al editarlos el form exige asignar tipo.
   const filtered = useMemo(
-    () => bySearch.filter((ex) => typeFilter === "all" || ex.exercise_type === typeFilter || !ex.exercise_type),
+    () => bySearch.filter((ex) => typeFilter === "all" || matchesExerciseType(ex.exercise_type, typeFilter)),
     [bySearch, typeFilter]
   );
 
-  const typeCount = (type: ExerciseTypeValue) => bySearch.filter((ex) => ex.exercise_type === type || !ex.exercise_type).length;
+  const typeCount = (type: ExerciseTypeValue) => bySearch.filter((ex) => matchesExerciseType(ex.exercise_type, type)).length;
+
+  // Subcategorías disponibles para la región elegida del catálogo (o de todo
+  // el catálogo si no hay región seleccionada) — separadas por "; " porque
+  // algunos ejercicios traen varias subcategorías combinadas.
+  const availableSubcategories = useMemo(() => {
+    if (source !== "catalogo") return [];
+    const pool = selectedRegion === null
+      ? catalogExercises
+      : catalogExercises.filter((ex) => ex.catalog_region === selectedRegion);
+    const set = new Set<string>();
+    let hasEmpty = false;
+    pool.forEach((ex) => {
+      if (!ex.catalog_subcategory) { hasEmpty = true; return; }
+      ex.catalog_subcategory.split("; ").forEach((tok) => set.add(tok.trim()));
+    });
+    const sorted = Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+    return hasEmpty ? [...sorted, SIN_SUBCATEGORIA] : sorted;
+  }, [source, catalogExercises, selectedRegion]);
+
+  const regionCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    catalogExercises.forEach((ex) => {
+      if (ex.catalog_region) counts[ex.catalog_region] = (counts[ex.catalog_region] ?? 0) + 1;
+    });
+    return counts;
+  }, [catalogExercises]);
+
+  useEffect(() => {
+    setSelectedSubcategory(null);
+  }, [selectedRegion]);
 
   // ── Delete ──
 
   const handleDelete = async () => {
     if (!deleteEx) return;
+    if (deleteEx.professional_id === null) {
+      toast.error("No podés eliminar un ejercicio del catálogo");
+      setDeleteEx(null);
+      return;
+    }
     const [{ count: treatmentCount }, { count: planItemCount }, { count: routineItemCount }] = await Promise.all([
       supabase
         .from("treatment_plan_exercises")
@@ -262,6 +342,21 @@ export default function Exercises() {
               ))}
             </SelectContent>
           </Select>
+        ) : source === "catalogo" ? (
+          <Select
+            value={selectedRegion ?? "__todas__"}
+            onValueChange={(v) => setSelectedRegion(v === "__todas__" ? null : v)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleccioná una región" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__todas__">Todas las regiones</SelectItem>
+              {CATALOG_REGIONS.map((region) => (
+                <SelectItem key={region} value={region}>{region}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : (
           <Select
             value={selectedApartadoId ?? "__sin_apartado__"}
@@ -306,6 +401,16 @@ export default function Exercises() {
                 onSelectProgram={setSelectedProgramId}
                 professionalId={user!.id}
                 onRefetch={fetchPrograms}
+              />
+            </>
+          ) : source === "catalogo" ? (
+            <>
+              <p className="field-label text-muted-foreground mb-3">Regiones</p>
+              <CatalogRegionPanel
+                regions={CATALOG_REGIONS}
+                counts={regionCounts}
+                selectedRegion={selectedRegion}
+                onSelectRegion={setSelectedRegion}
               />
             </>
           ) : (
@@ -356,6 +461,27 @@ export default function Exercises() {
 
             {activeTab === "ejercicios" && (
               <>
+                <div className="flex gap-1 p-1 bg-muted rounded-md w-fit">
+                  <button
+                    onClick={() => setSource("propios")}
+                    className={cn(
+                      "px-3 py-1 rounded text-xs font-medium transition-colors",
+                      source === "propios" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    Mis ejercicios
+                  </button>
+                  <button
+                    onClick={() => setSource("catalogo")}
+                    className={cn(
+                      "px-3 py-1 rounded text-xs font-medium transition-colors",
+                      source === "catalogo" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    Catálogo
+                  </button>
+                </div>
+
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -365,6 +491,36 @@ export default function Exercises() {
                     className="pl-10 max-w-sm h-9 text-sm"
                   />
                 </div>
+
+                {source === "catalogo" && availableSubcategories.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setSelectedSubcategory(null)}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                        selectedSubcategory === null
+                          ? "bg-primary/10 text-primary border-primary/30"
+                          : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      )}
+                    >
+                      Todas las subcategorías
+                    </button>
+                    {availableSubcategories.map((sub) => (
+                      <button
+                        key={sub}
+                        onClick={() => setSelectedSubcategory(sub)}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
+                          selectedSubcategory === sub
+                            ? "bg-primary/10 text-primary border-primary/30"
+                            : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                        )}
+                      >
+                        {sub === SIN_SUBCATEGORIA ? "Sin subcategoría" : sub}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* Filtro por tipo — no es una pestaña, filtra la lista de abajo */}
                 <div className="flex flex-wrap gap-1.5 pb-3">
@@ -444,13 +600,15 @@ export default function Exercises() {
             </div>
           ) : (
           <div className="overflow-y-auto flex-1">
-            {loading ? (
+            {(source === "catalogo" ? catalogLoading : loading) ? (
               <RowsSkeleton rows={6} />
             ) : filtered.length === 0 ? (
               <div className="m-5 bg-card rounded-[10px] border border-dashed border-border p-10 text-center text-muted-foreground text-sm">
                 {bySearch.length === 0
-                  ? <>No hay ejercicios en este apartado. Creá uno con <span className="font-medium text-primary">Nuevo Ejercicio</span>.</>
-                  : "No hay ejercicios de este tipo en este apartado."}
+                  ? source === "catalogo"
+                    ? "No hay ejercicios del catálogo en esta región/subcategoría."
+                    : <>No hay ejercicios en este apartado. Creá uno con <span className="font-medium text-primary">Nuevo Ejercicio</span>.</>
+                  : "No hay ejercicios de este tipo en esta selección."}
               </div>
             ) : (
               <>
@@ -469,8 +627,8 @@ export default function Exercises() {
                       key={ex.id}
                       exercise={ex}
                       onDetail={() => setDetailEx(ex)}
-                      onEdit={() => setEditEx(ex)}
-                      onDelete={() => setDeleteEx(ex)}
+                      onEdit={ex.professional_id ? () => setEditEx(ex) : undefined}
+                      onDelete={ex.professional_id ? () => setDeleteEx(ex) : undefined}
                     />
                   ))}
                 </div>
@@ -507,7 +665,7 @@ export default function Exercises() {
         <ExerciseDetailDialog
           exercise={detailEx}
           onClose={() => setDetailEx(null)}
-          onEdit={() => { setEditEx(detailEx); setDetailEx(null); }}
+          onEdit={detailEx.professional_id ? () => { setEditEx(detailEx); setDetailEx(null); } : undefined}
         />
       )}
 

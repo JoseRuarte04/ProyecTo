@@ -4,15 +4,11 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Save, ClipboardList } from "lucide-react";
-import { EXERCISE_TYPES } from "@/components/exercises/exerciseLibrary";
+import { getExerciseTypes } from "@/components/exercises/exerciseLibrary";
 import type { Apartado } from "@/components/exercises/ApartadosPanel";
 import PlanItemFormDialog from "./PlanItemFormDialog";
 import type { ExercisePlanTemplate, ExercisePlanTemplateItem } from "./planLibrary";
 import { toast } from "sonner";
-
-const TYPE_BADGE: Record<string, { label: string; className: string }> = Object.fromEntries(
-  EXERCISE_TYPES.map((t) => [t.value, { label: t.label, className: t.badgeClass }])
-);
 
 interface PlanItemsPanelProps {
   plan: ExercisePlanTemplate;
@@ -122,7 +118,7 @@ export default function PlanItemsPanel({ plan, apartados, onItemsChanged }: Plan
         ) : (
           <div className="space-y-1">
             {items.map((item, idx) => {
-              const badge = item.exercise.exercise_type ? TYPE_BADGE[item.exercise.exercise_type] : null;
+              const badges = getExerciseTypes(item.exercise.exercise_type);
               const dosage = item.suggested_sets && item.suggested_reps
                 ? `${item.suggested_sets} series × ${item.suggested_reps} reps`
                 : item.suggested_sets ? `${item.suggested_sets} series`
@@ -147,7 +143,9 @@ export default function PlanItemsPanel({ plan, apartados, onItemsChanged }: Plan
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-foreground">{item.exercise.name}</span>
-                      {badge && <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${badge.className}`}>{badge.label}</Badge>}
+                      {badges.map((badge) => (
+                        <Badge key={badge.value} variant="outline" className={`text-[10px] px-1.5 py-0 border ${badge.badgeClass}`}>{badge.label}</Badge>
+                      ))}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                       {dosage && <span className="text-xs text-muted-foreground">{dosage}</span>}
