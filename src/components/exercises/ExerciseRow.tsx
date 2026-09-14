@@ -13,8 +13,8 @@ import { type Exercise, getExerciseType } from "./exerciseLibrary";
 interface ExerciseRowProps {
   exercise: Exercise;
   onDetail: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export default function ExerciseRow({ exercise: ex, onDetail, onEdit, onDelete }: ExerciseRowProps) {
@@ -92,13 +92,19 @@ export default function ExerciseRow({ exercise: ex, onDetail, onEdit, onDelete }
             <DropdownMenuItem onClick={onDetail}>
               <Eye className="h-4 w-4 mr-2" />Ver detalle
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="h-4 w-4 mr-2" />Editar
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
-              <Trash2 className="h-4 w-4 mr-2" />Eliminar
-            </DropdownMenuItem>
+            {onEdit && (
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="h-4 w-4 mr-2" />Editar
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" />Eliminar
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

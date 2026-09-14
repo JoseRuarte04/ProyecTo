@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, XCircle, AlertTriangle, CalendarRange } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getExerciseType, extractYoutubeId } from "@/components/exercises/exerciseLibrary";
+import { getExerciseTypes, extractYoutubeId } from "@/components/exercises/exerciseLibrary";
 import { format, addWeeks } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -137,7 +137,7 @@ export default function PlanPublicPage() {
             ) : (
               planData.items.map((item, idx) => {
                 const ex = item.exercise;
-                const type = getExerciseType(ex.exercise_type);
+                const types = getExerciseTypes(ex.exercise_type);
                 const dosage = item.assigned_sets && item.assigned_reps
                   ? `${item.assigned_sets} series × ${item.assigned_reps} reps`
                   : item.assigned_sets ? `${item.assigned_sets} series`
@@ -156,11 +156,11 @@ export default function PlanPublicPage() {
                       <div className="flex-1 min-w-0">
                         <h2 className="font-serif text-base font-semibold text-foreground leading-tight">{ex.name}</h2>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {type && (
-                            <span className={cn("field-label px-1.5 py-0.5 rounded border", type.badgeClass)}>
+                          {types.map((type) => (
+                            <span key={type.value} className={cn("field-label px-1.5 py-0.5 rounded border", type.badgeClass)}>
                               {type.label}
                             </span>
-                          )}
+                          ))}
                           {dosage && (
                             <span className="text-xs text-foreground font-medium">{dosage}</span>
                           )}

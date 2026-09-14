@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { type Exercise, getExerciseType } from "./exerciseLibrary";
+import { type Exercise, getExerciseTypes } from "./exerciseLibrary";
 
 export function exportExercisesPdf(exercises: Exercise[]) {
   const doc = new jsPDF();
@@ -71,7 +71,7 @@ export function exportExercisesPdf(exercises: Exercise[]) {
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
     doc.text(`${idx + 1}. ${ex.name}`, margin, y);
-    const typeLabel = getExerciseType(ex.exercise_type)?.label ?? null;
+    const typeLabel = getExerciseTypes(ex.exercise_type).map((t) => t.label).join(", ") || null;
     if (typeLabel) {
       const nameW = doc.getTextWidth(`${idx + 1}. ${ex.name}`); // medir mientras bold
       doc.setFontSize(8);

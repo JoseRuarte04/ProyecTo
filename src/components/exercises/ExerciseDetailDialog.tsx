@@ -2,7 +2,7 @@ import { Dialog, DialogContentFullScreen, DialogClose, DialogTitle, DialogDescri
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Play, Pencil, AlertTriangle, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type Exercise, getExerciseType, extractYoutubeId } from "./exerciseLibrary";
+import { type Exercise, getExerciseTypes, extractYoutubeId } from "./exerciseLibrary";
 
 interface ExerciseDetailDialogProps {
   exercise: Exercise;
@@ -11,7 +11,7 @@ interface ExerciseDetailDialogProps {
 }
 
 export default function ExerciseDetailDialog({ exercise, onClose, onEdit }: ExerciseDetailDialogProps) {
-  const type = getExerciseType(exercise.exercise_type);
+  const types = getExerciseTypes(exercise.exercise_type);
   const ytId = extractYoutubeId(exercise.video_url || "");
   const hasStats = !!(exercise.suggested_sets || exercise.suggested_reps || exercise.equipment);
   const hasAside = !!ytId || hasStats;
@@ -43,10 +43,14 @@ export default function ExerciseDetailDialog({ exercise, onClose, onEdit }: Exer
         <div className="flex-1 overflow-y-auto">
           <div className={cn("mx-auto w-full px-4 sm:px-6 py-8", hasAside ? "max-w-5xl" : "max-w-3xl")}>
             {/* Encabezado */}
-            {type && (
-              <span className={cn("field-label inline-block px-2 py-1 rounded border mb-3", type.badgeClass)}>
-                {type.label}
-              </span>
+            {types.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {types.map((type) => (
+                  <span key={type.value} className={cn("field-label inline-block px-2 py-1 rounded border", type.badgeClass)}>
+                    {type.label}
+                  </span>
+                ))}
+              </div>
             )}
             <DialogTitle className="font-serif text-3xl sm:text-4xl font-semibold leading-tight tracking-tight text-foreground">
               {exercise.name}

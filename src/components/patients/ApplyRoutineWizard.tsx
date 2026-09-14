@@ -9,14 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search, X, Trash2, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EXERCISE_TYPES } from "@/components/exercises/exerciseLibrary";
+import { getExerciseTypes } from "@/components/exercises/exerciseLibrary";
 import type { ExercisePlanTemplate } from "@/components/exercises/plans/planLibrary";
 import type { ExerciseProgram } from "@/components/exercises/programs/programLibrary";
 import { toast } from "sonner";
-
-const TYPE_BADGE: Record<string, { label: string; className: string }> = Object.fromEntries(
-  EXERCISE_TYPES.map((t) => [t.value, { label: t.label, className: t.badgeClass }])
-);
 
 type SourceKind = "plan" | "programa";
 
@@ -147,7 +143,7 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
       const { data } = await supabase
         .from("exercise_library")
         .select("id, name, exercise_type")
-        .eq("professional_id", user.id)
+        .or(`professional_id.eq.${user.id},professional_id.is.null`)
         .eq("is_active", true)
         .ilike("name", `%${addQuery.trim()}%`)
         .limit(10)
@@ -299,13 +295,15 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
                 </p>
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {draftItems.map((it, idx) => {
-                    const badge = it.exercise_type ? TYPE_BADGE[it.exercise_type] : null;
+                    const badges = getExerciseTypes(it.exercise_type);
                     return (
                       <div key={`${it.exercise_id}-${idx}`} className="border border-border rounded-md p-3 space-y-2">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-sm font-medium truncate">{it.name}</span>
-                            {badge && <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border shrink-0 ${badge.className}`}>{badge.label}</Badge>}
+                            {badges.map((badge) => (
+                              <Badge key={badge.value} variant="outline" className={`text-[10px] px-1.5 py-0 border shrink-0 ${badge.badgeClass}`}>{badge.label}</Badge>
+                            ))}
                           </div>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0" onClick={() => removeDraftItem(idx)}>
                             <Trash2 className="h-3.5 w-3.5" />

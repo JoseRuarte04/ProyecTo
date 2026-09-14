@@ -17,9 +17,7 @@ Simplificar la sección Ejercicios a 3 niveles (Ejercicio → Rutina → Program
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| | | | |
-
-**Vacío** — Ejercicio → Plan → Programa cerrado esta sesión (ver Cerrado abajo). Decidir qué arranca: Recordatorios de turnos (plan listo) u otra cosa.
+| Catálogo global de ejercicios HEP2go | Plan aprobado, implementando | Jose debe correr 3 migraciones (A/B/C) contra Supabase real | Ver `docs/PLAN_catalogo_ejercicios_hep2go.md` (copia del plan aprobado) |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 

@@ -110,7 +110,7 @@ export function NewPlanDialog({ open, onClose, patientId, userId, onSaved }: New
   useEffect(() => {
     if (step === 2 && exercises.length === 0) {
       setLoadingEx(true);
-      supabase.from("exercise_library").select("id, name, suggested_sets, suggested_reps, exercise_body_regions(name)").eq("professional_id", userId).eq("is_active", true)
+      supabase.from("exercise_library").select("id, name, suggested_sets, suggested_reps, exercise_body_regions(name)").or(`professional_id.eq.${userId},professional_id.is.null`).eq("is_active", true)
         .then(({ data }) => { setExercises(data || []); setLoadingEx(false); });
     }
   }, [step]);
@@ -324,7 +324,7 @@ export function EditPlanDialog({ plan, onClose, patientId, userId, onSaved }: Ed
   useEffect(() => {
     if (plan && step === 2 && exercises.length === 0) {
       setLoadingEx(true);
-      supabase.from("exercise_library").select("id, name, suggested_sets, suggested_reps, exercise_body_regions(name)").eq("professional_id", userId).eq("is_active", true)
+      supabase.from("exercise_library").select("id, name, suggested_sets, suggested_reps, exercise_body_regions(name)").or(`professional_id.eq.${userId},professional_id.is.null`).eq("is_active", true)
         .then(({ data }) => { setExercises(data || []); setLoadingEx(false); });
     }
   }, [step, plan]);
