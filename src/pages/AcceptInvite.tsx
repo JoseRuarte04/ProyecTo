@@ -100,7 +100,7 @@ export default function AcceptInvite() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md border-border/60">
         <CardHeader className="text-center pb-4 pt-10">
-          <h1 className="font-serif text-3xl font-semibold text-foreground tracking-tight">RehabOT</h1>
+          <h1 className="font-serif text-3xl font-semibold text-foreground tracking-tight">HisTO</h1>
           <p className="text-muted-foreground text-sm mt-2">
             Bienvenido/a. Configurá tu contraseña para acceder al sistema.
           </p>

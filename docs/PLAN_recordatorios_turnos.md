@@ -55,7 +55,7 @@ Patrón de las 4 existentes (`Deno.serve`, CORS). Secciones:
 1. **Auth**: rechazar si `req.headers.get("x-cron-secret") !== Deno.env.get("CRON_SECRET")`.
 2. **Ventana "mañana en ART"**: offset fijo `-03:00` (Argentina no tiene DST): calcular `[mañana 00:00 -03, mañana 24:00 -03]` en UTC.
 3. **Query** (cliente service role, `SUPABASE_SERVICE_ROLE_KEY` disponible por default en edge functions): `appointments` con `status = 'scheduled'` en la ventana, join `patients(first_name, email)`, excluyendo los que ya tienen reminder `email` (left join / segunda query a `appointment_reminders`).
-4. **Envío**: por cada turno con email → POST a Resend (template HTML con el branding del mail de invitaciones: fecha larga en español, hora, modalidad; si es virtual con `video_link`, incluir el link "conectate 5 minutos antes"). `from`: `Deno.env.get("REMINDER_FROM") ?? "RehabOT <onboarding@resend.dev>"`.
+4. **Envío**: por cada turno con email → POST a Resend (template HTML con el branding del mail de invitaciones: fecha larga en español, hora, modalidad; si es virtual con `video_link`, incluir el link "conectate 5 minutos antes"). `from`: `Deno.env.get("REMINDER_FROM") ?? "HisTO <onboarding@resend.dev>"`.
 5. **Tracking**: insert en `appointment_reminders` (channel `email`, `sent_by` null) solo si Resend respondió OK.
 6. **Respuesta**: `{ sent, skipped_no_email, already_sent, errors }` para poder auditar cada corrida en los logs.
 

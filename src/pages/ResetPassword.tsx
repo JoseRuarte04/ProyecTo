@@ -50,7 +50,7 @@ export default function ResetPassword() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-10">
-          <p className="font-serif text-3xl font-semibold text-foreground tracking-tight">RehabOT</p>
+          <p className="font-serif text-3xl font-semibold text-foreground tracking-tight">HisTO</p>
           <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground mt-1">
             Clínica · Terapia Ocupacional
           </p>

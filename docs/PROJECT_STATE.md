@@ -1,4 +1,4 @@
-# PROJECT_STATE — RehabOT
+# PROJECT_STATE — HisTO
 
 > Este archivo es la ÚNICA fuente de verdad sobre "dónde estamos ahora".
 > Se actualiza al FINAL de cada sesión de trabajo (con Claude Code o sin él).

@@ -129,7 +129,7 @@ function buildPlanHtml(plan: any, patient: any, exercises: any[]): string {
   return `
     <div style="width:794px;background:#fff;font-family:'Helvetica',sans-serif;color:#1a1a1a">
       <div style="background:#0d9488;padding:16px 40px;display:flex;justify-content:space-between;align-items:center">
-        <span style="color:#fff;font-weight:700;font-size:20px">RehabOT</span>
+        <span style="color:#fff;font-weight:700;font-size:20px">HisTO</span>
         <span style="color:#fff;font-size:12px">${today}</span>
       </div>
       <div style="padding:32px 40px 0">

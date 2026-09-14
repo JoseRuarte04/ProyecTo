@@ -289,7 +289,7 @@ function InvitationsTab({ team, onReload }: { team: MyTeam; onReload: () => void
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground mt-1.5">
-          Si tiene cuenta en RehabOT se agrega directamente. Si no, recibirá un email.
+          Si tiene cuenta en HisTO se agrega directamente. Si no, recibirá un email.
         </p>
       </div>
 
