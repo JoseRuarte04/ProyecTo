@@ -94,9 +94,11 @@ export function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onD
     }
 
     if (wasDischarge && episodeId) {
-      const { data: remaining } = await supabase.from("therapy_sessions").select("id").eq("patient_id", patientId).eq("session_type", "discharge").eq("is_deleted", false).limit(1);
+      const { data: remaining, error: remainingErr } = await supabase.from("therapy_sessions").select("id").eq("patient_id", patientId).eq("session_type", "discharge").eq("is_deleted", false).limit(1);
+      if (remainingErr) console.error("Error al chequear altas restantes:", remainingErr);
       if (!remaining || remaining.length === 0) {
-        await supabase.from("treatment_episodes").update({ status: "active", discharge_date: null }).eq("id", episodeId);
+        const { error: reactivateErr } = await supabase.from("treatment_episodes").update({ status: "active", discharge_date: null }).eq("id", episodeId);
+        if (reactivateErr) console.error("Error al reactivar el episodio:", reactivateErr);
       }
     }
 

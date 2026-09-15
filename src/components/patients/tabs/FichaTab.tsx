@@ -48,6 +48,8 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
   const dominanceLabel = occupational?.dominance
     ? ({ right: "Diestro/a", left: "Zurdo/a", ambidextrous: "Ambidiestro/a" } as Record<string, string>)[occupational.dominance] || occupational.dominance
     : null;
+  const hasOccupationalData = occupational && (occupational.dominance || occupational.marital_status || occupational.education_level || occupational.job || occupational.support_network);
+  const hasClinicalData = clinical && (clinical.injury_date || clinical.surgery_date || clinical.symptom_start_date || clinical.injury_mechanism || clinical.treatment_type || clinical.immobilization_type || clinical.studies || clinical.weeks_post_injury || clinical.weeks_post_surgery || clinical.immobilization_weeks || clinical.diagnosis || clinical.referral_reason);
   const fmtDate = (d: string | null | undefined) =>
     d ? format(new Date(d + "T12:00:00"), "d MMM yyyy", { locale: es }) : null;
   const periodStr = (w: number | null | undefined, d: number | null | undefined) => {
@@ -96,7 +98,7 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
         )}
       </Section>
 
-      {clinical && (clinical.injury_date || clinical.surgery_date || clinical.symptom_start_date || clinical.injury_mechanism || clinical.treatment_type || clinical.immobilization_type || clinical.studies || clinical.weeks_post_injury || clinical.weeks_post_surgery || clinical.immobilization_weeks || clinical.diagnosis || clinical.referral_reason) && (
+      {hasClinicalData && (
         <Section title="Datos clínicos" icon={<Stethoscope className="h-4 w-4" />}>
           <Field label="Fecha de lesión" value={fmtDate(clinical.injury_date)} />
           <Field label="Fecha de cirugía" value={fmtDate(clinical.surgery_date)} showEmpty />
@@ -117,7 +119,7 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
         </Section>
       )}
 
-      {occupational && (
+      {hasOccupationalData && (
         <Section title="Perfil ocupacional" icon={<User className="h-4 w-4" />}>
           <Field label="Lateralidad" value={dominanceLabel} />
           <Field label="Estado civil" value={maritalStatusLabel(occupational.marital_status)} />
@@ -127,7 +129,7 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
         </Section>
       )}
 
-      {!clinical && !occupational && (
+      {!hasClinicalData && !hasOccupationalData && (
         <div className="bg-card rounded-[10px] border border-dashed border-border p-8 text-center text-muted-foreground text-sm">
           Sin datos clínicos ni perfil ocupacional registrado.
         </div>

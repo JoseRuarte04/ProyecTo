@@ -56,11 +56,12 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
 
       if (epErr || !newEp) throw epErr || new Error("Failed to create episode");
 
-      await supabase.from("episode_diagnoses").insert(
+      const { error: diagErr } = await supabase.from("episode_diagnoses").insert(
         form.diagnoses.map((d, i) => ({ episode_id: newEp.id, patient_id: patientId, code: d.code, label: d.label, position: i }))
       );
+      if (diagErr) throw diagErr;
 
-      await supabase.from("patient_clinical_records").insert({
+      const { error: cliErr } = await supabase.from("patient_clinical_records").insert({
         patient_id: patientId,
         episode_id: newEp.id,
         diagnosis: primaryLabel(form.diagnoses),
@@ -69,17 +70,20 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
         injury_mechanism: form.injury_mechanism || null,
         weeks_post_injury: form.weeks_post_injury ? parseInt(form.weeks_post_injury) : null,
       });
+      if (cliErr) throw cliErr;
 
       const activeEps = episodes.filter((e: any) => e.status === "active");
       for (const ep of activeEps) {
-        await supabase.from("treatment_episodes").update({ status: "discharged", discharge_date: form.admission_date }).eq("id", ep.id);
+        const { error: dischargeErr } = await supabase.from("treatment_episodes").update({ status: "discharged", discharge_date: form.admission_date }).eq("id", ep.id);
+        if (dischargeErr) throw dischargeErr;
       }
 
       // Un episodio nuevo sobre un paciente que había abandonado lo reactiva
-      await supabase.from("patients")
+      const { error: reactivateErr } = await supabase.from("patients")
         .update({ status: "active", abandoned_at: null, abandon_reason: null })
         .eq("id", patientId)
         .eq("status", "abandoned");
+      if (reactivateErr) throw reactivateErr;
 
       toast.success("Nuevo episodio creado correctamente");
       onSaved(newEp.id);

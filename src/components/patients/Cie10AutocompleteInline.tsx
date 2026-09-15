@@ -24,7 +24,8 @@ export function Cie10AutocompleteInline({ value, onChange, placeholder, onSelect
     let cancelled = false;
     setLoading(true);
     const t = setTimeout(async () => {
-      const { data } = await supabase.rpc("search_cie10", { search_input: term, max_results: 10 });
+      const { data, error } = await supabase.rpc("search_cie10", { search_input: term, max_results: 10 });
+      if (error) console.error("Error al buscar CIE-10:", error);
       if (cancelled) return;
       setResults(data || []);
       setOpen(true);

@@ -144,9 +144,10 @@ export function NewPlanDialog({ open, onClose, patientId, userId, onSaved }: New
     if (error || !plan) { setSaving(false); toast.error("Error al crear el plan de tratamiento"); return; }
 
     if (selectedExercises.length > 0) {
-      await supabase.from("treatment_plan_exercises").insert(
+      const { error: exErr } = await supabase.from("treatment_plan_exercises").insert(
         selectedExercises.map((ex, i) => ({ treatment_plan_id: plan.id, exercise_id: ex.id, repetitions: ex.repetitions, sets: ex.sets, frequency: ex.frequency || null, duration: ex.duration || null, notes: ex.notes || null, order_index: i }))
       );
+      if (exErr) { setSaving(false); toast.error("El plan se creó pero fallaron los ejercicios: " + exErr.message); return; }
     }
 
     setSaving(false);
@@ -355,11 +356,13 @@ export function EditPlanDialog({ plan, onClose, patientId, userId, onSaved }: Ed
 
     if (error) { setSaving(false); toast.error("Error al actualizar el plan"); return; }
 
-    await supabase.from("treatment_plan_exercises").delete().eq("treatment_plan_id", plan.id);
+    const { error: delErr } = await supabase.from("treatment_plan_exercises").delete().eq("treatment_plan_id", plan.id);
+    if (delErr) { setSaving(false); toast.error("Error al actualizar los ejercicios del plan: " + delErr.message); return; }
     if (selectedExercises.length > 0) {
-      await supabase.from("treatment_plan_exercises").insert(
+      const { error: exErr } = await supabase.from("treatment_plan_exercises").insert(
         selectedExercises.map((ex, i) => ({ treatment_plan_id: plan.id, exercise_id: ex.id, repetitions: ex.repetitions, sets: ex.sets, frequency: ex.frequency || null, duration: ex.duration || null, notes: ex.notes || null, order_index: i }))
       );
+      if (exErr) { setSaving(false); toast.error("El plan quedó sin ejercicios, reintentá: " + exErr.message); return; }
     }
 
     setSaving(false);

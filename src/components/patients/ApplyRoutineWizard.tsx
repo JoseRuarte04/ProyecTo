@@ -80,7 +80,9 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
     Promise.all([
       supabase.from("exercise_routines").select("*").eq("professional_id", user.id).order("name"),
       supabase.from("exercise_programs").select("*").eq("professional_id", user.id).order("name"),
-    ]).then(([{ data: planData }, { data: programData }]) => {
+    ]).then(([{ data: planData, error: planErr }, { data: programData, error: programErr }]) => {
+      if (planErr) console.error("Error al cargar planes:", planErr);
+      if (programErr) console.error("Error al cargar programas:", programErr);
       setExercisePlans(planData ?? []);
       setPrograms(programData ?? []);
       setSourcesLoading(false);
@@ -140,7 +142,7 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
     if (!user || addQuery.trim().length < 2) { setAddResults([]); return; }
     addDebounce.current = setTimeout(async () => {
       setAddSearching(true);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("exercise_library")
         .select("id, name, exercise_type")
         .or(`professional_id.eq.${user.id},professional_id.is.null`)
@@ -148,6 +150,7 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
         .ilike("name", `%${addQuery.trim()}%`)
         .limit(10)
         .order("name");
+      if (error) console.error("Error al buscar ejercicios:", error);
       setAddSearching(false);
       setAddResults((data ?? []).filter((ex) => !draftItems.some((d) => d.exercise_id === ex.id)));
     }, 300);
