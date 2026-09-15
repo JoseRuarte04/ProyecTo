@@ -9,6 +9,52 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-09-15] Perfil ocupacional recortado + Evaluación funcional en 5 apartados (AOTA/MOHO)
+
+**Contexto:** Jose pidió recortar Perfil ocupacional a 5 campos y rediseñar Evaluación funcional
+en 5 apartados según el marco AOTA/MOHO. Al mapear el código con 3 agentes de exploración se
+encontró que Perfil ocupacional y Ficha clínica se editan en 2 lugares (Ficha del paciente y
+sesión de Admisión, mismos campos/tabla) y que Evaluación funcional aparece en TODAS las
+sesiones (admisión y seguimiento), no solo en la admisión.
+
+**Opciones consideradas:**
+1. Perfil ocupacional: sacar la duplicación (editar solo desde la Ficha) vs. mantener los 2
+   formularios, ambos recortados.
+2. Evaluación funcional nueva: aparecer solo en admisión (con re-evaluación aparte) vs. seguir
+   apareciendo en cada sesión de seguimiento como hoy.
+3. Barthel/FIM: mantenerlos aparte de la nueva checklist de Ocupaciones vs. sacarlos (la nueva
+   checklist ya puntúa independencia ítem por ítem).
+
+**Decisión:** Confirmado con Jose antes de implementar:
+1. Perfil ocupacional se mantiene en los 2 lugares (Ficha + sesión de Admisión), ambos
+   recortados a los mismos 5 campos (dominancia, estado civil, nivel educativo, trabajo, red de
+   apoyo) — no se toca la duplicación de componentes.
+2. La nueva Evaluación funcional (5 apartados: Ocupaciones/Contextos/Patrones de
+   desempeño/Habilidades de desempeño/Factores del cliente) sigue apareciendo en cada sesión,
+   admisión y seguimiento por igual, como ya funcionaba.
+3. Barthel y FIM se mantienen como sección aparte, separados de la nueva checklist de
+   Ocupaciones (47 ítems en 9 categorías, calificables independiente/requiere asistencia/
+   dependiente).
+
+Las columnas viejas de texto libre de `functional_evaluations` (`avd`, `aivd`, `sleep_rest`,
+`health_management`, `physical_activity`, `dominance`) quedan deprecadas — el dato de AVD/AIVD
+que antes se escribía por error también en `patient_occupational_profiles`
+(`SessionForm.tsx`, bug encontrado durante el mapeo) se corrigió de paso.
+
+**Por qué:** Perfil ocupacional y Evaluación funcional se cargan en momentos distintos del
+flujo clínico real (admisión vs. seguimiento repetido) — Jose prefirió no cambiar ese
+comportamiento ya conocido por el equipo, solo el contenido de los campos.
+
+**Consecuencias / trade-offs aceptados:** La duplicación de Perfil ocupacional entre Ficha y
+sesión de Admisión sigue existiendo (2 componentes a mantener sincronizados si se agregan
+campos a futuro). La nueva Evaluación funcional (47 ítems) se completa en cada sesión de
+seguimiento, lo cual es más carga de trabajo por sesión que antes (2 textareas libres) —
+aceptado porque permite trackear progreso ítem por ítem en el tiempo.
+
+**Quién lo decidió:** con Jose (confirmado por chat antes de implementar).
+
+---
+
 ## [2026-XX-XX] Título corto de la decisión
 
 **Contexto:** ¿Qué problema había que resolver?

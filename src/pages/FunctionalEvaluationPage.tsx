@@ -14,6 +14,43 @@ import {
   FIM_GROUPS, FIM_COGNITIVE_GROUPS,
   BARTHEL_ITEMS,
 } from "@/components/evaluations/FunctionalScales";
+import { OCCUPATIONS_TAXONOMY, itemPath, type IndependenceLevel } from "@/components/evaluations/occupationsTaxonomy";
+import { Badge } from "@/components/ui/badge";
+
+const INDEPENDENCE_LABEL: Record<IndependenceLevel, string> = {
+  independent: "Independiente",
+  assistance: "Requiere asistencia",
+  dependent: "Dependiente",
+};
+
+const INDEPENDENCE_BADGE_CLASS: Record<IndependenceLevel, string> = {
+  independent: "bg-teal-50 text-teal-700 border-teal-200",
+  assistance: "bg-amber-50 text-amber-700 border-amber-200",
+  dependent: "bg-rose-50 text-rose-700 border-rose-200",
+};
+
+const PERFORMANCE_CONTEXT_GROUPS: Array<{ title: string; fields: Array<{ key: string; label: string }> }> = [
+  { title: "Contextos", fields: [
+    { key: "context_environmental_factors", label: "Factores ambientales" },
+    { key: "context_personal_factors", label: "Factores personales" },
+  ] },
+  { title: "Patrones de desempeño", fields: [
+    { key: "performance_pattern_habits", label: "Hábitos" },
+    { key: "performance_pattern_routines", label: "Rutinas" },
+    { key: "performance_pattern_roles", label: "Roles" },
+    { key: "performance_pattern_rituals", label: "Rituales" },
+  ] },
+  { title: "Habilidades de desempeño", fields: [
+    { key: "performance_skill_motor", label: "Habilidades motoras" },
+    { key: "performance_skill_processing", label: "Habilidades de procesamiento" },
+    { key: "performance_skill_social_interaction", label: "Habilidades de interacción social" },
+  ] },
+  { title: "Factores del cliente", fields: [
+    { key: "client_factor_values_beliefs_spirituality", label: "Valores, creencias y espiritualidad" },
+    { key: "client_factor_body_functions", label: "Funciones corporales" },
+    { key: "client_factor_body_structures", label: "Estructuras corporales" },
+  ] },
+];
 
 const NA = () => <span className="text-muted-foreground italic text-sm">No registrado</span>;
 
@@ -115,7 +152,9 @@ export default function FunctionalEvaluationPage() {
   const sessionLabel = session?.session_number != null ? `Sesión Nº ${session.session_number}` : "";
 
   const hasScores = nn(e.quickdash_score) || nn(e.fim_score) || nn(e.barthel_score);
-  const hasAvd = nn(e.avd) || nn(e.aivd);
+  const occupationsItems: Record<string, IndependenceLevel> = (e.occupations_items && typeof e.occupations_items === "object") ? e.occupations_items : {};
+  const hasOccupations = Object.keys(occupationsItems).length > 0 || nn(e.occupations_notes);
+  const hasPerformanceContext = PERFORMANCE_CONTEXT_GROUPS.some((g) => g.fields.some((f) => nn(e[f.key])));
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
@@ -179,51 +218,59 @@ export default function FunctionalEvaluationPage() {
         </Section>
       )}
 
-      {/* AVD */}
-      {hasAvd && (
-        <Section title="Actividades de la vida diaria">
-          <div className="space-y-3">
-            {nn(e.avd) && (
+      {/* 1. Ocupaciones */}
+      {hasOccupations && (
+        <Section title="1. Ocupaciones">
+          <div className="space-y-4">
+            {OCCUPATIONS_TAXONOMY.map((category) => {
+              const answered = category.items.filter((item) => occupationsItems[itemPath(category.key, item.key)] != null);
+              if (answered.length === 0) return null;
+              return (
+                <div key={category.key}>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5">{category.label}</p>
+                  <div className="space-y-1">
+                    {answered.map((item) => {
+                      const level = occupationsItems[itemPath(category.key, item.key)];
+                      return (
+                        <div key={item.key} className="flex items-center justify-between gap-3 border-b border-border/30 pb-1.5 last:border-0">
+                          <span className="text-xs text-foreground flex-1">{item.label}</span>
+                          <Badge variant="outline" className={`text-[10px] shrink-0 ${INDEPENDENCE_BADGE_CLASS[level]}`}>
+                            {INDEPENDENCE_LABEL[level]}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {nn(e.occupations_notes) && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">AVD</p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{e.avd}</p>
-              </div>
-            )}
-            {nn(e.aivd) && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">AIVD</p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{e.aivd}</p>
+                <p className="text-xs text-muted-foreground mb-1">Otras observaciones</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{e.occupations_notes}</p>
               </div>
             )}
           </div>
         </Section>
       )}
 
-      {/* Otras áreas ocupacionales */}
-      {(nn(e.health_management) || nn(e.physical_activity) || nn(e.sleep_rest)) && (
-        <Section title="Otras áreas ocupacionales">
-          <div className="space-y-3">
-            {nn(e.health_management) && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Gestión de la salud</p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{e.health_management}</p>
-              </div>
-            )}
-            {nn(e.physical_activity) && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Actividad física</p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{e.physical_activity}</p>
-              </div>
-            )}
-            {nn(e.sleep_rest) && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Sueño y descanso</p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{e.sleep_rest}</p>
-              </div>
-            )}
-          </div>
-        </Section>
-      )}
+      {/* 2-5. Contextos / Patrones de desempeño / Habilidades de desempeño / Factores del cliente */}
+      {hasPerformanceContext && PERFORMANCE_CONTEXT_GROUPS.map((group) => {
+        const answeredFields = group.fields.filter((f) => nn(e[f.key]));
+        if (answeredFields.length === 0) return null;
+        return (
+          <Section key={group.title} title={group.title}>
+            <div className="space-y-3">
+              {answeredFields.map((f) => (
+                <div key={f.key}>
+                  <p className="text-xs text-muted-foreground mb-1">{f.label}</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{e[f.key]}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
+        );
+      })}
 
       {/* Notas */}
       {nn(e.notes) && (
@@ -232,7 +279,7 @@ export default function FunctionalEvaluationPage() {
         </Section>
       )}
 
-      {!hasScores && !hasAvd && !nn(e.notes) && !nn(e.health_management) && !nn(e.physical_activity) && !nn(e.sleep_rest) && (
+      {!hasScores && !hasOccupations && !hasPerformanceContext && !nn(e.notes) && (
         <div className="text-center py-8 text-muted-foreground text-sm">
           No hay datos registrados en esta evaluación.
         </div>

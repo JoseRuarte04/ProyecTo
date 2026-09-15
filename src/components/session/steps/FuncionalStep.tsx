@@ -1,13 +1,19 @@
 import { ClipboardList } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { FimSection, BarthelSection, calcFimTotal, calcBarthelTotal } from "@/components/evaluations/FunctionalScales";
+import { OccupationsChecklist } from "@/components/evaluations/OccupationsChecklist";
+import { PerformanceContextSections } from "@/components/evaluations/PerformanceContextSections";
+import type { PerformanceContextValues } from "@/components/evaluations/performanceContextTypes";
+import type { IndependenceLevel } from "@/components/evaluations/occupationsTaxonomy";
 import { SectionCard } from "../shared";
 
 interface FuncionalStepProps {
-  func_avd: string; setFuncAvd: (v: string) => void;
-  func_aivd: string; setFuncAivd: (v: string) => void;
+  occupations_items: Record<string, IndependenceLevel>;
+  setOccupationsItems: (items: Record<string, IndependenceLevel>) => void;
+  occupations_notes: string;
+  setOccupationsNotes: (v: string) => void;
+  performance_context: PerformanceContextValues;
+  setPerformanceContext: <K extends keyof PerformanceContextValues>(field: K, value: PerformanceContextValues[K]) => void;
   fim_items: Record<string, number | null>;
   setFimItems: React.Dispatch<React.SetStateAction<Record<string, number | null>>>;
   barthel_items: Record<string, number | null>;
@@ -15,8 +21,9 @@ interface FuncionalStepProps {
 }
 
 export function FuncionalStep({
-  func_avd, setFuncAvd,
-  func_aivd, setFuncAivd,
+  occupations_items, setOccupationsItems,
+  occupations_notes, setOccupationsNotes,
+  performance_context, setPerformanceContext,
   fim_items, setFimItems,
   barthel_items, setBarthelItems,
 }: FuncionalStepProps) {
@@ -36,16 +43,20 @@ export function FuncionalStep({
       }
     >
       <div className="space-y-5">
-        <div className="space-y-2">
-          <Label>AVD — Actividades de la vida diaria</Label>
-          <Textarea rows={3} value={func_avd} onChange={(e) => setFuncAvd(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>AIVD — Actividades instrumentales</Label>
-          <Textarea rows={3} value={func_aivd} onChange={(e) => setFuncAivd(e.target.value)} />
-        </div>
         <BarthelSection items={barthel_items} onChange={setBarthelItems} />
         <FimSection items={fim_items} onChange={setFimItems} />
+
+        <div className="pt-2">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">1. Ocupaciones</p>
+          <OccupationsChecklist
+            items={occupations_items}
+            onChange={setOccupationsItems}
+            notes={occupations_notes}
+            onNotesChange={setOccupationsNotes}
+          />
+        </div>
+
+        <PerformanceContextSections values={performance_context} onChange={setPerformanceContext} />
       </div>
     </SectionCard>
   );

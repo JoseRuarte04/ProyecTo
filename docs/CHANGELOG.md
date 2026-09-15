@@ -9,6 +9,13 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-15] Perfil ocupacional recortado a 5 campos + Evaluación funcional en 5 apartados (AOTA/MOHO)
+- Perfil ocupacional (Ficha del paciente y sesión de Admisión) recortado a dominancia, estado civil, nivel educativo, trabajo y red de apoyo — se sacó situación laboral, educación (detalle), ocio, actividad física, sueño y descanso, gestión de la salud y notas.
+- Evaluación funcional rediseñada por completo: reemplaza los textareas libres de AVD/AIVD por un checklist estructurado de 47 ítems en 9 categorías (AVD, AIVD, Gestión de la salud, Descanso y sueño, Educación, Trabajo, Juego, Ocio, Participación social), cada uno calificable independiente/requiere asistencia/dependiente, más 4 apartados de texto libre nuevos (Contextos, Patrones de desempeño, Habilidades de desempeño, Factores del cliente). Barthel y FIM se mantienen sin cambios, como sección aparte. Sigue apareciendo en cada sesión (admisión y seguimiento), decisión confirmada con Jose.
+- 2 migraciones aplicadas contra Supabase (sin columnas nuevas para Perfil ocupacional; 14 columnas nuevas en `functional_evaluations` para la nueva estructura). `types.ts` regenerado. Se corrigió de paso un bug donde el paso "Eval. funcional" escribía AVD/AIVD también en la tabla de Perfil ocupacional.
+- Verificado de punta a punta en el navegador contra Supabase real: sesión de Admisión completa con el checklist de Ocupaciones y los 4 apartados nuevos, vista de detalle de la evaluación mostrando la nueva estructura, y reapertura de la sesión confirmando que los datos se recargan bien. 0 errores de consola. Typecheck, lint (239, en el techo) y build OK.
+- 2 PRs: Perfil ocupacional (chico, sin migración) y Evaluación funcional (grande, con migración). Ver `docs/DECISIONS.md` para las decisiones de alcance confirmadas con Jose antes de implementar.
+
 ## [2026-09-15] Pacientes: nacionalidad obligatoria, Sexo, contacto de emergencia separado, alergias
 - Cuatro cambios en el alta (y ficha) de paciente: nacionalidad obligatoria al dar de alta (y ahora editable desde la ficha, corrige un bug donde no se podía); "Género" renombrado a "Sexo" con masculino/femenino/no binario, opciones centralizadas en `sexOptions.ts` (antes duplicadas 3 veces); contacto de emergencia separado en nombre y apellido; campo de alergias (texto libre) nuevo en alta y ficha.
 - 3 migraciones aplicadas contra Supabase: normalización de valores sucios de género (`M`/`F` → `male`/`female`, 6 pacientes), columna `allergies`, columnas `emergency_contact_first_name`/`last_name` con backfill automático de los 7 pacientes con contacto de emergencia cargado (split por primera palabra). `types.ts` regenerado.

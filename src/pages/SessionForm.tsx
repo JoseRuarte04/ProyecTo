@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { toast } from "sonner";
 import { emptyFim, emptyBarthel, calcFimTotal, calcBarthelTotal } from "@/components/evaluations/FunctionalScales";
+import { emptyPerformanceContext, type PerformanceContextValues } from "@/components/evaluations/performanceContextTypes";
+import type { IndependenceLevel } from "@/components/evaluations/occupationsTaxonomy";
 import { buildCircometriaPayload, normalizeCircometriaValue, isCircometriaFormat, type CircometriaItem } from "@/components/clinical/EdemaCircometryTable";
 import { STEPS_ADMISSION, STEPS_SESSION, GONIO_PARTS, emptyPain, parseDyn } from "@/components/session/constants";
 import { numFieldErr } from "@/components/session/shared";
@@ -56,11 +58,11 @@ export default function SessionForm() {
   const [avd_followup, setAvdFollowup] = useState("");
 
   // Functional eval
-  const [func_dominance, setFuncDominance] = useState("");
-  const [func_avd, setFuncAvd] = useState("");
-  const [func_aivd, setFuncAivd] = useState("");
-  const [func_sleep, setFuncSleep] = useState("");
-  const [func_health, setFuncHealth] = useState("");
+  const [occupations_items, setOccupationsItems] = useState<Record<string, IndependenceLevel>>({});
+  const [occupations_notes, setOccupationsNotes] = useState("");
+  const [performance_context, setPerformanceContextState] = useState<PerformanceContextValues>(emptyPerformanceContext());
+  const setPerformanceContext = <K extends keyof PerformanceContextValues>(field: K, value: PerformanceContextValues[K]) =>
+    setPerformanceContextState((prev) => ({ ...prev, [field]: value }));
   const [fim_items, setFimItems] = useState<Record<string, number | null>>(emptyFim());
   const [barthel_items, setBarthelItems] = useState<Record<string, number | null>>(emptyBarthel());
 
@@ -184,7 +186,7 @@ export default function SessionForm() {
   latestStateRef.current = {
     session_date, session_type, session_number, week_at_session,
     general_observations, symptom_changes, clinical_changes, discharge_summary, avd_followup,
-    func_dominance, func_avd, func_aivd, func_sleep, func_health, fim_items, barthel_items,
+    occupations_items, occupations_notes, performance_context, fim_items, barthel_items,
     cli_diagnoses, cli_doctor_name, cli_injury_date, cli_surgery_date, cli_injury_mechanism,
     cli_treatment_type, cli_immob_weeks, cli_immob_days, cli_immob_type, cli_medical_history, cli_pharma, cli_studies,
     occ_dominance, occ_marital_status, occ_education_level, occ_support_network, occ_job,
@@ -235,11 +237,9 @@ export default function SessionForm() {
         if (d.clinical_changes !== undefined) setClinicalChanges(d.clinical_changes);
         if (d.discharge_summary !== undefined) setDischargeSummary(d.discharge_summary);
         if (d.avd_followup !== undefined) setAvdFollowup(d.avd_followup);
-        if (d.func_dominance !== undefined) setFuncDominance(d.func_dominance);
-        if (d.func_avd !== undefined) setFuncAvd(d.func_avd);
-        if (d.func_aivd !== undefined) setFuncAivd(d.func_aivd);
-        if (d.func_sleep !== undefined) setFuncSleep(d.func_sleep);
-        if (d.func_health !== undefined) setFuncHealth(d.func_health);
+        if (d.occupations_items !== undefined) setOccupationsItems(d.occupations_items);
+        if (d.occupations_notes !== undefined) setOccupationsNotes(d.occupations_notes);
+        if (d.performance_context !== undefined) setPerformanceContextState(d.performance_context);
         if (d.fim_items !== undefined) setFimItems(d.fim_items);
         if (d.barthel_items !== undefined) setBarthelItems(d.barthel_items);
         if (d.cli_diagnoses !== undefined) setCliDiagnoses(d.cli_diagnoses);
@@ -370,11 +370,22 @@ export default function SessionForm() {
         const fe = funcRes.data;
         if (fe) {
           setShowFunctional(true);
-          setFuncDominance(fe.dominance || "");
-          setFuncAvd(fe.avd || "");
-          setFuncAivd(fe.aivd || "");
-          setFuncSleep(fe.sleep_rest || "");
-          setFuncHealth(fe.health_management || "");
+          if (fe.occupations_items && typeof fe.occupations_items === "object") setOccupationsItems(fe.occupations_items);
+          setOccupationsNotes(fe.occupations_notes || "");
+          setPerformanceContextState({
+            context_environmental_factors: fe.context_environmental_factors || "",
+            context_personal_factors: fe.context_personal_factors || "",
+            performance_pattern_habits: fe.performance_pattern_habits || "",
+            performance_pattern_routines: fe.performance_pattern_routines || "",
+            performance_pattern_roles: fe.performance_pattern_roles || "",
+            performance_pattern_rituals: fe.performance_pattern_rituals || "",
+            performance_skill_motor: fe.performance_skill_motor || "",
+            performance_skill_processing: fe.performance_skill_processing || "",
+            performance_skill_social_interaction: fe.performance_skill_social_interaction || "",
+            client_factor_values_beliefs_spirituality: fe.client_factor_values_beliefs_spirituality || "",
+            client_factor_body_functions: fe.client_factor_body_functions || "",
+            client_factor_body_structures: fe.client_factor_body_structures || "",
+          });
           if (fe.fim_items && typeof fe.fim_items === "object") setFimItems(fe.fim_items as any);
           if (fe.barthel_items && typeof fe.barthel_items === "object") setBarthelItems(fe.barthel_items as any);
         }
@@ -786,11 +797,26 @@ export default function SessionForm() {
 
     const fim_answered = Object.values(fim_items).some((v) => v !== null);
     const barthel_answered = Object.values(barthel_items).some((v) => v !== null);
-    const hasFunctionalData = showFunctional && ([func_dominance, func_avd, func_aivd, func_sleep, func_health].some((v) => v) || fim_answered || barthel_answered);
+    const occupations_answered = Object.keys(occupations_items).length > 0;
+    const performance_context_answered = Object.values(performance_context).some((v) => v.trim());
+    const hasFunctionalData = showFunctional && (occupations_answered || occupations_notes.trim() !== "" || performance_context_answered || fim_answered || barthel_answered);
     const functionalPayload = {
       patient_id: patientId!, professional_id: user.id, episode_id: activeEpisodeId, session_id: session.id,
-      evaluation_date: session_date, dominance: (func_dominance || null) as any,
-      avd: func_avd || null, aivd: func_aivd || null, sleep_rest: func_sleep || null, health_management: func_health || null,
+      evaluation_date: session_date,
+      occupations_items: occupations_answered ? (occupations_items as any) : null,
+      occupations_notes: occupations_notes.trim() || null,
+      context_environmental_factors: performance_context.context_environmental_factors.trim() || null,
+      context_personal_factors: performance_context.context_personal_factors.trim() || null,
+      performance_pattern_habits: performance_context.performance_pattern_habits.trim() || null,
+      performance_pattern_routines: performance_context.performance_pattern_routines.trim() || null,
+      performance_pattern_roles: performance_context.performance_pattern_roles.trim() || null,
+      performance_pattern_rituals: performance_context.performance_pattern_rituals.trim() || null,
+      performance_skill_motor: performance_context.performance_skill_motor.trim() || null,
+      performance_skill_processing: performance_context.performance_skill_processing.trim() || null,
+      performance_skill_social_interaction: performance_context.performance_skill_social_interaction.trim() || null,
+      client_factor_values_beliefs_spirituality: performance_context.client_factor_values_beliefs_spirituality.trim() || null,
+      client_factor_body_functions: performance_context.client_factor_body_functions.trim() || null,
+      client_factor_body_structures: performance_context.client_factor_body_structures.trim() || null,
       fim_items: fim_answered ? (fim_items as any) : null, fim_score: fim_answered ? calcFimTotal(fim_items) : null,
       barthel_items: barthel_answered ? (barthel_items as any) : null, barthel_score: barthel_answered ? calcBarthelTotal(barthel_items) : null,
     } as any;
@@ -1025,8 +1051,9 @@ export default function SessionForm() {
 
             {currentSections.includes("sec-funcional") && (
               <FuncionalStep
-                func_avd={func_avd} setFuncAvd={setFuncAvd}
-                func_aivd={func_aivd} setFuncAivd={setFuncAivd}
+                occupations_items={occupations_items} setOccupationsItems={setOccupationsItems}
+                occupations_notes={occupations_notes} setOccupationsNotes={setOccupationsNotes}
+                performance_context={performance_context} setPerformanceContext={setPerformanceContext}
                 fim_items={fim_items} setFimItems={setFimItems}
                 barthel_items={barthel_items} setBarthelItems={setBarthelItems}
               />
