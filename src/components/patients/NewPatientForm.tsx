@@ -93,6 +93,7 @@ export default function NewPatientForm() {
   const [diagnoses, setDiagnoses] = useState<DiagnosisItem[]>([]);
   const [doctorName, setDoctorName] = useState("");
   const [referralReason, setReferralReason] = useState("");
+  const [allergies, setAllergies] = useState("");
 
   // Step 3 — Contacto
   const [phone, setPhone] = useState("");
@@ -182,6 +183,7 @@ export default function NewPatientForm() {
           address: or(address),
           insurance: or(insurance),
           insurance_number: or(insuranceNumber),
+          allergies: or(allergies),
           emergency_contact_name: or(emergencyName),
           emergency_contact_phone: or(emergencyPhone),
           emergency_contact_relation: or(emergencyRelation),
@@ -370,6 +372,10 @@ export default function NewPatientForm() {
                 <FieldLabel>Motivo de consulta</FieldLabel>
                 <Textarea value={referralReason} onChange={(e) => setReferralReason(e.target.value)} rows={3} placeholder="Descripción del motivo de consulta o derivación…" className="rounded-md text-sm" />
               </div>
+              <div className="sm:col-span-2">
+                <FieldLabel>Alergias</FieldLabel>
+                <Textarea value={allergies} onChange={(e) => setAllergies(e.target.value)} rows={2} placeholder="Alergias conocidas (medicamentos, alimentos, etc.)…" className="rounded-md text-sm" />
+              </div>
             </div>
           </div>
         )}
@@ -448,6 +454,7 @@ export default function NewPatientForm() {
                 {insuranceNumber && <SummaryRow label="N° afiliado" value={insuranceNumber} />}
                 {diagnoses.length > 0 && <SummaryRow label={diagnoses.length > 1 ? "Diagnósticos" : "Diagnóstico"} value={diagnoses.map((d) => d.label).join(" · ")} />}
                 {doctorName && <SummaryRow label="Médico" value={doctorName} />}
+                {allergies && <SummaryRow label="Alergias" value={allergies} />}
                 {phone && <SummaryRow label="Teléfono" value={phone} />}
                 {email && <SummaryRow label="Email" value={email} />}
                 {address && <SummaryRow label="Domicilio" value={address} />}

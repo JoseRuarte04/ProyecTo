@@ -80,6 +80,7 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
         <Field label="Nº de episodio" value={activeEpisode?.episode_number} />
         <Field label="Nº de afiliado" value={patient.insurance_number} />
         <Field label="Nacionalidad" value={patient.nationality} />
+        <Field label="Alergias" value={patient.allergies} />
         {patient.gender && (
           <Field label="Sexo" value={sexLabel(patient.gender)} />
         )}

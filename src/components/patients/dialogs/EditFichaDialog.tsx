@@ -45,6 +45,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       address: patient?.address || "",
       insurance: patient?.insurance || "",
       insurance_number: patient?.insurance_number || "",
+      allergies: patient?.allergies || "",
       admission_date: patient?.admission_date || "",
       emergency_contact_name: patient?.emergency_contact_name || "",
       emergency_contact_phone: patient?.emergency_contact_phone || "",
@@ -100,6 +101,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       phone: emptyToNull(form.phone), email: emptyToNull(form.email),
       address: emptyToNull(form.address), insurance: emptyToNull(form.insurance),
       insurance_number: emptyToNull(form.insurance_number),
+      allergies: emptyToNull(form.allergies),
       admission_date: form.admission_date || patient.admission_date,
       emergency_contact_name: emptyToNull(form.emergency_contact_name),
       emergency_contact_phone: emptyToNull(form.emergency_contact_phone),
@@ -192,6 +194,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
               <div><Label>Nº de afiliado</Label><Input value={form.insurance_number || ""} onChange={(e) => u("insurance_number", e.target.value)} disabled={form.insurance === NO_INSURANCE} /></div>
               <div className="sm:col-span-2"><Label>Dirección</Label><Input value={form.address || ""} onChange={(e) => u("address", e.target.value)} /></div>
               <div><Label>Fecha de admisión</Label><Input type="date" value={form.admission_date || ""} onChange={(e) => u("admission_date", e.target.value)} /></div>
+              <div className="sm:col-span-2"><Label>Alergias</Label><Textarea value={form.allergies || ""} onChange={(e) => u("allergies", e.target.value)} placeholder="Alergias conocidas (medicamentos, alimentos, etc.)…" /></div>
             </div>
           </div>
 
