@@ -127,6 +127,7 @@ export default function NewPatientForm() {
       errs.dni = "El DNI debe contener solo números, sin letras ni símbolos";
     }
     if (!birthDate)    errs.birthDate    = "Este campo es obligatorio";
+    if (!nationality.trim()) errs.nationality = "Este campo es obligatorio";
     if (!admissionDate) errs.admissionDate = "Este campo es obligatorio";
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -325,8 +326,9 @@ export default function NewPatientForm() {
                 </Select>
               </div>
               <div>
-                <FieldLabel>Nacionalidad</FieldLabel>
-                <Input value={nationality} onChange={(e) => setNationality(e.target.value)} className={inputClass} />
+                <FieldLabel required>Nacionalidad</FieldLabel>
+                <Input value={nationality} onChange={(e) => setNationality(e.target.value)} className={cn(inputClass, fieldCls("nationality"))} />
+                <ErrMsg field="nationality" />
               </div>
               <div>
                 <FieldLabel required>Fecha de ingreso</FieldLabel>

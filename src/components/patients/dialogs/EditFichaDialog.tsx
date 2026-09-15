@@ -38,6 +38,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       dni: patient?.dni || "",
       birth_date: patient?.birth_date || "",
       gender: patient?.gender || "",
+      nationality: patient?.nationality || "",
       phone: patient?.phone || "",
       email: patient?.email || "",
       address: patient?.address || "",
@@ -94,6 +95,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
     const patientPayload = {
       first_name: form.first_name, last_name: form.last_name, dni: form.dni,
       birth_date: emptyToNull(form.birth_date), gender: emptyToNull(form.gender),
+      nationality: emptyToNull(form.nationality),
       phone: emptyToNull(form.phone), email: emptyToNull(form.email),
       address: emptyToNull(form.address), insurance: emptyToNull(form.insurance),
       insurance_number: emptyToNull(form.insurance_number),
@@ -179,6 +181,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
                   </SelectContent>
                 </Select>
               </div>
+              <div><Label>Nacionalidad</Label><Input value={form.nationality || ""} onChange={(e) => u("nationality", e.target.value)} /></div>
               <div><Label>Teléfono</Label><Input value={form.phone || ""} onChange={(e) => u("phone", e.target.value)} /></div>
               <div><Label>Email</Label><Input type="email" value={form.email || ""} onChange={(e) => u("email", e.target.value)} /></div>
               <div><Label>Obra social</Label>
