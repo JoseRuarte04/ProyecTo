@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -99,23 +100,33 @@ export default function FunctionalEvaluationPage() {
     if (!evalId || !patientId || !user) return;
     const load = async () => {
       setLoading(true);
-      const { data: ev } = await supabase
+      const { data: ev, error: evErr } = await supabase
         .from("functional_evaluations")
         .select("*")
         .eq("id", evalId)
         .eq("professional_id", user.id)
         .maybeSingle();
 
+      if (evErr) {
+        console.error("Error cargando evaluación funcional:", evErr);
+        toast.error("No se pudo cargar la evaluación", { description: "Probá recargar la página." });
+        setLoading(false);
+        return;
+      }
       if (!ev) { setNotFound(true); setLoading(false); return; }
       setEvalData(ev);
 
       const [sessionRes, patientRes] = await Promise.all([
         ev.session_id
           ? supabase.from("therapy_sessions").select("session_number, session_date, session_type").eq("id", ev.session_id).eq("professional_id", user.id).maybeSingle()
-          : Promise.resolve({ data: null }),
+          : Promise.resolve({ data: null, error: null }),
         supabase.from("patients").select("first_name, last_name").eq("id", patientId).eq("professional_id", user.id).maybeSingle(),
       ]);
 
+      if (sessionRes.error || patientRes.error) {
+        console.error("Error cargando datos relacionados:", sessionRes.error, patientRes.error);
+        toast.error("Algunos datos no se pudieron cargar", { description: "Probá recargar la página." });
+      }
       setSession(sessionRes.data);
       setPatient(patientRes.data);
       setLoading(false);

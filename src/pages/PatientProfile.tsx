@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,11 @@ export default function PatientProfile() {
       supabase.from("patient_occupational_profiles").select("*").eq("patient_id", id).maybeSingle(),
       supabase.from("treatment_episodes").select("*").eq("patient_id", id).eq("is_deleted", false).order("episode_number", { ascending: true }),
     ]);
+    const baseErrors = [p.error, o.error, ep.error].filter(Boolean);
+    if (baseErrors.length > 0) {
+      console.error("Error cargando datos base del paciente:", baseErrors);
+      toast.error("No se pudieron cargar algunos datos del paciente", { description: "Probá recargar la página." });
+    }
     setPatient(p.data);
     setOccupational(o.data);
     const eps = ep.data || [];
@@ -103,6 +109,11 @@ export default function PatientProfile() {
         supabase.from("clinical_files").select("*").eq("patient_id", id).eq("is_deleted", false).order("photo_date", { ascending: false }),
         apptPromise,
       ]);
+      const noEpErrors = [c.error, s.error, fe.error, ae.error, pl.error, cf.error, ap.error].filter(Boolean);
+      if (noEpErrors.length > 0) {
+        console.error("Error cargando datos de la ficha (sin episodio):", noEpErrors);
+        toast.error("No se pudieron cargar algunos datos de la ficha", { description: "Probá recargar la página." });
+      }
       setClinical(c.data); setSessions(s.data || []); setFuncEvals(fe.data || []);
       setAnalEvals(ae.data || []); setPlans(pl.data || []); setAppointments(ap.data || []);
       setQuickdashTokens([]); setDiagnoses([]);
@@ -120,6 +131,11 @@ export default function PatientProfile() {
       apptPromise,
       supabase.from("quickdash_tokens").select("completed_at, result").eq("episode_id", episodeId).not("result", "is", null).order("completed_at", { ascending: true }),
     ]);
+    const epErrors = [c.error, s.error, fe.error, ae.error, pl.error, cf.error, ap.error, qt.error].filter(Boolean);
+    if (epErrors.length > 0) {
+      console.error("Error cargando datos del episodio:", epErrors);
+      toast.error("No se pudieron cargar algunos datos de la ficha", { description: "Probá recargar la página." });
+    }
     setClinical(c.data); setSessions(s.data || []); setFuncEvals(fe.data || []);
     setAnalEvals(ae.data || []); setPlans(pl.data || []); setAppointments(ap.data || []);
     setQuickdashTokens(qt.data || []);

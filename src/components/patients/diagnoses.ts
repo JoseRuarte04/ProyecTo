@@ -7,12 +7,16 @@ export type DiagnosisItem = { code: string | null; label: string };
 export const primaryLabel = (list: DiagnosisItem[]): string | null =>
   list[0]?.label?.trim() || null;
 
+// Tira si falla: los 3 callers guardan diagnósticos con un reemplazo completo
+// (delete + insert) al hacer submit, así que si esta carga falla en silencio
+// el guardado siguiente borraría diagnósticos reales sin que nadie se entere.
 export async function fetchEpisodeDiagnoses(episodeId: string): Promise<DiagnosisItem[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("episode_diagnoses")
     .select("code, label, position")
     .eq("episode_id", episodeId)
     .order("position");
+  if (error) throw error;
   return (data || []).map((d) => ({ code: d.code, label: d.label }));
 }
 

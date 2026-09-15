@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -33,11 +34,16 @@ export function useMyTeams() {
     if (!user) return;
     setLoading(true);
 
-    const { data: adminRows } = await supabase
+    const { data: adminRows, error: adminErr } = await supabase
       .from("team_members")
       .select("team_id, teams(id, name, member_limit)")
       .eq("user_id", user.id)
       .eq("role", "admin");
+
+    if (adminErr) {
+      console.error("Error cargando equipos administrados:", adminErr);
+      toast.error("No se pudieron cargar tus equipos", { description: "Probá recargar la página." });
+    }
 
     if (!adminRows || adminRows.length === 0) {
       setTeams([]);
@@ -59,6 +65,10 @@ export function useMyTeams() {
         .eq("status", "pending"),
     ]);
 
+    if (membersRes.error || invitationsRes.error) {
+      console.error("Error cargando miembros/invitaciones:", membersRes.error, invitationsRes.error);
+      toast.error("No se pudieron cargar los miembros del equipo", { description: "Probá recargar la página." });
+    }
     const members     = (membersRes.data     as unknown as (TeamMemberWithProfile & { team_id: string })[]) || [];
     const invitations = (invitationsRes.data as unknown as (TeamInvitation    & { team_id: string })[]) || [];
 
