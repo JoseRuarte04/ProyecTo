@@ -2,18 +2,6 @@
 // lo que se guarda en patient_occupational_profiles (sin CHECK en DB, la
 // validación es por estos selects) — agregar opciones acá no requiere migración.
 
-export const EMPLOYMENT_STATUS_OPTIONS = [
-  ["relacion_dependencia", "Empleado/a en relación de dependencia"],
-  ["independiente", "Independiente / monotributista"],
-  ["informal", "Trabajo informal"],
-  ["desempleado", "Desempleado/a"],
-  ["jubilado", "Jubilado/a o pensionado/a"],
-  ["estudiante", "Estudiante"],
-  ["ama_de_casa", "Ama/o de casa"],
-  ["licencia", "De licencia (ART / licencia médica)"],
-  ["otro", "Otro"],
-] as const;
-
 export const MARITAL_STATUS_OPTIONS = [
   ["soltero", "Soltero/a"],
   ["casado", "Casado/a"],
@@ -41,6 +29,5 @@ type Options = readonly (readonly [string, string])[];
 const toLabel = (options: Options) => (value: string | null | undefined) =>
   options.find(([v]) => v === value)?.[1] ?? value ?? null;
 
-export const employmentStatusLabel = toLabel(EMPLOYMENT_STATUS_OPTIONS);
 export const maritalStatusLabel = toLabel(MARITAL_STATUS_OPTIONS);
 export const educationLevelLabel = toLabel(EDUCATION_LEVEL_OPTIONS);
