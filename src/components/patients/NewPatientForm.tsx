@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
 import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
 import { primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
+import { SEX_OPTIONS, sexLabel } from "@/components/patients/sexOptions";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -92,12 +93,14 @@ export default function NewPatientForm() {
   const [diagnoses, setDiagnoses] = useState<DiagnosisItem[]>([]);
   const [doctorName, setDoctorName] = useState("");
   const [referralReason, setReferralReason] = useState("");
+  const [allergies, setAllergies] = useState("");
 
   // Step 3 — Contacto
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
-  const [emergencyName, setEmergencyName] = useState("");
+  const [emergencyFirstName, setEmergencyFirstName] = useState("");
+  const [emergencyLastName, setEmergencyLastName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [emergencyRelation, setEmergencyRelation] = useState("");
 
@@ -127,6 +130,7 @@ export default function NewPatientForm() {
       errs.dni = "El DNI debe contener solo números, sin letras ni símbolos";
     }
     if (!birthDate)    errs.birthDate    = "Este campo es obligatorio";
+    if (!nationality.trim()) errs.nationality = "Este campo es obligatorio";
     if (!admissionDate) errs.admissionDate = "Este campo es obligatorio";
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -180,7 +184,9 @@ export default function NewPatientForm() {
           address: or(address),
           insurance: or(insurance),
           insurance_number: or(insuranceNumber),
-          emergency_contact_name: or(emergencyName),
+          allergies: or(allergies),
+          emergency_contact_first_name: or(emergencyFirstName),
+          emergency_contact_last_name: or(emergencyLastName),
           emergency_contact_phone: or(emergencyPhone),
           emergency_contact_relation: or(emergencyRelation),
           professional_id: user!.id,
@@ -311,22 +317,20 @@ export default function NewPatientForm() {
                 <ErrMsg field="birthDate" />
               </div>
               <div>
-                <FieldLabel>Género</FieldLabel>
+                <FieldLabel>Sexo</FieldLabel>
                 <Select value={gender} onValueChange={setGender}>
                   <SelectTrigger className={inputClass}>
                     <SelectValue placeholder="Seleccionar…" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="female">Femenino</SelectItem>
-                    <SelectItem value="male">Masculino</SelectItem>
-                    <SelectItem value="other">Otro</SelectItem>
-                    <SelectItem value="no_data">Prefiero no decir</SelectItem>
+                    {SEX_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <FieldLabel>Nacionalidad</FieldLabel>
-                <Input value={nationality} onChange={(e) => setNationality(e.target.value)} className={inputClass} />
+                <FieldLabel required>Nacionalidad</FieldLabel>
+                <Input value={nationality} onChange={(e) => setNationality(e.target.value)} className={cn(inputClass, fieldCls("nationality"))} />
+                <ErrMsg field="nationality" />
               </div>
               <div>
                 <FieldLabel required>Fecha de ingreso</FieldLabel>
@@ -370,6 +374,10 @@ export default function NewPatientForm() {
                 <FieldLabel>Motivo de consulta</FieldLabel>
                 <Textarea value={referralReason} onChange={(e) => setReferralReason(e.target.value)} rows={3} placeholder="Descripción del motivo de consulta o derivación…" className="rounded-md text-sm" />
               </div>
+              <div className="sm:col-span-2">
+                <FieldLabel>Alergias</FieldLabel>
+                <Textarea value={allergies} onChange={(e) => setAllergies(e.target.value)} rows={2} placeholder="Alergias conocidas (medicamentos, alimentos, etc.)…" className="rounded-md text-sm" />
+              </div>
             </div>
           </div>
         )}
@@ -403,8 +411,12 @@ export default function NewPatientForm() {
               <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">Contacto de emergencia</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <FieldLabel>Nombre completo</FieldLabel>
-                  <Input value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} className={inputClass} />
+                  <FieldLabel>Nombre</FieldLabel>
+                  <Input value={emergencyFirstName} onChange={(e) => setEmergencyFirstName(e.target.value)} className={inputClass} />
+                </div>
+                <div>
+                  <FieldLabel>Apellido</FieldLabel>
+                  <Input value={emergencyLastName} onChange={(e) => setEmergencyLastName(e.target.value)} className={inputClass} />
                 </div>
                 <div>
                   <FieldLabel>Teléfono</FieldLabel>
@@ -441,17 +453,18 @@ export default function NewPatientForm() {
                 />
                 <SummaryRow label="DNI" value={dni} />
                 <SummaryRow label="Nacimiento" value={birthDate} />
-                {gender && <SummaryRow label="Género" value={{ female: "Femenino", male: "Masculino", other: "Otro", no_data: "Prefiero no decir" }[gender] ?? gender} />}
+                {gender && <SummaryRow label="Sexo" value={sexLabel(gender)} />}
                 {nationality && <SummaryRow label="Nacionalidad" value={nationality} />}
                 <SummaryRow label="Ingreso" value={admissionDate} />
                 {insurance && <SummaryRow label="Obra social" value={insurance} />}
                 {insuranceNumber && <SummaryRow label="N° afiliado" value={insuranceNumber} />}
                 {diagnoses.length > 0 && <SummaryRow label={diagnoses.length > 1 ? "Diagnósticos" : "Diagnóstico"} value={diagnoses.map((d) => d.label).join(" · ")} />}
                 {doctorName && <SummaryRow label="Médico" value={doctorName} />}
+                {allergies && <SummaryRow label="Alergias" value={allergies} />}
                 {phone && <SummaryRow label="Teléfono" value={phone} />}
                 {email && <SummaryRow label="Email" value={email} />}
                 {address && <SummaryRow label="Domicilio" value={address} />}
-                {emergencyName && <SummaryRow label="Emergencia" value={`${emergencyName}${emergencyPhone ? " · " + emergencyPhone : ""}${emergencyRelation ? " (" + emergencyRelation + ")" : ""}`} />}
+                {(emergencyFirstName || emergencyLastName) && <SummaryRow label="Emergencia" value={`${emergencyFirstName}${emergencyLastName ? " " + emergencyLastName : ""}${emergencyPhone ? " · " + emergencyPhone : ""}${emergencyRelation ? " (" + emergencyRelation + ")" : ""}`} />}
               </div>
             </div>
           </div>

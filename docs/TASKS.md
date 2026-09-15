@@ -17,7 +17,8 @@ señal de que estás cayendo en el patrón de siempre.
 ---
 
 ## 🏥 Módulo clínico
-- [ ] 
+- [ ] Borrar la columna `patients.emergency_contact_name` (deprecada desde el 2026-09-15, reemplazada por `emergency_contact_first_name`/`last_name` con backfill ya aplicado) una vez confirmado en producción que todo anduvo bien con la separación nombre/apellido.
+- [ ] Evaluar si `allergies` debería incluirse en el prompt del informe de alta generado por IA (`supabase/functions/generate-discharge-report/index.ts`) — relevante clínicamente, no se agregó en el 2026-09-15 porque no fue pedido explícitamente.
 
 ## 📅 Turnos / Agenda
 - [⏸] **Recordatorios de turnos** (pausada 2026-07-16 — Jose priorizó otra cosa; el plan quedó completo y listo para ejecutar en **`docs/PLAN_recordatorios_turnos.md`**). Alcance ya decidido: email automático (cron + edge function + Resend, que YA está configurado en el proyecto) + panel de WhatsApp manual con tracking en Dashboard y Turnos + modelo de datos preparado para el futuro bot "RehaBot". Dato clave del plan: el `from` actual de Resend es el dominio de prueba (solo entrega al dueño de la cuenta) — para pacientes reales hay que verificar un dominio propio.

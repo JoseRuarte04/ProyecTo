@@ -3,6 +3,7 @@ import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Edit, ClipboardList, Stethoscope, User } from "lucide-react";
 import { employmentStatusLabel, maritalStatusLabel, educationLevelLabel } from "@/components/patients/occupationalOptions";
+import { sexLabel } from "@/components/patients/sexOptions";
 
 interface Props {
   patient: any;
@@ -79,16 +80,17 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
         <Field label="Nº de episodio" value={activeEpisode?.episode_number} />
         <Field label="Nº de afiliado" value={patient.insurance_number} />
         <Field label="Nacionalidad" value={patient.nationality} />
+        <Field label="Alergias" value={patient.allergies} />
         {patient.gender && (
-          <Field label="Género" value={{ female: "Femenino", male: "Masculino", other: "Otro", no_data: "Prefiero no decir" }[patient.gender as string] ?? patient.gender} />
+          <Field label="Sexo" value={sexLabel(patient.gender)} />
         )}
         <Field label="Teléfono" value={patient.phone} />
         {patient.email && <Field label="Email" value={patient.email} />}
         <Field label="Domicilio" value={patient.address} full />
-        {patient.emergency_contact_name && (
+        {(patient.emergency_contact_first_name || patient.emergency_contact_last_name) && (
           <Field
             label="Contacto de emergencia"
-            value={`${patient.emergency_contact_name}${patient.emergency_contact_phone ? " · " + patient.emergency_contact_phone : ""}${patient.emergency_contact_relation ? " (" + ({ parent: "Padre / Madre", spouse: "Cónyuge / Pareja", sibling: "Hermano/a", child: "Hijo/a", friend: "Amigo/a", other: "Otro" }[patient.emergency_contact_relation as string] ?? patient.emergency_contact_relation) + ")" : ""}`}
+            value={`${patient.emergency_contact_first_name ?? ""}${patient.emergency_contact_last_name ? " " + patient.emergency_contact_last_name : ""}${patient.emergency_contact_phone ? " · " + patient.emergency_contact_phone : ""}${patient.emergency_contact_relation ? " (" + ({ parent: "Padre / Madre", spouse: "Cónyuge / Pareja", sibling: "Hermano/a", child: "Hijo/a", friend: "Amigo/a", other: "Otro" }[patient.emergency_contact_relation as string] ?? patient.emergency_contact_relation) + ")" : ""}`}
             full
           />
         )}
