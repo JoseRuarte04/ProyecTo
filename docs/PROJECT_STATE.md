@@ -4,26 +4,27 @@
 > Se actualiza al FINAL de cada sesión de trabajo (con Claude Code o sin él).
 > Si algo no está acá, no pasó — o no está confirmado.
 
-**Última actualización:** 2026-08-11
-**Sprint / objetivo actual:** Rediseño de la sección Ejercicios (Ejercicio → Plan → Programa)
+**Última actualización:** 2026-09-15
+**Sprint / objetivo actual:** Cambios en alta de paciente (nacionalidad obligatoria, sexo, contacto de emergencia, alergias)
 
 ---
 
 ## 🎯 Objetivo de esta semana
-Simplificar la sección Ejercicios a 3 niveles (Ejercicio → Rutina → Programa) según lo hablado en reunión de equipo.
+Planear e implementar los cambios pedidos por Jose en el alta (y donde corresponda, edición) de paciente: nacionalidad obligatoria, género→sexo (masculino/femenino/no binario), separar nombre/apellido en contacto de emergencia, agregar alergias.
 
 ---
 
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Catálogo global de ejercicios HEP2go | Plan aprobado, implementando | Jose debe correr 3 migraciones (A/B/C) contra Supabase real | Ver `docs/PLAN_catalogo_ejercicios_hep2go.md` (copia del plan aprobado) |
+| Cambios en alta de paciente (nacionalidad, sexo, contacto de emergencia, alergias) | Planeando | — | Terminar de mapear impacto en todas las secciones y presentar plan a Jose |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
 ## ⏸️ Pausado (con motivo — esto es lo que normalmente se pierde)
 | Tarea | Por qué se pausó | Qué falta para retomarla |
 |---|---|---|
+| Catálogo global de ejercicios HEP2go | Jose priorizó los cambios de alta de paciente (2026-09-15); plan ya aprobado | Jose debe correr 3 migraciones (A/B/C) contra Supabase real — ver `docs/PLAN_catalogo_ejercicios_hep2go.md` |
 | Recordatorios de turnos | Jose priorizó otra cosa (2026-07-16); el plan quedó completo | Nada — ejecutar `docs/PLAN_recordatorios_turnos.md` de punta a punta (6 commits planificados) |
 
 ## ✅ Cerrado esta semana
