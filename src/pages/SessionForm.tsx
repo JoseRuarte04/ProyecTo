@@ -95,16 +95,7 @@ export default function SessionForm() {
   const [showFunctional, setShowFunctional] = useState(true);
   const [show_measurements, setShowMeasurements] = useState(true);
 
-  // Analytical subsection toggles
-  const [showPain, setShowPain] = useState(true);
-  const [showEdema, setShowEdema] = useState(true);
-  const [showMobility, setShowMobility] = useState(true);
-  const [showStrength, setShowStrength] = useState(true);
   const [affected_side, setAffectedSide] = useState<"MSD" | "MSI" | "both" | null>(null);
-  const [showSensitivity, setShowSensitivity] = useState(true);
-  const [showCicatriz, setShowCicatriz] = useState(true);
-  const [showSpecificTests, setShowSpecificTests] = useState(true);
-  const [showOtros, setShowOtros] = useState(true);
 
   // Pain
   const [pains, setPains] = useState<PainEntry[]>([emptyPain(1)]);
@@ -191,7 +182,7 @@ export default function SessionForm() {
     cli_treatment_type, cli_immob_weeks, cli_immob_days, cli_immob_type, cli_medical_history, cli_pharma, cli_studies,
     occ_dominance, occ_marital_status, occ_education_level, occ_support_network, occ_job,
     showFunctional, show_measurements,
-    showPain, showEdema, showMobility, showStrength, affected_side, showSensitivity, showCicatriz, showSpecificTests, showOtros,
+    affected_side,
     pains, referral_date,
     edema_obs, godet_test, edema_circ_items,
     mobility_observations,
@@ -262,15 +253,7 @@ export default function SessionForm() {
         if (d.occ_job !== undefined) setOccJob(d.occ_job);
         if (d.showFunctional !== undefined) setShowFunctional(d.showFunctional);
         if (d.show_measurements !== undefined) setShowMeasurements(d.show_measurements);
-        if (d.showPain !== undefined) setShowPain(d.showPain);
-        if (d.showEdema !== undefined) setShowEdema(d.showEdema);
-        if (d.showMobility !== undefined) setShowMobility(d.showMobility);
-        if (d.showStrength !== undefined) setShowStrength(d.showStrength);
         if (d.affected_side !== undefined) setAffectedSide(d.affected_side);
-        if (d.showSensitivity !== undefined) setShowSensitivity(d.showSensitivity);
-        if (d.showCicatriz !== undefined) setShowCicatriz(d.showCicatriz);
-        if (d.showSpecificTests !== undefined) setShowSpecificTests(d.showSpecificTests);
-        if (d.showOtros !== undefined) setShowOtros(d.showOtros);
         if (d.pains !== undefined && Array.isArray(d.pains)) { setPains(d.pains); painsNextId.current = d.pains.reduce((m: number, p: PainEntry) => Math.max(m, p.id + 1), 2); }
         if (d.referral_date !== undefined) setReferralDate(d.referral_date);
         if (d.mobility_observations !== undefined) setMobilityObservations(d.mobility_observations);
@@ -393,17 +376,7 @@ export default function SessionForm() {
         const ae = analRes.data;
         if (ae) {
           setShowMeasurements(true);
-          const cfg = (ae as any).sections_config;
-          const hasCfg = cfg && typeof cfg === "object";
           const hasPainsData = !!(ae.pain_score != null || ae.pain_appearance || ae.pain_location || ae.pain_characteristics || ae.pain_aggravating_factors || (ae as any).pain || ae.pain_radiation || (Array.isArray((ae as any).pains) && (ae as any).pains.length > 0));
-          setShowPain(hasCfg ? !!cfg.pain : hasPainsData);
-          setShowEdema(hasCfg ? !!cfg.edema : !!(ae.edema || ae.godet_test || ae.edema_circummetry));
-          setShowMobility(hasCfg ? !!cfg.mobility : !!(ae.goniometry || ae.arom || ae.prom || ae.kapandji));
-          setShowStrength(hasCfg ? !!cfg.strength : !!(ae.dynamometer_msd || ae.dynamometer_msi || ae.muscle_strength || ae.muscle_strength_daniels || ae.dppd_fingers));
-          setShowSensitivity(hasCfg ? !!cfg.sensitivity : !!(ae.sensitivity || ae.sensitivity_tacto_ligero || ae.sensitivity_dos_puntos || ae.sensitivity_picking_up || ae.sensitivity_semmes_weinstein || ae.sensitivity_toco_pincho || ae.sensitivity_temperatura));
-          setShowCicatriz(hasCfg ? !!cfg.cicatriz : !!(ae.scar || ae.scar_evaluation || ae.vancouver_score));
-          setShowSpecificTests(hasCfg ? !!cfg.specific_tests : !!(ae.specific_tests && Object.values(ae.specific_tests as any).some((v: any) => v !== null)));
-          setShowOtros(hasCfg ? !!cfg.otros : !!(ae.trophic_state || ae.posture || ae.emotional_state));
 
           const rawPains = (ae as any).pains;
           if (Array.isArray(rawPains) && rawPains.length > 0) {
@@ -851,16 +824,12 @@ export default function SessionForm() {
       trophic_state, posture, emotional_state, specificTestsJson, gonioJsonb, dppdFingersJson, scarEvalJson, mobility_observations,
     ].some((v) => v !== "" && v !== null && v !== undefined && v !== false);
 
-    const sectionsConfig = {
-      pain: showPain, edema: showEdema, mobility: showMobility, strength: showStrength,
-      sensitivity: showSensitivity, cicatriz: showCicatriz, specific_tests: showSpecificTests, otros: showOtros,
-    };
     const analyticalPayload = {
       patient_id: patientId!, professional_id: user.id, episode_id: activeEpisodeId,
       session_id: session.id, evaluation_date: session_date,
       pains: painsJson as any, pain_score: painScoreFinal,
       pain_appearance: null, pain_location: null, pain_radiation: null, pain_characteristics: null, pain_aggravating_factors: null, pain: null,
-      sections_config: sectionsConfig as any, edema: edema_obs || null, godet_test: godet_test || null,
+      edema: edema_obs || null, godet_test: godet_test || null,
       edema_circummetry: edemaCirc, arom: aromVal, prom: promVal, goniometry: gonioJsonb,
       dynamometer_msd: dynMsdJson as any, dynamometer_msi: dynMsiJson as any, kapandji: kapandjiFinal,
       muscle_strength: msVal, muscle_strength_median: null, muscle_strength_cubital: null, muscle_strength_radial: null,
@@ -905,13 +874,20 @@ export default function SessionForm() {
   const sessionTitle = `${patient.last_name} — Sesión Nº ${session_number || "—"}`;
   const age = patient.birth_date ? differenceInYears(new Date(), new Date(patient.birth_date)) : null;
 
+  const hasGonioValues = (g: GonioBySide) => Object.values(g).some((side) => Object.values(side).some((part) => Object.values(part).some((v) => v)));
+
   const sectionDone: Record<string, boolean> = {
     "sec-datos": !!session_date,
     "sec-ficha": cli_diagnoses.length > 0,
     "sec-ocupacional": !!(occ_job || occ_dominance),
     "sec-funcional": showFunctional && (Object.values(fim_items).some(v => v !== null) || Object.values(barthel_items).some(v => v !== null)),
     "sec-evolucion": !!general_observations,
-    "sec-analitica": show_measurements && (showPain || showEdema || showMobility || showStrength),
+    "sec-analitica": show_measurements && (
+      pains.some((p) => p.localizacion || p.aparicion || p.caracteristicas || p.observaciones || p.evaTouched) ||
+      !!(edema_obs || godet_test || edema_circ_items.length > 0) ||
+      !!(kapandji_val || fist_closure || mobility_observations) || hasGonioValues(all_pre_gonio) || hasGonioValues(all_prom_pre_gonio) ||
+      !!(dyn_msd_vals.some(Boolean) || dyn_msi_vals.some(Boolean) || danielsRows.some((r) => r.muscle || r.grade))
+    ),
     "sec-intervenciones": !!interventions,
     "sec-notas": !!(notes || home_instructions_sent),
   };
@@ -926,27 +902,24 @@ export default function SessionForm() {
 
   // Shared analytical props
   const analiticaProps = {
-    showPain, setShowPain, pains, setPains, painsNextId,
-    showEdema, setShowEdema, edema_obs, setEdemaObs, godet_test, setGodetTest, edema_circ_items, setEdemaCircItems,
-    showMobility, setShowMobility,
+    pains, setPains, painsNextId,
+    edema_obs, setEdemaObs, godet_test, setGodetTest, edema_circ_items, setEdemaCircItems,
     all_pre_gonio, setAllPreGonio, show_arom, setShowArom, show_arom_post, setShowAromPost, all_arom_post_gonio, setAllAromPostGonio,
     show_prom, setShowProm, all_prom_pre_gonio, setAllPromPreGonio, show_prom_post, setShowPromPost, all_post_gonio, setAllPostGonio,
     mobility_observations, setMobilityObservations, kapandji_val, setKapandjiVal, kapandji_pain, setKapandjiPain, fist_closure, setFistClosure,
-    showStrength, setShowStrength, isAdmission, affected_side, setAffectedSide,
+    isAdmission, affected_side, setAffectedSide,
     dyn_msd_vals, setDynMsdVals, dyn_msi_vals, setDynMsiVals,
     dppd_pulgar, setDppdPulgar, dppd_indice, setDppdIndice, dppd_medio, setDppdMedio, dppd_anular, setDppdAnular, dppd_menique, setDppdMenique,
     danielsRows, setDanielsRows, danielsNextId,
-    showSensitivity, setShowSensitivity,
     sensitivity, setSensitivity, sensitivity_tacto_ligero, setSensitivityTactoLigero,
     sensitivity_dos_puntos, setSensitivityDosPuntos, sensitivity_picking_up, setSensitivityPickingUp,
     sensitivity_semmes_weinstein, setSensitivitySemmesWeinstein, sensitivity_toco_pincho, setSensitivityTocoPincho, sensitivity_temperatura, setSensitivityTemperatura,
-    showCicatriz, setShowCicatriz,
     scar_localizacion, setScarLocalizacion, scar_longitud, setScarLongitud,
     scar_sensibilidad, setScarSensibilidad, scar_temperatura, setScarTemperatura,
     scar_observaciones, setScarObservaciones,
     vss_pigmentacion, setVssPigmentacion, vss_vascularizacion, setVssVascularizacion, vss_flexibilidad, setVssFlexibilidad, vss_altura, setVssAltura,
-    showSpecificTests, setShowSpecificTests, specificTests, setSpecificTests,
-    showOtros, setShowOtros, trophic_state, setTrophicState, posture, setPosture, emotional_state, setEmotionalState,
+    specificTests, setSpecificTests,
+    trophic_state, setTrophicState, posture, setPosture, emotional_state, setEmotionalState,
   };
 
   return (

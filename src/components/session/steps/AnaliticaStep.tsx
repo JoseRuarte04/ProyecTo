@@ -20,18 +20,15 @@ import type { PainEntry, PainTipo, GonioPartKey, GonioBySide, TestResult } from 
 
 interface AnaliticaStepProps {
   // Pain
-  showPain: boolean; setShowPain: (v: boolean) => void;
   pains: PainEntry[];
   setPains: React.Dispatch<React.SetStateAction<PainEntry[]>>;
   painsNextId: React.MutableRefObject<number>;
   // Edema
-  showEdema: boolean; setShowEdema: (v: boolean) => void;
   edema_obs: string; setEdemaObs: (v: string) => void;
   godet_test: string; setGodetTest: (v: string) => void;
   edema_circ_items: CircometriaItem[];
   setEdemaCircItems: React.Dispatch<React.SetStateAction<CircometriaItem[]>>;
   // Mobility
-  showMobility: boolean; setShowMobility: (v: boolean) => void;
   all_pre_gonio: GonioBySide;
   setAllPreGonio: React.Dispatch<React.SetStateAction<GonioBySide>>;
   show_arom: boolean; setShowArom: (v: boolean) => void;
@@ -49,7 +46,6 @@ interface AnaliticaStepProps {
   kapandji_pain: boolean; setKapandjiPain: (v: boolean) => void;
   fist_closure: string; setFistClosure: (v: string) => void;
   // Strength
-  showStrength: boolean; setShowStrength: (v: boolean) => void;
   isAdmission: boolean;
   affected_side: "MSD" | "MSI" | "both" | null;
   setAffectedSide: (v: "MSD" | "MSI" | "both" | null) => void;
@@ -64,7 +60,6 @@ interface AnaliticaStepProps {
   setDanielsRows: React.Dispatch<React.SetStateAction<{ id: number; muscle: string; grade: string }[]>>;
   danielsNextId: React.MutableRefObject<number>;
   // Sensitivity
-  showSensitivity: boolean; setShowSensitivity: (v: boolean) => void;
   sensitivity: string; setSensitivity: (v: string) => void;
   sensitivity_tacto_ligero: string; setSensitivityTactoLigero: (v: string) => void;
   sensitivity_dos_puntos: string; setSensitivityDosPuntos: (v: string) => void;
@@ -73,7 +68,6 @@ interface AnaliticaStepProps {
   sensitivity_toco_pincho: string; setSensitivityTocoPincho: (v: string) => void;
   sensitivity_temperatura: string; setSensitivityTemperatura: (v: string) => void;
   // Cicatriz
-  showCicatriz: boolean; setShowCicatriz: (v: boolean) => void;
   scar_localizacion: string; setScarLocalizacion: (v: string) => void;
   scar_longitud: string; setScarLongitud: (v: string) => void;
   scar_sensibilidad: string; setScarSensibilidad: (v: string) => void;
@@ -84,11 +78,9 @@ interface AnaliticaStepProps {
   vss_flexibilidad: string; setVssFlexibilidad: (v: string) => void;
   vss_altura: string; setVssAltura: (v: string) => void;
   // Specific tests
-  showSpecificTests: boolean; setShowSpecificTests: (v: boolean) => void;
   specificTests: Record<string, TestResult>;
   setSpecificTests: React.Dispatch<React.SetStateAction<Record<string, TestResult>>>;
   // Otros
-  showOtros: boolean; setShowOtros: (v: boolean) => void;
   trophic_state: string; setTrophicState: (v: string) => void;
   posture: string; setPosture: (v: string) => void;
   emotional_state: string; setEmotionalState: (v: string) => void;
@@ -96,27 +88,24 @@ interface AnaliticaStepProps {
 
 export function AnaliticaStep(props: AnaliticaStepProps) {
   const {
-    showPain, setShowPain, pains, setPains, painsNextId,
-    showEdema, setShowEdema, edema_obs, setEdemaObs, godet_test, setGodetTest, edema_circ_items, setEdemaCircItems,
-    showMobility, setShowMobility,
+    pains, setPains, painsNextId,
+    edema_obs, setEdemaObs, godet_test, setGodetTest, edema_circ_items, setEdemaCircItems,
     all_pre_gonio, setAllPreGonio, show_arom, setShowArom, show_arom_post, setShowAromPost, all_arom_post_gonio, setAllAromPostGonio,
     show_prom, setShowProm, all_prom_pre_gonio, setAllPromPreGonio, show_prom_post, setShowPromPost, all_post_gonio, setAllPostGonio,
     mobility_observations, setMobilityObservations, kapandji_val, setKapandjiVal, kapandji_pain, setKapandjiPain, fist_closure, setFistClosure,
-    showStrength, setShowStrength, isAdmission, affected_side, setAffectedSide,
+    isAdmission, affected_side, setAffectedSide,
     dyn_msd_vals, setDynMsdVals, dyn_msi_vals, setDynMsiVals,
     dppd_pulgar, setDppdPulgar, dppd_indice, setDppdIndice, dppd_medio, setDppdMedio, dppd_anular, setDppdAnular, dppd_menique, setDppdMenique,
     danielsRows, setDanielsRows, danielsNextId,
-    showSensitivity, setShowSensitivity,
     sensitivity, setSensitivity, sensitivity_tacto_ligero, setSensitivityTactoLigero,
     sensitivity_dos_puntos, setSensitivityDosPuntos, sensitivity_picking_up, setSensitivityPickingUp,
     sensitivity_semmes_weinstein, setSensitivitySemmesWeinstein, sensitivity_toco_pincho, setSensitivityTocoPincho, sensitivity_temperatura, setSensitivityTemperatura,
-    showCicatriz, setShowCicatriz,
     scar_localizacion, setScarLocalizacion, scar_longitud, setScarLongitud,
     scar_sensibilidad, setScarSensibilidad, scar_temperatura, setScarTemperatura,
     scar_observaciones, setScarObservaciones,
     vss_pigmentacion, setVssPigmentacion, vss_vascularizacion, setVssVascularizacion, vss_flexibilidad, setVssFlexibilidad, vss_altura, setVssAltura,
-    showSpecificTests, setShowSpecificTests, specificTests, setSpecificTests,
-    showOtros, setShowOtros, trophic_state, setTrophicState, posture, setPosture, emotional_state, setEmotionalState,
+    specificTests, setSpecificTests,
+    trophic_state, setTrophicState, posture, setPosture, emotional_state, setEmotionalState,
   } = props;
 
   // Gonio UI navigation state (local to this step)
@@ -145,8 +134,9 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
 
   return (
     <SectionCard id="sec-analitica" icon={BarChart2} title="Evaluación analítica">
+      <div className="space-y-3">
       {/* Dolor — múltiple */}
-      <SubSection title="Dolor" checked={showPain} onChange={setShowPain} withDivider={false}>
+      <SubSection title="Dolor">
         <div className="space-y-3">
           {pains.map((pain, idx) => (
             <div key={pain.id} className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
@@ -252,7 +242,7 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       </SubSection>
 
       {/* Edema */}
-      <SubSection title="Edema" checked={showEdema} onChange={setShowEdema}>
+      <SubSection title="Edema">
         <div>
           <h4 className="text-xs font-medium text-muted-foreground mb-2">Circometría</h4>
           <EdemaCircometryTable items={edema_circ_items} onChange={setEdemaCircItems} />
@@ -278,7 +268,7 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       </SubSection>
 
       {/* Movilidad */}
-      <SubSection title="Movilidad" checked={showMobility} onChange={setShowMobility}>
+      <SubSection title="Movilidad">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-sm font-semibold text-foreground">Goniometría</span>
           <div className="flex-1 h-px bg-border" />
@@ -416,7 +406,7 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       </SubSection>
 
       {/* Fuerza */}
-      <SubSection title="Fuerza muscular" checked={showStrength} onChange={setShowStrength}>
+      <SubSection title="Fuerza muscular">
         {isAdmission ? (
           <div className="mb-3">
             <Label className="text-sm">Lado(s) afectado(s)</Label>
@@ -576,7 +566,7 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       </SubSection>
 
       {/* Sensibilidad */}
-      <SubSection title="Sensibilidad" checked={showSensitivity} onChange={setShowSensitivity}>
+      <SubSection title="Sensibilidad">
         <div>
           <h4 className="text-xs font-medium text-muted-foreground mb-2">Epicrítica (funcional)</h4>
           <div className="space-y-3">
@@ -602,8 +592,6 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       {/* Cicatriz */}
       <SubSection
         title="Cicatriz"
-        checked={showCicatriz}
-        onChange={setShowCicatriz}
         badge={vssTotalLive > 0 ? <Badge variant="secondary" className="text-[10px]">VSS {vssTotalLive}/15</Badge> : null}
       >
         <div>
@@ -687,7 +675,7 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       </SubSection>
 
       {/* Pruebas específicas */}
-      <SubSection title="Pruebas específicas" checked={showSpecificTests} onChange={setShowSpecificTests}>
+      <SubSection title="Pruebas específicas">
         <div className="flex flex-wrap gap-2">
           {SPECIFIC_TESTS.map((t) => {
             const val = specificTests[t.key];
@@ -717,11 +705,12 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       </SubSection>
 
       {/* Otros */}
-      <SubSection title="Otros" checked={showOtros} onChange={setShowOtros}>
+      <SubSection title="Otros">
         <div><Label>Estado trófico</Label><Textarea rows={2} value={trophic_state} onChange={(e) => setTrophicState(e.target.value)} className={textareaClass} /></div>
         <div><Label>Postura</Label><Textarea rows={2} value={posture} onChange={(e) => setPosture(e.target.value)} className={textareaClass} /></div>
         <div><Label>Emotividad</Label><Textarea rows={2} value={emotional_state} onChange={(e) => setEmotionalState(e.target.value)} className={textareaClass} /></div>
       </SubSection>
+      </div>
     </SectionCard>
   );
 }
