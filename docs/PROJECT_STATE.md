@@ -10,20 +10,21 @@
 ---
 
 ## 🎯 Objetivo de esta semana
-Retomar el catálogo de ejercicios HEP2go (pausado el 2026-09-15, plan ya aprobado, solo falta que Jose corra las migraciones pendientes).
+Dos candidatos chicos de TASKS.md (card vacía de Perfil ocupacional + resto de queries sin chequear error), y después retomar el catálogo de ejercicios HEP2go (plan ya aprobado, solo falta que Jose corra las migraciones pendientes).
 
 ---
 
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Catálogo global de ejercicios HEP2go | Plan aprobado, implementando | Jose debe correr 3 migraciones (A/B/C) contra Supabase real | Ver `docs/PLAN_catalogo_ejercicios_hep2go.md` (copia del plan aprobado) |
+| Card vacía de Perfil ocupacional + ~16 queries sin chequear error restantes | Arrancando | — | No insertar/mostrar la fila vacía de `patient_occupational_profiles`; auditar los sitios restantes anotados en TASKS.md |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
 ## ⏸️ Pausado (con motivo — esto es lo que normalmente se pierde)
 | Tarea | Por qué se pausó | Qué falta para retomarla |
 |---|---|---|
+| Catálogo global de ejercicios HEP2go | Jose priorizó dos fixes chicos primero (2026-09-15); sigue bloqueado esperando que Jose corra 3 migraciones (A/B/C) contra Supabase real | Ver `docs/PLAN_catalogo_ejercicios_hep2go.md` (plan ya aprobado) |
 | Recordatorios de turnos | Jose priorizó otra cosa (2026-07-16); el plan quedó completo | Nada — ejecutar `docs/PLAN_recordatorios_turnos.md` de punta a punta (6 commits planificados) |
 
 ## ✅ Cerrado esta semana
