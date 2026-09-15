@@ -1000,6 +1000,11 @@ export type Database = {
           avd: string | null
           barthel_items: Json | null
           barthel_score: number | null
+          client_factor_body_functions: string | null
+          client_factor_body_structures: string | null
+          client_factor_values_beliefs_spirituality: string | null
+          context_environmental_factors: string | null
+          context_personal_factors: string | null
           created_at: string
           dash_score: number | null
           dominance: Database["public"]["Enums"]["dominance_type"] | null
@@ -1010,7 +1015,16 @@ export type Database = {
           health_management: string | null
           id: string
           notes: string | null
+          occupations_items: Json | null
+          occupations_notes: string | null
           patient_id: string
+          performance_pattern_habits: string | null
+          performance_pattern_rituals: string | null
+          performance_pattern_roles: string | null
+          performance_pattern_routines: string | null
+          performance_skill_motor: string | null
+          performance_skill_processing: string | null
+          performance_skill_social_interaction: string | null
           physical_activity: string | null
           professional_id: string
           quickdash_items: Json | null
@@ -1024,6 +1038,11 @@ export type Database = {
           avd?: string | null
           barthel_items?: Json | null
           barthel_score?: number | null
+          client_factor_body_functions?: string | null
+          client_factor_body_structures?: string | null
+          client_factor_values_beliefs_spirituality?: string | null
+          context_environmental_factors?: string | null
+          context_personal_factors?: string | null
           created_at?: string
           dash_score?: number | null
           dominance?: Database["public"]["Enums"]["dominance_type"] | null
@@ -1034,7 +1053,16 @@ export type Database = {
           health_management?: string | null
           id?: string
           notes?: string | null
+          occupations_items?: Json | null
+          occupations_notes?: string | null
           patient_id: string
+          performance_pattern_habits?: string | null
+          performance_pattern_rituals?: string | null
+          performance_pattern_roles?: string | null
+          performance_pattern_routines?: string | null
+          performance_skill_motor?: string | null
+          performance_skill_processing?: string | null
+          performance_skill_social_interaction?: string | null
           physical_activity?: string | null
           professional_id: string
           quickdash_items?: Json | null
@@ -1048,6 +1076,11 @@ export type Database = {
           avd?: string | null
           barthel_items?: Json | null
           barthel_score?: number | null
+          client_factor_body_functions?: string | null
+          client_factor_body_structures?: string | null
+          client_factor_values_beliefs_spirituality?: string | null
+          context_environmental_factors?: string | null
+          context_personal_factors?: string | null
           created_at?: string
           dash_score?: number | null
           dominance?: Database["public"]["Enums"]["dominance_type"] | null
@@ -1058,7 +1091,16 @@ export type Database = {
           health_management?: string | null
           id?: string
           notes?: string | null
+          occupations_items?: Json | null
+          occupations_notes?: string | null
           patient_id?: string
+          performance_pattern_habits?: string | null
+          performance_pattern_rituals?: string | null
+          performance_pattern_roles?: string | null
+          performance_pattern_routines?: string | null
+          performance_skill_motor?: string | null
+          performance_skill_processing?: string | null
+          performance_skill_social_interaction?: string | null
           physical_activity?: string | null
           professional_id?: string
           quickdash_items?: Json | null
