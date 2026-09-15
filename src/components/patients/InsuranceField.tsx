@@ -72,12 +72,13 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
     let cancelled = false;
     setLoading(true);
     const t = setTimeout(async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("obras_sociales")
         .select("name, type")
         .eq("is_active", true)
         .ilike("name_search", `%${term.toLowerCase()}%`)
         .limit(10);
+      if (error) console.error("Error al buscar obras sociales:", error);
       if (cancelled) return;
       setResults((data as Array<{ name: string; type: string | null }>) || []);
       updateRect();

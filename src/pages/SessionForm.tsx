@@ -495,7 +495,8 @@ export default function SessionForm() {
       }
 
       if (!episodeIdParam) {
-        const { data: ep } = await supabase.from("treatment_episodes").select("id").eq("patient_id", patientId).eq("status", "active").eq("is_deleted", false).order("episode_number", { ascending: false }).limit(1).single();
+        const { data: ep, error: epErr } = await supabase.from("treatment_episodes").select("id").eq("patient_id", patientId).eq("status", "active").eq("is_deleted", false).order("episode_number", { ascending: false }).limit(1).single();
+        if (epErr && epErr.code !== "PGRST116") console.error("Error cargando episodio activo:", epErr);
         if (ep) setActiveEpisodeId(ep.id);
       }
       setLoading(false);
@@ -510,7 +511,8 @@ export default function SessionForm() {
     (async () => {
       const epId = activeEpisodeId;
       const cliQuery = supabase.from("patient_clinical_records").select("*").eq("patient_id", patientId);
-      const { data: cliRow } = epId ? await cliQuery.eq("episode_id", epId).maybeSingle() : await cliQuery.maybeSingle();
+      const { data: cliRow, error: cliRowErr } = epId ? await cliQuery.eq("episode_id", epId).maybeSingle() : await cliQuery.maybeSingle();
+      if (cliRowErr) console.error("Error cargando ficha clínica:", cliRowErr);
       if (cliRow) {
         setEditingClinicalId(cliRow.id);
         setCliDoctorName(cliRow.doctor_name || "");
@@ -535,7 +537,8 @@ export default function SessionForm() {
         setDiagnosesLoadFailed(true);
         toast.error("No se pudieron cargar los diagnósticos", { description: "Se van a dejar sin tocar al guardar — recargá la página para reintentar." });
       }
-      const { data: occRow } = await supabase.from("patient_occupational_profiles").select("*").eq("patient_id", patientId).maybeSingle();
+      const { data: occRow, error: occRowErr } = await supabase.from("patient_occupational_profiles").select("*").eq("patient_id", patientId).maybeSingle();
+      if (occRowErr) console.error("Error cargando perfil ocupacional:", occRowErr);
       if (occRow) {
         setEditingOccId(occRow.id);
         setOccDominance(occRow.dominance || "");
@@ -545,15 +548,18 @@ export default function SessionForm() {
         setOccJob(occRow.job || "");
       }
       if (activeEpisodeId) {
-        const { data: epRow } = await supabase.from("treatment_episodes").select("affected_side, referral_date").eq("id", activeEpisodeId).maybeSingle();
+        const { data: epRow, error: epRowErr } = await supabase.from("treatment_episodes").select("affected_side, referral_date").eq("id", activeEpisodeId).maybeSingle();
+        if (epRowErr) console.error("Error cargando episodio:", epRowErr);
         const affSide = (epRow?.affected_side as "MSD" | "MSI" | "both" | null) ?? null;
         if (affSide) setAffectedSide(affSide);
         setReferralDate(epRow?.referral_date || "");
 
         if (!sessionId && !isAdmission && affSide && affSide !== "both") {
-          const { data: lastSess } = await supabase.from("therapy_sessions").select("id").eq("episode_id", activeEpisodeId).order("session_date", { ascending: false }).limit(1).maybeSingle();
+          const { data: lastSess, error: lastSessErr } = await supabase.from("therapy_sessions").select("id").eq("episode_id", activeEpisodeId).order("session_date", { ascending: false }).limit(1).maybeSingle();
+          if (lastSessErr) console.error("Error cargando última sesión:", lastSessErr);
           if (lastSess) {
-            const { data: lastAe } = await supabase.from("analytical_evaluations").select("dynamometer_msd, dynamometer_msi").eq("session_id", lastSess.id).maybeSingle();
+            const { data: lastAe, error: lastAeErr } = await supabase.from("analytical_evaluations").select("dynamometer_msd, dynamometer_msi").eq("session_id", lastSess.id).maybeSingle();
+            if (lastAeErr) console.error("Error cargando última evaluación analítica:", lastAeErr);
             if (lastAe) {
               if (affSide === "MSI") setDynMsdVals(parseDyn(lastAe.dynamometer_msd));
               if (affSide === "MSD") setDynMsiVals(parseDyn(lastAe.dynamometer_msi));
@@ -759,6 +765,7 @@ export default function SessionForm() {
         if (cliErr) { setSaving(false); toast.error("Error al guardar ficha clínica: " + cliErr.message); return; }
         if (newCli) setEditingClinicalId(newCli.id);
       }
+      const occHasData = !!(occ_dominance || occ_marital_status || occ_education_level || occ_support_network.trim() || occ_job.trim());
       const occPayload: any = {
         patient_id: patientId!, dominance: occ_dominance || null,
         marital_status: occ_marital_status || null,
@@ -769,7 +776,7 @@ export default function SessionForm() {
       if (editingOccId) {
         const { error: occErr } = await supabase.from("patient_occupational_profiles").update(occPayload).eq("id", editingOccId);
         if (occErr) { setSaving(false); toast.error("Error al guardar perfil ocupacional: " + occErr.message); return; }
-      } else {
+      } else if (occHasData) {
         const { data: newOcc, error: occErr } = await supabase.from("patient_occupational_profiles").insert(occPayload).select("id").single();
         if (occErr) { setSaving(false); toast.error("Error al guardar perfil ocupacional: " + occErr.message); return; }
         if (newOcc) setEditingOccId(newOcc.id);
@@ -860,15 +867,24 @@ export default function SessionForm() {
     }
 
     if (session_type === "discharge") {
-      await supabase.from("patients").update({ status: "discharged" }).eq("id", patientId!);
-      if (activeEpisodeId) await supabase.from("treatment_episodes").update({ status: "discharged", discharge_date: session_date }).eq("id", activeEpisodeId);
+      const { error: dischargePatientErr } = await supabase.from("patients").update({ status: "discharged" }).eq("id", patientId!);
+      if (dischargePatientErr) console.error("Error al marcar el alta del paciente:", dischargePatientErr);
+      if (activeEpisodeId) {
+        const { error: dischargeEpErr } = await supabase.from("treatment_episodes").update({ status: "discharged", discharge_date: session_date }).eq("id", activeEpisodeId);
+        if (dischargeEpErr) console.error("Error al marcar el alta del episodio:", dischargeEpErr);
+      }
     } else if (isEditMode && patient?.status === "discharged") {
       // Solo revertir el alta: un paciente abandonado o pausado no debe volver
       // a activo por editar una sesión vieja.
-      const { data: remainingDischarges } = await supabase.from("therapy_sessions").select("id").eq("patient_id", patientId!).eq("session_type", "discharge").eq("is_deleted", false).limit(1);
+      const { data: remainingDischarges, error: remainingErr } = await supabase.from("therapy_sessions").select("id").eq("patient_id", patientId!).eq("session_type", "discharge").eq("is_deleted", false).limit(1);
+      if (remainingErr) console.error("Error al chequear altas restantes:", remainingErr);
       if (!remainingDischarges || remainingDischarges.length === 0) {
-        await supabase.from("patients").update({ status: "active" }).eq("id", patientId!);
-        if (activeEpisodeId) await supabase.from("treatment_episodes").update({ status: "active", discharge_date: null }).eq("id", activeEpisodeId);
+        const { error: reactivatePatientErr } = await supabase.from("patients").update({ status: "active" }).eq("id", patientId!);
+        if (reactivatePatientErr) console.error("Error al reactivar el paciente:", reactivatePatientErr);
+        if (activeEpisodeId) {
+          const { error: reactivateEpErr } = await supabase.from("treatment_episodes").update({ status: "active", discharge_date: null }).eq("id", activeEpisodeId);
+          if (reactivateEpErr) console.error("Error al reactivar el episodio:", reactivateEpErr);
+        }
       }
     }
 
