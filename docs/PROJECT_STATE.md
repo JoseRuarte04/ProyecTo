@@ -5,25 +5,26 @@
 > Si algo no está acá, no pasó — o no está confirmado.
 
 **Última actualización:** 2026-09-15
-**Sprint / objetivo actual:** Catálogo global de ejercicios HEP2go
+**Sprint / objetivo actual:** Arreglar las 14 queries que ignoran errores de Supabase en silencio
 
 ---
 
 ## 🎯 Objetivo de esta semana
-Retomar el catálogo de ejercicios HEP2go (pausado el 2026-09-15, plan ya aprobado, solo falta que Jose corra las migraciones pendientes).
+Tras una pasada de QA completa de la app, Jose pidió arrancar por el hallazgo de mayor impacto real: 14 queries que no leen `error` de Supabase, por lo que un guardado puede fallar sin que el usuario se entere.
 
 ---
 
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Catálogo global de ejercicios HEP2go | Plan aprobado, implementando | Jose debe correr 3 migraciones (A/B/C) contra Supabase real | Ver `docs/PLAN_catalogo_ejercicios_hep2go.md` (copia del plan aprobado) |
+| Arreglar 14 queries con error silencioso | Ubicando las 14 queries | — | Grep de queries que destructuran `data` sin `error` (o sin chequearlo), sumar `toast.error` consistente con el patrón del resto del repo |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
 ## ⏸️ Pausado (con motivo — esto es lo que normalmente se pierde)
 | Tarea | Por qué se pausó | Qué falta para retomarla |
 |---|---|---|
+| Catálogo global de ejercicios HEP2go | Jose priorizó arreglar las queries con error silencioso (2026-09-15); plan ya aprobado | Jose debe correr 3 migraciones (A/B/C) contra Supabase real — ver `docs/PLAN_catalogo_ejercicios_hep2go.md` |
 | Recordatorios de turnos | Jose priorizó otra cosa (2026-07-16); el plan quedó completo | Nada — ejecutar `docs/PLAN_recordatorios_turnos.md` de punta a punta (6 commits planificados) |
 
 ## ✅ Cerrado esta semana
