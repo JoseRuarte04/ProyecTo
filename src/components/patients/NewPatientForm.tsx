@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
 import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
 import { primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
+import { SEX_OPTIONS, sexLabel } from "@/components/patients/sexOptions";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -312,16 +313,13 @@ export default function NewPatientForm() {
                 <ErrMsg field="birthDate" />
               </div>
               <div>
-                <FieldLabel>Género</FieldLabel>
+                <FieldLabel>Sexo</FieldLabel>
                 <Select value={gender} onValueChange={setGender}>
                   <SelectTrigger className={inputClass}>
                     <SelectValue placeholder="Seleccionar…" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="female">Femenino</SelectItem>
-                    <SelectItem value="male">Masculino</SelectItem>
-                    <SelectItem value="other">Otro</SelectItem>
-                    <SelectItem value="no_data">Prefiero no decir</SelectItem>
+                    {SEX_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -443,7 +441,7 @@ export default function NewPatientForm() {
                 />
                 <SummaryRow label="DNI" value={dni} />
                 <SummaryRow label="Nacimiento" value={birthDate} />
-                {gender && <SummaryRow label="Género" value={{ female: "Femenino", male: "Masculino", other: "Otro", no_data: "Prefiero no decir" }[gender] ?? gender} />}
+                {gender && <SummaryRow label="Sexo" value={sexLabel(gender)} />}
                 {nationality && <SummaryRow label="Nacionalidad" value={nationality} />}
                 <SummaryRow label="Ingreso" value={admissionDate} />
                 {insurance && <SummaryRow label="Obra social" value={insurance} />}

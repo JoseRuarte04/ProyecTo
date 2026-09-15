@@ -3,6 +3,7 @@ import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Edit, ClipboardList, Stethoscope, User } from "lucide-react";
 import { employmentStatusLabel, maritalStatusLabel, educationLevelLabel } from "@/components/patients/occupationalOptions";
+import { sexLabel } from "@/components/patients/sexOptions";
 
 interface Props {
   patient: any;
@@ -80,7 +81,7 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
         <Field label="Nº de afiliado" value={patient.insurance_number} />
         <Field label="Nacionalidad" value={patient.nationality} />
         {patient.gender && (
-          <Field label="Género" value={{ female: "Femenino", male: "Masculino", other: "Otro", no_data: "Prefiero no decir" }[patient.gender as string] ?? patient.gender} />
+          <Field label="Sexo" value={sexLabel(patient.gender)} />
         )}
         <Field label="Teléfono" value={patient.phone} />
         {patient.email && <Field label="Email" value={patient.email} />}

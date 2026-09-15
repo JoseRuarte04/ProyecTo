@@ -126,7 +126,7 @@ function buildXmlPrompt(data: {
     <nombre>${p.first_name} ${p.last_name}</nombre>
     <dni>${p.dni ?? "No registrado."}</dni>
     <fecha_nacimiento>${p.birth_date ?? "No registrado."}</fecha_nacimiento>
-    <genero>${p.gender ?? "No registrado."}</genero>
+    <sexo>${p.gender ?? "No registrado."}</sexo>
     <telefono>${p.phone ?? "No registrado."}</telefono>
     <obra_social>${p.insurance ?? "No registrado."}</obra_social>
   </identificacion>

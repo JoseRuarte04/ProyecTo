@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
 import { EMPLOYMENT_STATUS_OPTIONS, MARITAL_STATUS_OPTIONS, EDUCATION_LEVEL_OPTIONS } from "@/components/patients/occupationalOptions";
+import { SEX_OPTIONS } from "@/components/patients/sexOptions";
 import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
 import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
 
@@ -170,14 +171,11 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
               <div><Label>Apellido</Label><Input value={form.last_name || ""} onChange={(e) => u("last_name", e.target.value)} /></div>
               <div><Label>DNI</Label><Input value={form.dni || ""} onChange={(e) => u("dni", e.target.value)} /></div>
               <div><Label>Fecha de nacimiento</Label><Input type="date" value={form.birth_date || ""} onChange={(e) => u("birth_date", e.target.value)} /></div>
-              <div><Label>Género</Label>
+              <div><Label>Sexo</Label>
                 <Select value={form.gender || ""} onValueChange={(v) => u("gender", v)}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="female">Femenino</SelectItem>
-                    <SelectItem value="male">Masculino</SelectItem>
-                    <SelectItem value="other">Otro</SelectItem>
-                    <SelectItem value="no_data">Prefiero no decir</SelectItem>
+                    {SEX_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
