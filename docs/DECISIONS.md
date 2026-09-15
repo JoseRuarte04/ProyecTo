@@ -28,6 +28,44 @@ motivo real de negocio/técnico).
 
 ---
 
+## [2026-09-15] Nacionalidad, sexo, contacto de emergencia y alergias en pacientes
+
+**Contexto:** Jose pidió 4 cambios en el alta de paciente: nacionalidad obligatoria, "Género"
+renombrado a "Sexo" con masculino/femenino/no binario, separar el contacto de emergencia en
+nombre y apellido, y agregar alergias. Antes de tocar código se consultó la base real (31
+pacientes): 21 sin nacionalidad, valores sucios `M`/`F` en género (de una carga vieja que no
+pasaba por el Select), y 7 pacientes con contacto de emergencia (4 separables por espacio, 3 de
+una sola palabra).
+
+**Opciones consideradas:**
+1. Forzar `nationality NOT NULL` a nivel DB.
+2. Convertir `gender` en un enum de Postgres con CHECK.
+3. Borrar `emergency_contact_name` de una vez al agregar las columnas nuevas.
+4. Alergias como lista estructurada (tipo diagnósticos) en vez de texto libre.
+
+**Decisión:**
+1. Nacionalidad obligatoria solo en el formulario de alta (frontend) — la columna sigue
+   nullable en DB, porque forzar `NOT NULL` hubiera roto los 21 pacientes existentes sin el dato.
+2. `gender`/"Sexo" sigue siendo `text` libre sin CHECK ni enum — mismo patrón que el resto de
+   los campos de opciones cerradas del proyecto (`occupationalOptions.ts`). Se agregó una
+   migración de normalización (`M`→`male`, `F`→`female`) para no perder esos 6 registros sucios.
+3. `emergency_contact_name` queda en la tabla, deprecada pero sin borrar — por las dudas con el
+   dato crudo. Candidato de limpieza en `TASKS.md`.
+4. Alergias es un campo de texto libre (como "Antecedentes"), no una lista estructurada — no
+   hay pedido ni precedente de catálogo de alergias en el proyecto.
+
+**Por qué:** Priorizar no romper datos de pacientes reales por sobre la integridad estricta a
+nivel DB — el proyecto ya tiene esta convención para todos los campos de opciones cerradas
+(ver perfil ocupacional). Confirmado con Jose antes de escribir las migraciones.
+
+**Consecuencias / trade-offs aceptados:** Los 21 pacientes sin nacionalidad y los pacientes sin
+sexo definido van a seguir sin ese dato hasta que alguien los edite a mano — no hay backfill
+forzado. `emergency_contact_name` queda como columna muerta hasta la limpieza posterior.
+
+**Quién lo decidió:** con Jose (confirmado por chat antes de implementar).
+
+---
+
 ## [2026-08-11] Ejercicios: se agrega "Programa" reutilizable (agrupa Planes) — corrige la decisión del 08-10
 
 **Contexto:** El rediseño del 2026-08-10 (ver entrada de abajo) no era lo que el equipo había

@@ -5,29 +5,29 @@
 > Si algo no está acá, no pasó — o no está confirmado.
 
 **Última actualización:** 2026-09-15
-**Sprint / objetivo actual:** Cambios en alta de paciente (nacionalidad obligatoria, sexo, contacto de emergencia, alergias)
+**Sprint / objetivo actual:** Catálogo global de ejercicios HEP2go
 
 ---
 
 ## 🎯 Objetivo de esta semana
-Planear e implementar los cambios pedidos por Jose en el alta (y donde corresponda, edición) de paciente: nacionalidad obligatoria, género→sexo (masculino/femenino/no binario), separar nombre/apellido en contacto de emergencia, agregar alergias.
+Retomar el catálogo de ejercicios HEP2go (pausado el 2026-09-15, plan ya aprobado, solo falta que Jose corra las migraciones pendientes).
 
 ---
 
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Cambios en alta de paciente (nacionalidad, sexo, contacto de emergencia, alergias) | Planeando | — | Terminar de mapear impacto en todas las secciones y presentar plan a Jose |
+| Catálogo global de ejercicios HEP2go | Plan aprobado, implementando | Jose debe correr 3 migraciones (A/B/C) contra Supabase real | Ver `docs/PLAN_catalogo_ejercicios_hep2go.md` (copia del plan aprobado) |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
 ## ⏸️ Pausado (con motivo — esto es lo que normalmente se pierde)
 | Tarea | Por qué se pausó | Qué falta para retomarla |
 |---|---|---|
-| Catálogo global de ejercicios HEP2go | Jose priorizó los cambios de alta de paciente (2026-09-15); plan ya aprobado | Jose debe correr 3 migraciones (A/B/C) contra Supabase real — ver `docs/PLAN_catalogo_ejercicios_hep2go.md` |
 | Recordatorios de turnos | Jose priorizó otra cosa (2026-07-16); el plan quedó completo | Nada — ejecutar `docs/PLAN_recordatorios_turnos.md` de punta a punta (6 commits planificados) |
 
 ## ✅ Cerrado esta semana
+- **[2026-09-15] Pacientes: nacionalidad obligatoria, Sexo, contacto de emergencia separado, alergias** (pedido directo de Jose, ver DECISIONS): nacionalidad obligatoria en el alta (y ahora editable desde la ficha, corrige un bug donde faltaba ese campo en `EditFichaDialog`); "Género" renombrado a "Sexo" con masculino/femenino/no binario, opciones centralizadas en `src/components/patients/sexOptions.ts` (antes duplicadas 3 veces); contacto de emergencia separado en nombre y apellido (`emergency_contact_first_name`/`last_name`); campo de alergias (texto libre) nuevo en alta y ficha. 3 migraciones aplicadas contra Supabase (normalización de género sucio `M`/`F`→`male`/`female` en 6 pacientes, columna `allergies`, columnas de contacto de emergencia con backfill automático en 7 pacientes) y `types.ts` regenerado. Verificado de punta a punta en el navegador contra Supabase real (alta completa con los 4 campos, validación de nacionalidad obligatoria, edición de un paciente viejo con datos migrados) — 0 errores de consola. Typecheck, lint (239, en el techo) y build OK. 6 commits, pusheados a main. `emergency_contact_name` queda deprecada sin borrar (candidato en TASKS.md).
 - **[2026-08-11] Ejercicios: corrección — Ejercicio → Plan → Programa (3 pestañas)** (feedback del usuario sobre el cierre del 08-10, ver DECISIONS): Biblioteca reordenada en 3 pestañas de primer nivel (Ejercicios/Planes/Programas); Activo/Activo asistido/Fortalecimiento pasa a ser un filtro dentro de Ejercicios; "Rutina" renombrada a "Plan" en toda la UI (solo texto, tabla sigue siendo `exercise_routines`); nivel nuevo "Programa" reutilizable que agrupa varios Planes (`exercise_programs`/`exercise_program_routines`); wizard del paciente ahora aplica un Plan o un Programa completo; "Plan del paciente" relabeleado a "Programa del paciente" para no colisionar. 2 migraciones aplicadas por Jose y verificadas de punta a punta en el navegador con Playwright headless contra Supabase real (login real, crear Plan, crear Programa, agregarle el Plan, aplicar el Programa a un paciente de prueba hasta el paso 2 del wizard, limpieza de los datos de prueba creados) — 0 errores de consola. Typecheck, lint (239, en el techo) y build OK. 5 commits, pusheados a main.
 - **[2026-08-10] Ejercicios: Rutinas reutilizables + Programa con fecha/duración** (pedido en reunión de equipo, ver DECISIONS): nivel intermedio "Rutina" (tab nueva en Biblioteca de Ejercicios, CRUD completo con reorder/dosis sugerida) entre el Ejercicio y el Programa del paciente. Wizard de 3 pasos ("Aplicar rutina") en `EjerciciosTab` para armar el plan del paciente a partir de una rutina — cantidades editables sin tocar la plantilla, más fecha de inicio + duración en semanas. Link público del paciente y guard de borrado de ejercicios actualizados. 4 migraciones (`exercise_routines`/`exercise_routine_items`, columnas de programa + `UNIQUE(patient_id)` en `exercise_plans`, RPC `add_routine_to_exercise_plan`, `get_exercise_plan_public` extendido) aplicadas por Jose y verificadas de punta a punta en el navegador (login real, crear rutina, aplicar al paciente, link público, guard de borrado — 0 errores de consola). Lint en el techo (239), typecheck y build OK. **Sin commitear todavía** (no se pidió explícitamente en la sesión).
 - **[2026-07-17] Cuatro mejoras del flujo de pacientes** (20 commits, todo verificado con lint/typecheck/tests/build):
@@ -53,10 +53,19 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 - El lint está EXACTAMENTE en el techo del CI (239 warnings) — cualquier warning nuevo rompe el build. Ojo con `react-refresh/only-export-components`: no exportar helpers desde archivos de componentes.
 - El checkout local no tenía `.env` (solo `.env.example`) hasta el 2026-08-10 — se creó uno local (gitignorado) con la `anon key` para poder probar en el navegador. Si se clona el repo de nuevo hace falta recrearlo a mano.
 - No hay borrado duro de pacientes desde la UI (solo alta/abandono) — al limpiar datos de prueba hay que borrar a mano vía SQL. Ojo: `exercise_plan_tokens.patient_id` no tiene `ON DELETE CASCADE` (a diferencia de `plan_id`), hay que borrar el `exercise_plans` del paciente antes que el paciente mismo. Candidato de limpieza anotado en `TASKS.md`.
+- `patients.gender` ("Sexo" en la UI) sigue siendo `text` libre sin CHECK, opciones en `src/components/patients/sexOptions.ts` (male/female/non_binary). `patients.emergency_contact_name` está deprecada desde el 2026-09-15 (reemplazada por `emergency_contact_first_name`/`last_name`, con backfill ya aplicado) pero no se borró — candidato en `TASKS.md`. `nationality` sigue nullable en DB (obligatoria solo en el formulario de alta, no a nivel DB, porque hay pacientes viejos sin el dato).
 
 ---
 
 ## Última sesión de trabajo
+**Fecha:** 2026-09-15
+**Qué se hizo:** Jose pidió 4 cambios en el alta de paciente. Como no era continuación del "En progreso" (HEP2go), se preguntó y Jose confirmó pausar HEP2go. Se exploró el código (agente Explore + lectura directa) y se consultó la base real antes de planear, en modo plan: nacionalidad obligatoria en el alta (con fix de paso: ahora también editable desde la ficha, antes faltaba en `EditFichaDialog`), "Género" renombrado a "Sexo" con masculino/femenino/no binario (opciones centralizadas en `sexOptions.ts` nuevo, mismo patrón que `occupationalOptions.ts`), contacto de emergencia separado en nombre y apellido, y campo de alergias (texto libre) nuevo. 3 migraciones (normalización de género sucio `M`/`F`, columna `allergies`, columnas de contacto de emergencia con backfill) aplicadas por Claude vía MCP de Supabase contra el proyecto real (con confirmación explícita de Jose para hacerlo así en vez del flujo manual habitual) y `types.ts` regenerado. Verificado de punta a punta en el navegador (dev server local + Chrome) contra Supabase real: alta completa de un paciente con los 4 campos (nacionalidad obligatoria falla sin dato, sexo "No binario", contacto de emergencia y alergias persisten y se ven en la ficha), y edición de un paciente viejo (`jojo, ruarte`) para confirmar que la normalización de sexo y el backfill de contacto de emergencia quedaron bien — 0 errores de consola. Dato de prueba (paciente "Pérez, Juan") borrado al final vía SQL. Typecheck, lint (239, en el techo) y build OK. 6 commits pusheados a `main`.
+**Qué quedó a medio camino:** Nada del frente — cerrado.
+**Próxima sesión debería empezar por:** Retomar el catálogo de ejercicios HEP2go (plan aprobado en `docs/PLAN_catalogo_ejercicios_hep2go.md`, falta que Jose corra las 3 migraciones pendientes) o Recordatorios de turnos si se prioriza eso primero.
+
+---
+
+## Sesión anterior
 **Fecha:** 2026-08-11
 **Qué se hizo:** El usuario marcó que el rediseño del 08-10 no era lo pedido (feedback con foto de referencia). Se re-planeó en modo plan y se implementó: Biblioteca de Ejercicios reordenada en 3 pestañas de primer nivel (Ejercicios/Planes/Programas), filtro por Activo/Activo asistido/Fortalecimiento dentro de Ejercicios (ya no sub-pestañas), "Rutina" renombrada a "Plan" en toda la UI (solo texto, la tabla sigue siendo `exercise_routines`), y nivel nuevo "Programa" reutilizable que agrupa varios Planes (tablas `exercise_programs`/`exercise_program_routines`, componentes nuevos en `src/components/exercises/programs/`). El wizard "Aplicar plan o programa" en la ficha del paciente ahora deja elegir entre un Plan o un Programa completo. Jose corrió las 2 migraciones nuevas en Supabase (`20260811100000_exercise_programs.sql`, `20260811110000_exercise_plans_program_id_rpc.sql`). Verificado de punta a punta en el navegador con Playwright headless contra el Supabase real (usuario de test `rls-test-a@example.com`): crear un Plan, crear un Programa, agregarle el Plan (persiste, sin errores), abrir el wizard en un paciente de prueba, elegir "Programas", seleccionar el Programa creado y llegar al paso 2 con los ítems del Plan correctamente traídos (vacío porque el Plan de prueba no tenía ejercicios cargados — esperado) — 0 errores de consola en todo el flujo. Datos de prueba creados durante la verificación (Plan y Programa) borrados al final para no ensuciar la cuenta fixture. `types.ts` sigue con el parche manual de la sesión (compiló y funcionó bien contra el schema real; regenerarlo con el CLI cuando sea cómodo no es urgente). Typecheck, lint (239, en el techo) y build OK. 5 commits pusheados a `main`.
 **Qué quedó a medio camino:** Nada del frente — cerrado.
@@ -64,16 +73,8 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 
 ---
 
-## Sesión anterior
+## Dos sesiones atrás
 **Fecha:** 2026-08-10
 **Qué se hizo:** Rediseño de la sección Ejercicios pedido en reunión de equipo — 3 niveles Ejercicio → Rutina → Programa. Plan diseñado y aprobado (plan mode), 4 migraciones escritas y aplicadas por Jose, frontend completo (tab Rutinas en Biblioteca, wizard de 3 pasos "Aplicar rutina" en la ficha del paciente, link público y guard de borrado actualizados). Verificado de punta a punta en el navegador con Playwright headless (login real, crear rutina, aplicar a un paciente de prueba, link público, ambos casos del guard de borrado) — 0 errores de consola. Typecheck, lint (239, en el techo) y build OK. Se armó `.env` local (faltaba) para poder probar. Datos de prueba generados en la limpieza posterior (SQL pasado a Jose, ya corrido).
-**Qué quedó a medio camino:** Este rediseño resultó no ser lo pedido — corregido en la sesión del 2026-08-11 (ver arriba).
+**Qué quedó a medio camino:** Este rediseño resultó no ser lo pedido — corregido en la sesión del 2026-08-11.
 **Próxima sesión debería empezar por:** (superado por la sesión del 2026-08-11)
-
----
-
-## Dos sesiones atrás
-**Fecha:** 2026-07-17
-**Qué se hizo:** Las cuatro mejoras del flujo de pacientes pedidas por Jose (obra social "No posee", diagnósticos múltiples por episodio, botones Dar de alta / Marcar abandono con estado nuevo, perfil ocupacional estandarizado) — 20 commits, 5 migraciones aplicadas en remoto, 2 entradas en DECISIONS. Verificado: typecheck, lint en el techo (239), 16 tests RLS en verde contra el Supabase real, build OK.
-**Qué quedó a medio camino:** Nada del frente.
-**Próxima sesión debería empezar por:** Retomar Recordatorios de turnos (plan completo en `docs/PLAN_recordatorios_turnos.md`) o el asistente de IA si llegó el PDF.
