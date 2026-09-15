@@ -87,10 +87,10 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
         <Field label="Teléfono" value={patient.phone} />
         {patient.email && <Field label="Email" value={patient.email} />}
         <Field label="Domicilio" value={patient.address} full />
-        {patient.emergency_contact_name && (
+        {(patient.emergency_contact_first_name || patient.emergency_contact_last_name) && (
           <Field
             label="Contacto de emergencia"
-            value={`${patient.emergency_contact_name}${patient.emergency_contact_phone ? " · " + patient.emergency_contact_phone : ""}${patient.emergency_contact_relation ? " (" + ({ parent: "Padre / Madre", spouse: "Cónyuge / Pareja", sibling: "Hermano/a", child: "Hijo/a", friend: "Amigo/a", other: "Otro" }[patient.emergency_contact_relation as string] ?? patient.emergency_contact_relation) + ")" : ""}`}
+            value={`${patient.emergency_contact_first_name ?? ""}${patient.emergency_contact_last_name ? " " + patient.emergency_contact_last_name : ""}${patient.emergency_contact_phone ? " · " + patient.emergency_contact_phone : ""}${patient.emergency_contact_relation ? " (" + ({ parent: "Padre / Madre", spouse: "Cónyuge / Pareja", sibling: "Hermano/a", child: "Hijo/a", friend: "Amigo/a", other: "Otro" }[patient.emergency_contact_relation as string] ?? patient.emergency_contact_relation) + ")" : ""}`}
             full
           />
         )}

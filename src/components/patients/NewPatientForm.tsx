@@ -99,7 +99,8 @@ export default function NewPatientForm() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
-  const [emergencyName, setEmergencyName] = useState("");
+  const [emergencyFirstName, setEmergencyFirstName] = useState("");
+  const [emergencyLastName, setEmergencyLastName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [emergencyRelation, setEmergencyRelation] = useState("");
 
@@ -184,7 +185,8 @@ export default function NewPatientForm() {
           insurance: or(insurance),
           insurance_number: or(insuranceNumber),
           allergies: or(allergies),
-          emergency_contact_name: or(emergencyName),
+          emergency_contact_first_name: or(emergencyFirstName),
+          emergency_contact_last_name: or(emergencyLastName),
           emergency_contact_phone: or(emergencyPhone),
           emergency_contact_relation: or(emergencyRelation),
           professional_id: user!.id,
@@ -409,8 +411,12 @@ export default function NewPatientForm() {
               <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">Contacto de emergencia</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <FieldLabel>Nombre completo</FieldLabel>
-                  <Input value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} className={inputClass} />
+                  <FieldLabel>Nombre</FieldLabel>
+                  <Input value={emergencyFirstName} onChange={(e) => setEmergencyFirstName(e.target.value)} className={inputClass} />
+                </div>
+                <div>
+                  <FieldLabel>Apellido</FieldLabel>
+                  <Input value={emergencyLastName} onChange={(e) => setEmergencyLastName(e.target.value)} className={inputClass} />
                 </div>
                 <div>
                   <FieldLabel>Teléfono</FieldLabel>
@@ -458,7 +464,7 @@ export default function NewPatientForm() {
                 {phone && <SummaryRow label="Teléfono" value={phone} />}
                 {email && <SummaryRow label="Email" value={email} />}
                 {address && <SummaryRow label="Domicilio" value={address} />}
-                {emergencyName && <SummaryRow label="Emergencia" value={`${emergencyName}${emergencyPhone ? " · " + emergencyPhone : ""}${emergencyRelation ? " (" + emergencyRelation + ")" : ""}`} />}
+                {(emergencyFirstName || emergencyLastName) && <SummaryRow label="Emergencia" value={`${emergencyFirstName}${emergencyLastName ? " " + emergencyLastName : ""}${emergencyPhone ? " · " + emergencyPhone : ""}${emergencyRelation ? " (" + emergencyRelation + ")" : ""}`} />}
               </div>
             </div>
           </div>

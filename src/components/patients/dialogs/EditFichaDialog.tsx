@@ -47,7 +47,8 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       insurance_number: patient?.insurance_number || "",
       allergies: patient?.allergies || "",
       admission_date: patient?.admission_date || "",
-      emergency_contact_name: patient?.emergency_contact_name || "",
+      emergency_contact_first_name: patient?.emergency_contact_first_name || "",
+      emergency_contact_last_name: patient?.emergency_contact_last_name || "",
       emergency_contact_phone: patient?.emergency_contact_phone || "",
       emergency_contact_relation: patient?.emergency_contact_relation || "",
       treatment_type: clinical?.treatment_type || "",
@@ -103,7 +104,8 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       insurance_number: emptyToNull(form.insurance_number),
       allergies: emptyToNull(form.allergies),
       admission_date: form.admission_date || patient.admission_date,
-      emergency_contact_name: emptyToNull(form.emergency_contact_name),
+      emergency_contact_first_name: emptyToNull(form.emergency_contact_first_name),
+      emergency_contact_last_name: emptyToNull(form.emergency_contact_last_name),
       emergency_contact_phone: emptyToNull(form.emergency_contact_phone),
       emergency_contact_relation: emptyToNull(form.emergency_contact_relation),
     };
@@ -201,7 +203,8 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
           <div className="space-y-3">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Contacto de emergencia</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><Label>Nombre completo</Label><Input value={form.emergency_contact_name || ""} onChange={(e) => u("emergency_contact_name", e.target.value)} /></div>
+              <div><Label>Nombre</Label><Input value={form.emergency_contact_first_name || ""} onChange={(e) => u("emergency_contact_first_name", e.target.value)} /></div>
+              <div><Label>Apellido</Label><Input value={form.emergency_contact_last_name || ""} onChange={(e) => u("emergency_contact_last_name", e.target.value)} /></div>
               <div><Label>Teléfono</Label><Input value={form.emergency_contact_phone || ""} onChange={(e) => u("emergency_contact_phone", e.target.value)} /></div>
               <div><Label>Relación</Label>
                 <Select value={form.emergency_contact_relation || ""} onValueChange={(v) => u("emergency_contact_relation", v)}>
