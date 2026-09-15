@@ -9,6 +9,40 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-09-15] Barthel con opciones visibles + Evaluación analítica en acordeón — FIM excluido
+
+**Contexto:** A Jose le gustó el patrón de UI de la nueva Evaluación funcional (apartados que
+se despliegan mostrando todo, sin "activar" nada) y pidió llevarlo a Barthel (mostrar todas las
+opciones en vez de un `<select>` oculto) y a Evaluación analítica (acordeón en vez de switches
+de "Mostrar en evaluación" por sub-sección).
+
+**Opciones consideradas:**
+1. Aplicar el mismo cambio de "todas las opciones visibles" a FIM (mismo problema que Barthel:
+   `<select>` oculto).
+2. Para Evaluación analítica: mantener el guardado de qué sub-sección estaba abierta/cerrada
+   (persistir en DB) vs. no guardarlo y que arranque siempre colapsado.
+
+**Decisión:**
+1. FIM queda como está (select) — se descarta por ahora. FIM tiene 7 opciones con etiquetas
+   largas (ej. "Asistencia máxima (aporta 25% o más)") × 18 ítems; mostrarlas todas como botones
+   se vería muy cargado, a diferencia de Barthel que tiene 2-4 opciones cortas × 10 ítems.
+   Anotado en `TASKS.md` con una idea de diseño más compacta (círculos numerados 1-7 con
+   tooltip) para si se quiere retomar.
+2. El estado abierto/cerrado de cada sub-sección de Evaluación analítica NO se persiste —
+   confirmado con Jose que no hace falta, arranca siempre colapsado como Evaluación funcional.
+
+**Por qué:** Se verificó en el código que los switches "Mostrar en evaluación" de hoy son
+puramente visuales (no afectan qué datos se guardan), así que el cambio a acordeón no tiene
+ningún costo de compatibilidad de datos — se pudo simplificar limpiamente.
+
+**Consecuencias / trade-offs aceptados:** `analytical_evaluations.sections_config` queda
+deprecada (dejó de escribirse, columna sin borrar). FIM sigue con la UX de select oculto,
+inconsistente con Barthel — aceptado hasta que se diseñe una versión compacta.
+
+**Quién lo decidió:** con Jose (confirmado por chat antes de implementar).
+
+---
+
 ## [2026-09-15] Perfil ocupacional recortado + Evaluación funcional en 5 apartados (AOTA/MOHO)
 
 **Contexto:** Jose pidió recortar Perfil ocupacional a 5 campos y rediseñar Evaluación funcional

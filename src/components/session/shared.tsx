@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 
 export const inputClass = "rounded-md h-10 text-sm";
 export const textareaClass = "rounded-lg";
@@ -53,33 +56,25 @@ export function SectionCard({
 
 export function SubSection({
   title,
-  checked,
-  onChange,
   children,
-  withDivider = true,
   badge,
 }: {
   title: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
   children: React.ReactNode;
-  withDivider?: boolean;
   badge?: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className={`space-y-3 ${withDivider ? "pt-5 mt-5 border-t border-border" : ""}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border border-gray-200 bg-white">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
+        <div className="flex items-center gap-2 flex-wrap">
           <h3 className="field-label">{title}</h3>
           {badge}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Mostrar en evaluación</span>
-          <Switch checked={checked} onCheckedChange={onChange} />
-        </div>
-      </div>
-      {checked && <div className="space-y-3">{children}</div>}
-    </div>
+        <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${open ? "rotate-180" : ""}`} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-4 pb-4 space-y-3">{children}</CollapsibleContent>
+    </Collapsible>
   );
 }
 
