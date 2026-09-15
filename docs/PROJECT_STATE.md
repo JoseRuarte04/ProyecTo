@@ -5,25 +5,26 @@
 > Si algo no está acá, no pasó — o no está confirmado.
 
 **Última actualización:** 2026-09-15
-**Sprint / objetivo actual:** Catálogo global de ejercicios HEP2go
+**Sprint / objetivo actual:** Rediseño de Perfil ocupacional y Evaluación funcional (sesiones/admisión)
 
 ---
 
 ## 🎯 Objetivo de esta semana
-Retomar el catálogo de ejercicios HEP2go (pausado el 2026-09-15, plan ya aprobado, solo falta que Jose corra las migraciones pendientes).
+Simplificar Perfil ocupacional (sacar campos redundantes con admisión) y rediseñar Evaluación funcional en 5 apartados según marco AOTA/MOHO, pedido por Jose.
 
 ---
 
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Catálogo global de ejercicios HEP2go | Plan aprobado, implementando | Jose debe correr 3 migraciones (A/B/C) contra Supabase real | Ver `docs/PLAN_catalogo_ejercicios_hep2go.md` (copia del plan aprobado) |
+| Rediseño Perfil ocupacional + Evaluación funcional | Analizando código, armando plan | — | Terminar de mapear módulos duplicados entre sesiones/admisión y presentar plan a Jose |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
 ## ⏸️ Pausado (con motivo — esto es lo que normalmente se pierde)
 | Tarea | Por qué se pausó | Qué falta para retomarla |
 |---|---|---|
+| Catálogo global de ejercicios HEP2go | Jose priorizó el rediseño de Perfil ocupacional/Evaluación funcional (2026-09-15); plan ya aprobado | Jose debe correr 3 migraciones (A/B/C) contra Supabase real — ver `docs/PLAN_catalogo_ejercicios_hep2go.md` |
 | Recordatorios de turnos | Jose priorizó otra cosa (2026-07-16); el plan quedó completo | Nada — ejecutar `docs/PLAN_recordatorios_turnos.md` de punta a punta (6 commits planificados) |
 
 ## ✅ Cerrado esta semana
