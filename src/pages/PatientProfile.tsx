@@ -23,7 +23,6 @@ import { NewEpisodeDialog } from "@/components/patients/dialogs/NewEpisodeDialog
 import { MarkAbandonDialog, ReactivateDialog } from "@/components/patients/dialogs/MarkAbandonDialog";
 import { fetchEpisodeDiagnoses, type DiagnosisItem } from "@/components/patients/diagnoses";
 import { StatusBadge } from "@/components/status";
-import { NewPlanDialog, PlanDetailDialog, EditPlanDialog, DeletePlanConfirm } from "@/components/patients/dialogs/PlanDialogs";
 
 export default function PatientProfile() {
   const { id } = useParams<{ id: string }>();
@@ -38,7 +37,6 @@ export default function PatientProfile() {
   const [funcEvals, setFuncEvals] = useState<any[]>([]);
   const [analEvals, setAnalEvals] = useState<any[]>([]);
   const [quickdashTokens, setQuickdashTokens] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [clinicalFiles, setClinicalFiles] = useState<any[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
@@ -53,10 +51,6 @@ export default function PatientProfile() {
   const [showReactivate, setShowReactivate] = useState(false);
   const [showNewFuncEval, setShowNewFuncEval] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
-  const [showNewPlan, setShowNewPlan] = useState(false);
-  const [showPlanDetail, setShowPlanDetail] = useState<any>(null);
-  const [editPlan, setEditPlan] = useState<any>(null);
-  const [deletePlan, setDeletePlan] = useState<any>(null);
   const [showEditFicha, setShowEditFicha] = useState(false);
 
   const fetchSignedUrls = async (files: any[]) => {
@@ -100,44 +94,42 @@ export default function PatientProfile() {
     const apptPromise = supabase.from("appointments").select("*").eq("patient_id", id).order("appointment_date", { ascending: false });
 
     if (!episodeId) {
-      const [c, s, fe, ae, pl, cf, ap] = await Promise.all([
+      const [c, s, fe, ae, cf, ap] = await Promise.all([
         supabase.from("patient_clinical_records").select("*").eq("patient_id", id).maybeSingle(),
         supabase.from("therapy_sessions").select("*").eq("patient_id", id).eq("is_deleted", false).order("session_date", { ascending: false }),
         supabase.from("functional_evaluations").select("*").eq("patient_id", id).order("evaluation_date", { ascending: false }),
         supabase.from("analytical_evaluations").select("*").eq("patient_id", id).order("evaluation_date", { ascending: false }),
-        supabase.from("treatment_plans").select("*").eq("patient_id", id).eq("is_deleted", false).order("created_at", { ascending: false }),
         supabase.from("clinical_files").select("*").eq("patient_id", id).eq("is_deleted", false).order("photo_date", { ascending: false }),
         apptPromise,
       ]);
-      const noEpErrors = [c.error, s.error, fe.error, ae.error, pl.error, cf.error, ap.error].filter(Boolean);
+      const noEpErrors = [c.error, s.error, fe.error, ae.error, cf.error, ap.error].filter(Boolean);
       if (noEpErrors.length > 0) {
         console.error("Error cargando datos de la ficha (sin episodio):", noEpErrors);
         toast.error("No se pudieron cargar algunos datos de la ficha", { description: "Probá recargar la página." });
       }
       setClinical(c.data); setSessions(s.data || []); setFuncEvals(fe.data || []);
-      setAnalEvals(ae.data || []); setPlans(pl.data || []); setAppointments(ap.data || []);
+      setAnalEvals(ae.data || []); setAppointments(ap.data || []);
       setQuickdashTokens([]); setDiagnoses([]);
       const files = cf.data || []; setClinicalFiles(files); setLoading(false); fetchSignedUrls(files);
       return;
     }
 
-    const [c, s, fe, ae, pl, cf, ap, qt] = await Promise.all([
+    const [c, s, fe, ae, cf, ap, qt] = await Promise.all([
       supabase.from("patient_clinical_records").select("*").eq("patient_id", id).eq("episode_id", episodeId).maybeSingle(),
       supabase.from("therapy_sessions").select("*").eq("patient_id", id).eq("episode_id", episodeId).eq("is_deleted", false).order("session_date", { ascending: false }),
       supabase.from("functional_evaluations").select("*").eq("patient_id", id).eq("episode_id", episodeId).order("evaluation_date", { ascending: false }),
       supabase.from("analytical_evaluations").select("*").eq("patient_id", id).eq("episode_id", episodeId).order("evaluation_date", { ascending: false }),
-      supabase.from("treatment_plans").select("*").eq("patient_id", id).eq("episode_id", episodeId).eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("clinical_files").select("*").eq("patient_id", id).eq("is_deleted", false).order("photo_date", { ascending: false }),
       apptPromise,
       supabase.from("quickdash_tokens").select("completed_at, result").eq("episode_id", episodeId).not("result", "is", null).order("completed_at", { ascending: true }),
     ]);
-    const epErrors = [c.error, s.error, fe.error, ae.error, pl.error, cf.error, ap.error, qt.error].filter(Boolean);
+    const epErrors = [c.error, s.error, fe.error, ae.error, cf.error, ap.error, qt.error].filter(Boolean);
     if (epErrors.length > 0) {
       console.error("Error cargando datos del episodio:", epErrors);
       toast.error("No se pudieron cargar algunos datos de la ficha", { description: "Probá recargar la página." });
     }
     setClinical(c.data); setSessions(s.data || []); setFuncEvals(fe.data || []);
-    setAnalEvals(ae.data || []); setPlans(pl.data || []); setAppointments(ap.data || []);
+    setAnalEvals(ae.data || []); setAppointments(ap.data || []);
     setQuickdashTokens(qt.data || []);
     setDiagnoses(await fetchEpisodeDiagnoses(episodeId));
     const files = cf.data || []; setClinicalFiles(files); setLoading(false); fetchSignedUrls(files);
@@ -405,10 +397,6 @@ export default function PatientProfile() {
       <ReactivateDialog open={showReactivate} onClose={() => setShowReactivate(false)} patientId={id!} onSaved={fetchAll} />
       <NewFuncEvalDialog open={showNewFuncEval} onClose={() => setShowNewFuncEval(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
       <NewPatientApptDialog open={showNewAppt} onClose={() => setShowNewAppt(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
-      <NewPlanDialog open={showNewPlan} onClose={() => setShowNewPlan(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
-      <PlanDetailDialog plan={showPlanDetail} onClose={() => setShowPlanDetail(null)} />
-      <EditPlanDialog plan={editPlan} onClose={() => setEditPlan(null)} patientId={id!} userId={user!.id} onSaved={fetchAll} />
-      <DeletePlanConfirm plan={deletePlan} onClose={() => setDeletePlan(null)} onSaved={fetchAll} />
     </div>
   );
 }

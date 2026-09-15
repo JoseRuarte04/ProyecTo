@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-15] Borrado el código muerto de "Plan de tratamiento"
+- Se confirmó en el navegador que el diálogo de "Plan de tratamiento" (anotado como candidato en la sesión anterior) era código muerto de punta a punta: ni el componente que lo abría (`PlanCardActions`) se usaba en ningún lado. Se borraron `src/components/patients/dialogs/PlanDialogs.tsx` y `src/components/plans/PlanPdfExport.tsx` enteros, y en `PatientProfile.tsx` el import, los 4 estados de diálogo y las 2 queries a `treatment_plans` que tampoco se mostraban en ningún lado.
+- La tabla `treatment_plans`/`treatment_plan_exercises` queda en la base sin borrar (0 filas en producción) — `Exercises.tsx` todavía la usa como guard antes de borrar un ejercicio, así que no se puede tirar sin revisar eso primero.
+- Verificado en el navegador (Ficha, Evolución y Ejercicios de un paciente real) — 0 errores de consola. Lint bajó de 235 a 207 (el archivo muerto tenía 19 `any`). Typecheck y build OK.
+
 ## [2026-09-15] Card vacía de Perfil ocupacional + últimos ~16 sitios de queries sin chequear error
 - Perfil ocupacional ya no deja una card vacía en la Ficha: `SessionForm.tsx` no inserta la fila si el usuario no tocó el paso (antes lo hacía con todos los campos en `null`), y `FichaTab.tsx` no muestra la card salvo que tenga algún dato cargado.
 - Cerrados los ~16 sitios de menor riesgo que quedaban del hallazgo de "queries sin chequear error": autocompletes (CIE-10, obras sociales) con `console.error` sin toast, prefills de sesión/episodio igual, y dos casos de riesgo real — `NewEpisodeDialog.tsx` (crear episodio podía quedar sin diagnósticos guardados mostrando éxito) y `PlanDialogs.tsx` (un plan de tratamiento podía guardarse "correctamente" con 0 ejercicios) — ahora avisan en vez de fallar en silencio.
