@@ -54,7 +54,8 @@ export default function AdminTeams() {
   };
 
   const loadTherapists = async () => {
-    const { data } = await supabase.rpc("admin_list_therapists");
+    const { data, error } = await supabase.rpc("admin_list_therapists");
+    if (error) { toast.error("Error al cargar terapeutas"); return; }
     setTherapists(
       ((data as unknown as TherapistOption[]) || []).filter((t) => t.is_active)
     );

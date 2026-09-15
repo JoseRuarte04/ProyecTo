@@ -53,12 +53,16 @@ export function ExercisePlanLinkManager({ planId, patientId }: Props) {
   const [revoking, setRevoking] = useState(false);
 
   const fetchTokens = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("exercise_plan_tokens")
       .select("id, token, created_at, expires_at, revoked_at")
       .eq("plan_id", planId)
       .order("created_at", { ascending: false })
       .limit(10);
+    if (error) {
+      console.error("Error cargando links del plan:", error);
+      toast.error("No se pudieron cargar los links del plan", { description: "Probá recargar la página." });
+    }
     setTokens(data ?? []);
     setLoading(false);
   };

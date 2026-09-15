@@ -92,7 +92,11 @@ export function QuickDashTokenManager({
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error cargando QuickDASH:", error);
+          toast.error("No se pudo cargar el estado de QuickDASH", { description: "Probá recargar la página." });
+        }
         const token = data as TokenRow | null;
         setTokenData(token);
         setMode(deriveInitialMode(token, items));
@@ -105,11 +109,12 @@ export function QuickDashTokenManager({
   useEffect(() => {
     if (mode !== "pending" || !tokenData) return;
     const poll = setInterval(async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("quickdash_tokens")
         .select(TOKEN_SELECT)
         .eq("id", tokenData.id)
         .maybeSingle();
+      if (error) console.error("Error consultando estado de QuickDASH:", error); // sin toast: es un poll cada 15s
       if (data?.completed_at && data.completed_by === "patient") {
         setTokenData(data as TokenRow);
         setMode("patient_completed");
@@ -139,11 +144,18 @@ export function QuickDashTokenManager({
     }
 
     // Fetch full row to get the UUID we need for the URL
-    const { data: fresh } = await supabase
+    const { data: fresh, error: freshErr } = await supabase
       .from("quickdash_tokens")
       .select(TOKEN_SELECT)
       .eq("token", newToken)
       .single();
+
+    if (freshErr || !fresh) {
+      console.error("Error obteniendo el link recién creado:", freshErr);
+      toast.error("El link se creó pero no se pudo mostrar. Recargá la página.");
+      setBusy(false);
+      return;
+    }
 
     setTokenData(fresh as TokenRow);
     setMode("pending");

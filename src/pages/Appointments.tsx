@@ -836,17 +836,27 @@ function NewAppointmentDialog({
       .eq("status", "scheduled")
       .gte("appointment_date", `${selectedDate}T00:00:00`)
       .lt("appointment_date", `${selectedDate}T23:59:59`)
-      .then(({ data }) => { setDayAppts(data || []); setLoadingSlots(false); });
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error cargando turnos del día:", error);
+          toast.error("No se pudieron cargar los turnos ya agendados", { description: "Los horarios que se muestran libres pueden no serlo — recargá antes de confirmar." });
+        }
+        setDayAppts(data || []); setLoadingSlots(false);
+      });
   }, [selectedDate]);
 
   const searchPatients = async (term: string) => {
     setSearchTerm(term);
     if (term.length < 2) { setPatients([]); return; }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("patients")
       .select("id, first_name, last_name, dni")
       .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,dni.ilike.%${term}%`)
       .limit(10);
+    if (error) {
+      console.error("Error buscando pacientes:", error);
+      toast.error("No se pudo buscar el paciente");
+    }
     setPatients(data || []);
   };
 

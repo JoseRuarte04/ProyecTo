@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Profile {
@@ -42,11 +43,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profileUserId = useRef<string | null>(null);
 
   const fetchProfile = async (userId: string, authEmail?: string | null) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("id, full_name, email, role, specialty, license_number, avatar_url")
       .eq("id", userId)
       .single();
+    if (error) {
+      console.error("Error cargando el perfil:", error);
+      toast.error("No se pudo cargar tu perfil", { description: "Probá recargar la página." });
+    }
     if (!data) return;
     // El cambio de email se confirma en auth.users y no hay trigger que lo
     // propague a profiles: reconciliar acá (puede confirmarse en otra pestaña).

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -64,10 +65,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadTeams = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("team_members")
       .select("role, teams(id, name)")
       .eq("user_id", userId);
+    if (error) {
+      console.error("Error cargando equipos:", error);
+      toast.error("No se pudieron cargar tus equipos", { description: "Probá recargar la página." });
+    }
     const loaded: TeamOption[] = (data || []).map((r: any) => ({
       id: r.teams.id,
       name: r.teams.name,

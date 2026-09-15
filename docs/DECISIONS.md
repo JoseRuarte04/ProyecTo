@@ -43,6 +43,46 @@ inconsistente con Barthel — aceptado hasta que se diseñe una versión compact
 
 ---
 
+## [2026-09-15] Fix de queries con error silencioso: priorizar impacto real, no cobertura total
+
+**Contexto:** Tras una pasada de QA completa de la app (que no encontró bugs de consola), Jose pidió
+retomar un hallazgo ya documentado en `TASKS.md` desde julio: "14 queries ignoran el error
+silenciosamente". Al ir a arreglarlas, el grep dio ~30 sitios con el mismo patrón (el código
+creció bastante desde julio), no 14.
+
+**Opciones consideradas:**
+1. Arreglar los ~30 sitios a ciegas con el mismo `toast.error` mecánico.
+2. Auditar cada uno, clasificar por riesgo real, y arreglar solo los de mayor impacto.
+
+**Decisión:** Opción 2. Se clasificaron los sitios en: (a) pérdida de datos real — `fetchEpisodeDiagnoses`
+podía dejar que un guardado borrara diagnósticos existentes si la carga fallaba en silencio (el
+guardado hace un reemplazo completo); (b) carga principal de página que queda en blanco sin aviso
+— `PatientProfile.tsx` (~11 queries en un solo fetch), vistas de detalle de evaluaciones, contextos
+de Auth/Workspace, hooks del dashboard/equipos; (c) documento clínico generado incorrectamente sin
+avisar — el PDF de plan de ejercicios se generaba "exitosamente" pero vacío si fallaba la carga de
+ejercicios; (d) riesgo de doble turno — la consulta de turnos ocupados del día. Se dejaron sin tocar
+~16 sitios de menor riesgo (autocompletes, chequeos de gating internos), anotados en `TASKS.md`.
+
+Para los casos (a) y (c), en vez de solo agregar un toast, se cambió el comportamiento: la función
+ahora tira el error (`throw`) en vez de devolver un valor vacío, y el caller decide qué hacer —
+en diagnósticos, no tocar la lista guardada; en el PDF, no generarlo. En los demás casos (lecturas
+de solo mostrar datos), se mantuvo el patrón simple: loguear + `toast.error` + seguir con datos
+vacíos, sin bloquear la página.
+
+**Por qué:** Arreglar 30 sitios mecánicamente hubiera sido un diff mucho más grande para revisar,
+con el mismo riesgo de introducir un bug por prisa, a cambio de cubrir casos de bajo riesgo real
+(un autocomplete que no encuentra resultados no es comparable a un guardado que borra datos).
+
+**Consecuencias / trade-offs aceptados:** Quedan ~16 sitios con el patrón viejo sin arreglar —
+documentados, no ocultos. Si alguno de esos resulta tener más impacto del estimado, hay que
+revisarlo aparte.
+
+**Quién lo decidió:** con Jose (el pedido fue "arreglalas", el criterio de priorización se decidió
+en el momento de implementar y se documenta acá para que quede claro que no es una cobertura
+completa).
+
+---
+
 ## [2026-09-15] Perfil ocupacional recortado + Evaluación funcional en 5 apartados (AOTA/MOHO)
 
 **Contexto:** Jose pidió recortar Perfil ocupacional a 5 campos y rediseñar Evaluación funcional

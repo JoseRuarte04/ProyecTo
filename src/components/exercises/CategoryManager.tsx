@@ -27,11 +27,15 @@ export default function CategoryManager({
 
   const fetch = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("exercise_custom_categories")
       .select("id, name")
       .eq("professional_id", userId)
       .order("name");
+    if (error) {
+      console.error("Error cargando categorías:", error);
+      toast.error("No se pudieron cargar las categorías", { description: "Probá recargar la página." });
+    }
     setCustoms(data || []);
     setLoading(false);
   };

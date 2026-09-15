@@ -70,6 +70,7 @@ export default function SessionForm() {
 
   // Ficha clínica
   const [cli_diagnoses, setCliDiagnoses] = useState<DiagnosisItem[]>([]);
+  const [diagnosesLoadFailed, setDiagnosesLoadFailed] = useState(false);
   const [cli_doctor_name, setCliDoctorName] = useState("");
   const [cli_injury_date, setCliInjuryDate] = useState("");
   const [cli_surgery_date, setCliSurgeryDate] = useState("");
@@ -525,9 +526,15 @@ export default function SessionForm() {
         setCliStudies(cliRow.studies || "");
       }
       // Diagnósticos: tabla nueva con fallback al string legacy de la ficha
-      const dxList = epId ? await fetchEpisodeDiagnoses(epId) : [];
-      if (dxList.length > 0) setCliDiagnoses(dxList);
-      else if (cliRow?.diagnosis) setCliDiagnoses([{ code: null, label: cliRow.diagnosis }]);
+      try {
+        const dxList = epId ? await fetchEpisodeDiagnoses(epId) : [];
+        if (dxList.length > 0) setCliDiagnoses(dxList);
+        else if (cliRow?.diagnosis) setCliDiagnoses([{ code: null, label: cliRow.diagnosis }]);
+      } catch (err) {
+        console.error("Error cargando diagnósticos:", err);
+        setDiagnosesLoadFailed(true);
+        toast.error("No se pudieron cargar los diagnósticos", { description: "Se van a dejar sin tocar al guardar — recargá la página para reintentar." });
+      }
       const { data: occRow } = await supabase.from("patient_occupational_profiles").select("*").eq("patient_id", patientId).maybeSingle();
       if (occRow) {
         setEditingOccId(occRow.id);
@@ -738,8 +745,9 @@ export default function SessionForm() {
         immobilization_type: cli_immob_type.trim() || null, medical_history: cli_medical_history.trim() || null,
         pharmacological_treatment: cli_pharma.trim() || null, studies: cli_studies.trim() || null,
       };
-      if (activeEpisodeId) {
-        // Primero la tabla nueva, después el principal en las columnas legacy
+      if (activeEpisodeId && !diagnosesLoadFailed) {
+        // Primero la tabla nueva, después el principal en las columnas legacy.
+        // Si la carga inicial de diagnósticos falló, no los tocamos (ver diagnoses.ts).
         await saveEpisodeDiagnoses(activeEpisodeId, patientId!, cli_diagnoses);
         await supabase.from("treatment_episodes").update({ affected_side: affected_side ?? null, referral_date: referral_date || null, diagnosis: primaryLabel(cli_diagnoses) }).eq("id", activeEpisodeId);
       }

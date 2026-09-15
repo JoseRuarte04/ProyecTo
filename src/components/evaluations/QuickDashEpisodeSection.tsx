@@ -70,12 +70,16 @@ export function QuickDashEpisodeSection({ episodeId, patientId }: QuickDashEpiso
   // ── Data fetch ──
 
   const loadData = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("quickdash_tokens")
       .select(TOKEN_SELECT)
       .eq("episode_id", episodeId)
       .order("created_at", { ascending: false });
 
+    if (error) {
+      console.error("Error cargando QuickDASH:", error);
+      toast.error("No se pudo cargar el historial de QuickDASH", { description: "Probá recargar la página." });
+    }
     if (!data) { setMode("view"); return; }
 
     const completed = data.filter((r) => r.completed_at !== null && r.result !== null) as unknown as HistoryEntry[];
@@ -95,11 +99,12 @@ export function QuickDashEpisodeSection({ episodeId, patientId }: QuickDashEpiso
   useEffect(() => {
     if (mode !== "pending" || !activeToken) return;
     const poll = setInterval(async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("quickdash_tokens")
         .select("id, completed_at, completed_by")
         .eq("id", activeToken.id)
         .maybeSingle();
+      if (error) console.error("Error consultando estado de QuickDASH:", error); // sin toast: es un poll cada 15s, no molestar en cada intento fallido
       if (data?.completed_at) {
         await loadData();
         if (data.completed_by === "patient") {
@@ -130,11 +135,18 @@ export function QuickDashEpisodeSection({ episodeId, patientId }: QuickDashEpiso
       return;
     }
 
-    const { data: row } = await supabase
+    const { data: row, error: rowErr } = await supabase
       .from("quickdash_tokens")
       .select("id, token, expires_at")
       .eq("token", newToken)
       .single();
+
+    if (rowErr || !row) {
+      console.error("Error obteniendo el link recién creado:", rowErr);
+      toast.error("El link se creó pero no se pudo mostrar. Recargá la página.");
+      setBusy(false);
+      return;
+    }
 
     setActiveToken(row as ActiveToken);
     setMode("pending");

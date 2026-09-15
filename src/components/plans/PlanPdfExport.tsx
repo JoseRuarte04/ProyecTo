@@ -148,7 +148,7 @@ function buildPlanHtml(plan: any, patient: any, exercises: any[]): string {
 }
 
 export async function exportPlanPdf(plan: any, patient: any) {
-  const { data: exercises } = await supabase
+  const { data: exercises, error } = await supabase
     .from("treatment_plan_exercises")
     .select(`
       order_index, repetitions, sets, frequency, duration, notes,
@@ -160,6 +160,14 @@ export async function exportPlanPdf(plan: any, patient: any) {
     `)
     .eq("treatment_plan_id", plan.id)
     .order("order_index");
+
+  if (error) {
+    // No usamos toast acá: el caller (PlanCardActions.handleExport) ya tiene
+    // try/catch + toast.error — antes este error se tragaba silenciosamente
+    // y el PDF se generaba "correctamente" pero sin ejercicios.
+    console.error("Error cargando ejercicios del plan:", error);
+    throw error;
+  }
 
   const container = document.createElement("div");
   container.style.position = "absolute";

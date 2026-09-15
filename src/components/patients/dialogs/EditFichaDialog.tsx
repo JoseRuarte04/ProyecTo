@@ -30,6 +30,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({});
   const [diagnoses, setDiagnoses] = useState<DiagnosisItem[]>([]);
+  const [diagnosesLoadFailed, setDiagnosesLoadFailed] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -73,10 +74,17 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       job: occupational?.job || "",
       support_network: occupational?.support_network || "",
     });
+    setDiagnosesLoadFailed(false);
     (async () => {
-      const list = activeEpisodeId ? await fetchEpisodeDiagnoses(activeEpisodeId) : [];
-      if (list.length > 0) setDiagnoses(list);
-      else setDiagnoses(clinical?.diagnosis ? [{ code: null, label: clinical.diagnosis }] : []);
+      try {
+        const list = activeEpisodeId ? await fetchEpisodeDiagnoses(activeEpisodeId) : [];
+        if (list.length > 0) setDiagnoses(list);
+        else setDiagnoses(clinical?.diagnosis ? [{ code: null, label: clinical.diagnosis }] : []);
+      } catch (err) {
+        console.error("Error cargando diagnósticos:", err);
+        setDiagnosesLoadFailed(true);
+        toast.error("No se pudieron cargar los diagnósticos", { description: "Se van a dejar sin tocar al guardar — recargá la página para reintentar." });
+      }
     })();
   }, [open, patient, clinical, occupational, activeEpisodeId]);
 
@@ -127,8 +135,11 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       support_network: emptyToNull(form.support_network),
     } as any;
 
-    // Primero la tabla nueva de diagnósticos, después el principal en legacy
-    if (activeEpisodeId) {
+    // Primero la tabla nueva de diagnósticos, después el principal en legacy.
+    // Si la carga inicial de diagnósticos falló, NO los tocamos — guardarlos
+    // ahora haría un reemplazo completo sobre una lista que puede estar vacía
+    // por el error, no porque el paciente no tenga diagnósticos.
+    if (activeEpisodeId && !diagnosesLoadFailed) {
       await saveEpisodeDiagnoses(activeEpisodeId, patient.id, diagnoses);
       await supabase.from("treatment_episodes").update({ diagnosis: primaryLabel(diagnoses) }).eq("id", activeEpisodeId);
     }

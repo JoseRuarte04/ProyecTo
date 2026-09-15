@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { startOfDay, endOfDay, subDays } from "date-fns";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+
+function warnOnError(context: string, error: unknown) {
+  if (!error) return;
+  console.error(`Error cargando ${context}:`, error);
+  toast.error(`No se pudo cargar: ${context}`, { description: "Probá recargar la página." });
+}
 
 type Workspace = { type: "personal" | "team"; teamId?: string };
 
@@ -8,12 +15,13 @@ export function useDayAppointments(date: Date) {
   return useQuery({
     queryKey: ["appointments", "day", date.toDateString()],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("appointments")
         .select("id, appointment_date, appointment_end, type, status, notes, patients(id, first_name, last_name, birth_date)")
         .gte("appointment_date", startOfDay(date).toISOString())
         .lte("appointment_date", endOfDay(date).toISOString())
         .order("appointment_date");
+      warnOnError("turnos del día", error);
       return data ?? [];
     },
   });
@@ -38,7 +46,8 @@ export function useActivePatients(workspace: Workspace, userId: string | undefin
         query = query.eq("team_id", workspace.teamId!);
       }
 
-      const { data, count } = await query;
+      const { data, count, error } = await query;
+      warnOnError("pacientes activos", error);
       return { patients: data ?? [], count: count ?? 0 };
     },
   });
@@ -62,7 +71,8 @@ export function useRecentSessions(workspace: Workspace, userId: string | undefin
         query = query.eq("patients.team_id", workspace.teamId!);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+      warnOnError("sesiones recientes", error);
       return data ?? [];
     },
   });
@@ -87,7 +97,8 @@ export function useStalePatients(workspace: Workspace, userId: string | undefine
         recentQuery = recentQuery.eq("patients.team_id", workspace.teamId!);
       }
 
-      const { data: recentData } = await recentQuery;
+      const { data: recentData, error: recentError } = await recentQuery;
+      warnOnError("pacientes sin sesión reciente", recentError);
       const recentIds = [...new Set((recentData ?? []).map((r: any) => r.patient_id))];
 
       let query = supabase
@@ -107,7 +118,8 @@ export function useStalePatients(workspace: Workspace, userId: string | undefine
         query = query.not("id", "in", `(${recentIds.join(",")})`);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+      warnOnError("pacientes sin sesión reciente", error);
       return data ?? [];
     },
   });
