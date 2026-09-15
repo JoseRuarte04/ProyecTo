@@ -348,6 +348,44 @@ function barthelInterpretation(score: number): string {
   return "Independiente";
 }
 
+function BarthelItemToggle({
+  itemKey,
+  value,
+  onChange,
+  options,
+}: {
+  itemKey: string;
+  value: number | null;
+  onChange: (value: number) => void;
+  options: { v: number; l: string }[];
+}) {
+  return (
+    <RadioGroup
+      value={value != null ? String(value) : ""}
+      onValueChange={(v) => onChange(parseInt(v))}
+      className="flex flex-wrap gap-1.5 sm:w-64 sm:flex-shrink-0"
+    >
+      {options.map((opt) => {
+        const id = `barthel-${itemKey}-${opt.v}`;
+        return (
+          <Label
+            key={opt.v}
+            htmlFor={id}
+            className={`flex items-center gap-1.5 cursor-pointer rounded-md border px-2 py-1 text-[11px] leading-tight transition-colors ${
+              value === opt.v
+                ? "border-teal-500 bg-teal-50 text-teal-800"
+                : "border-gray-200 bg-white hover:border-teal-200"
+            }`}
+          >
+            <RadioGroupItem value={String(opt.v)} id={id} className="h-3 w-3" />
+            <span><span className="font-semibold">{opt.v}</span> — {opt.l}</span>
+          </Label>
+        );
+      })}
+    </RadioGroup>
+  );
+}
+
 export function BarthelSection({
   items,
   onChange,
@@ -376,16 +414,12 @@ export function BarthelSection({
         {BARTHEL_ITEMS.map((item) => (
           <div key={item.key} className="flex flex-col gap-1 py-1.5 border-b border-gray-100 last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <span className="text-xs text-gray-700 font-medium sm:flex-1 sm:min-w-0 sm:pr-2" title={item.label}>{item.label}</span>
-            <select
-              value={items[item.key] != null ? String(items[item.key]) : ""}
-              onChange={(e) => onChange({ ...items, [item.key]: e.target.value !== "" ? parseInt(e.target.value) : null })}
-              className={`${selectClass} w-full sm:w-64 sm:flex-shrink-0`}
-            >
-              <option value="">—</option>
-              {item.options.map((opt) => (
-                <option key={opt.v} value={String(opt.v)}>{opt.v} — {opt.l}</option>
-              ))}
-            </select>
+            <BarthelItemToggle
+              itemKey={item.key}
+              value={items[item.key] ?? null}
+              onChange={(v) => onChange({ ...items, [item.key]: v })}
+              options={item.options}
+            />
           </div>
         ))}
         {total !== null && (
