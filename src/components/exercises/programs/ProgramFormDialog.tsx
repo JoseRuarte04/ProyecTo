@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { ExerciseProgram } from "./programLibrary";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface ProgramFormDialogProps {
   open: boolean;
@@ -22,6 +25,10 @@ export default function ProgramFormDialog({ open, onClose, professionalId, onSav
   const [name, setName] = useState(program?.name ?? "");
   const [description, setDescription] = useState(program?.description ?? "");
   const [saving, setSaving] = useState(false);
+
+  const [isDirty, resetDirty] = useDirtyDeps([name, description]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeGuarded = () => guard(onClose);
 
   const handleSave = async () => {
     if (!name.trim()) { toast.error("El nombre es obligatorio"); return; }
@@ -49,11 +56,13 @@ export default function ProgramFormDialog({ open, onClose, professionalId, onSav
       toast.success("Programa creado");
       onSaved(data);
     }
+    resetDirty();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) closeGuarded(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar programa" : "Nuevo programa"}</DialogTitle>
@@ -78,7 +87,7 @@ export default function ProgramFormDialog({ open, onClose, professionalId, onSav
             />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !name.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
               {isEdit ? "Guardar cambios" : "Crear programa"}
@@ -87,5 +96,7 @@ export default function ProgramFormDialog({ open, onClose, professionalId, onSav
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }

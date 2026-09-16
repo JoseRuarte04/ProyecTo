@@ -13,6 +13,9 @@ import { getExerciseTypes } from "@/components/exercises/exerciseLibrary";
 import type { ExercisePlanTemplate } from "@/components/exercises/plans/planLibrary";
 import type { ExerciseProgram } from "@/components/exercises/programs/programLibrary";
 import { toast } from "sonner";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 type SourceKind = "plan" | "programa";
 
@@ -66,6 +69,10 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
   const [planNotes, setPlanNotes] = useState(currentPlan?.notes ?? "");
   const [saving, setSaving] = useState(false);
 
+  const [isDirty, resetDirty] = useDirtyDeps([selectedPlan, selectedProgram, draftItems, startDate, durationWeeks, planNotes]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeGuarded = () => guard(onClose);
+
   useEffect(() => {
     if (!open || !user) return;
     setStep(1);
@@ -76,6 +83,7 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
     setStartDate(currentPlan?.start_date ?? "");
     setDurationWeeks(currentPlan?.duration_weeks?.toString() ?? "");
     setPlanNotes(currentPlan?.notes ?? "");
+    resetDirty();
     setSourcesLoading(true);
     Promise.all([
       supabase.from("exercise_routines").select("*").eq("professional_id", user.id).order("name"),
@@ -197,12 +205,14 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
     setSaving(false);
     if (error) { toast.error("Error al aplicar al programa del paciente", { description: error.message }); return; }
     toast.success("Se aplicó al programa del paciente");
+    resetDirty();
     onApplied();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) closeGuarded(); }}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -279,7 +289,7 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
               )
             )}
             <div className="flex justify-end">
-              <Button variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
             </div>
           </div>
         )}
@@ -380,5 +390,7 @@ export function ApplyRoutineWizard({ open, onClose, patientId, currentPlan, onAp
         )}
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }

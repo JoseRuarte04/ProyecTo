@@ -15,6 +15,9 @@ import { EXERCISE_TYPES, getExerciseTypes } from "@/components/exercises/exercis
 import { toast } from "sonner";
 import { format, addWeeks } from "date-fns";
 import { es } from "date-fns/locale";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface ExercisePlan {
   id: string;
@@ -163,6 +166,13 @@ export function EjerciciosTab({ patientId }: Props) {
     }, 300);
   }, [searchQuery, apartadoFilter, tipoFilter, user, selectedEx]);
 
+  const [createDirty, resetCreateDirty] = useDirtyDeps([createNotes]);
+  const createGuard = useUnsavedChangesGuard(createDirty);
+  const closeCreateDialog = () => { setShowCreate(false); setCreateNotes(""); resetCreateDirty(); };
+
+  const [exDirty, resetExDirty] = useDirtyDeps([selectedEx, formSets, formReps, freqValue, freqUnit, formNotes]);
+  const exGuard = useUnsavedChangesGuard(exDirty);
+
   // ── Create plan ──
   const handleCreatePlan = async () => {
     if (!user) return;
@@ -175,6 +185,7 @@ export function EjerciciosTab({ patientId }: Props) {
     toast.success("Programa creado");
     setShowCreate(false);
     setCreateNotes("");
+    resetCreateDirty();
     await fetchPlan();
   };
 
@@ -191,6 +202,7 @@ export function EjerciciosTab({ patientId }: Props) {
     setFreqValue("");
     setFreqUnit("veces/semana");
     setFormNotes("");
+    resetExDirty();
     setShowExDialog(true);
   };
 
@@ -217,6 +229,7 @@ export function EjerciciosTab({ patientId }: Props) {
     setFormNotes(item.notes ?? "");
     setSearchQuery("");
     setSearchResults([]);
+    resetExDirty();
     setShowExDialog(true);
   };
 
@@ -233,6 +246,7 @@ export function EjerciciosTab({ patientId }: Props) {
     setFreqValue("");
     setFreqUnit("veces/semana");
     setFormNotes("");
+    resetExDirty();
   };
 
   // ── Save exercise (add or edit) ──
@@ -467,7 +481,7 @@ export function EjerciciosTab({ patientId }: Props) {
       )}
 
       {/* ── Dialog crear programa ── */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+      <Dialog open={showCreate} onOpenChange={(v) => { if (!v) createGuard.guard(closeCreateDialog); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Crear programa de ejercicios</DialogTitle>
@@ -483,7 +497,7 @@ export function EjerciciosTab({ patientId }: Props) {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setShowCreate(false); setCreateNotes(""); }}>
+              <Button variant="outline" onClick={() => createGuard.guard(closeCreateDialog)}>
                 Cancelar
               </Button>
               <Button onClick={handleCreatePlan} disabled={saving}>
@@ -494,6 +508,7 @@ export function EjerciciosTab({ patientId }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+      <UnsavedChangesDialog open={createGuard.confirmOpen} onConfirm={createGuard.confirmDiscard} onCancel={createGuard.cancelDiscard} />
 
       {/* ── Link manager (solo cuando hay plan) ── */}
       {plan && (
@@ -501,7 +516,7 @@ export function EjerciciosTab({ patientId }: Props) {
       )}
 
       {/* ── Dialog agregar / editar ejercicio ── */}
-      <Dialog open={showExDialog} onOpenChange={(open) => { if (!open) closeExDialog(); }}>
+      <Dialog open={showExDialog} onOpenChange={(open) => { if (!open) exGuard.guard(closeExDialog); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar dosificación" : "Agregar ejercicio"}</DialogTitle>
@@ -651,7 +666,7 @@ export function EjerciciosTab({ patientId }: Props) {
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={closeExDialog}>Cancelar</Button>
+              <Button variant="outline" onClick={() => exGuard.guard(closeExDialog)}>Cancelar</Button>
               <Button onClick={handleSaveExercise} disabled={saving || (!editingItem && !selectedEx)}>
                 {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                 {editingItem ? "Guardar cambios" : "Agregar"}
@@ -660,6 +675,7 @@ export function EjerciciosTab({ patientId }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+      <UnsavedChangesDialog open={exGuard.confirmOpen} onConfirm={exGuard.confirmDiscard} onCancel={exGuard.cancelDiscard} />
 
       {/* ── Confirm delete ── */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>

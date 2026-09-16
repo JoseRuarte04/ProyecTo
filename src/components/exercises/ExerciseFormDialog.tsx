@@ -10,6 +10,9 @@ import { toast } from "sonner";
 import { Loader2, Play, X } from "lucide-react";
 import { type Exercise, EXERCISE_TYPES, extractYoutubeId } from "./exerciseLibrary";
 import type { Apartado } from "./ApartadosPanel";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 const SIN_APARTADO = "__none__";
 
@@ -46,6 +49,9 @@ export default function ExerciseFormDialog({ open, onClose, userId, onSaved, exe
     video_url: exercise?.video_url || "",
     body_region_id: (isEdit ? exercise.body_region_id : defaultApartadoId) ?? SIN_APARTADO,
   });
+
+  const [isDirty, resetDirty] = useDirtyDeps([form]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
 
   const ytId = extractYoutubeId(form.video_url);
   const canSave = form.name.trim() !== "" && form.exercise_type !== "";
@@ -99,12 +105,14 @@ export default function ExerciseFormDialog({ open, onClose, userId, onSaved, exe
 
     toast.success(isEdit ? "Ejercicio actualizado" : "Ejercicio creado");
     setSaving(false);
+    resetDirty();
     onSaved();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) guard(onClose); }}>
       <DialogContentFullScreen>
         {/* Barra superior */}
         <div className="shrink-0 h-14 px-4 sm:px-6 border-b border-border bg-card flex items-center justify-between gap-3">
@@ -123,7 +131,7 @@ export default function ExerciseFormDialog({ open, onClose, userId, onSaved, exe
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <p className="hidden md:block text-xs text-muted-foreground mr-2">* Campos obligatorios</p>
-            <Button variant="outline" onClick={onClose} className="hidden sm:inline-flex">Cancelar</Button>
+            <Button variant="outline" onClick={() => guard(onClose)} className="hidden sm:inline-flex">Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !canSave} className="min-w-[130px]">
               {saving
                 ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -259,5 +267,7 @@ export default function ExerciseFormDialog({ open, onClose, userId, onSaved, exe
         </div>
       </DialogContentFullScreen>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }
