@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, ArrowLeft, Calendar, CheckCircle2, UserX, RotateCcw } from "lucide-react";
+import { Loader2, Plus, ArrowLeft, Calendar, CheckCircle2, UserX, RotateCcw, Edit } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -306,6 +306,15 @@ export default function PatientProfile() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h2 className="font-serif text-base font-semibold text-foreground">{patient.last_name}, {patient.first_name}</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowEditFicha(true)}
+                  aria-label="Editar ficha"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
                 {age !== null && <span className="text-sm text-muted-foreground">{age} años</span>}
                 {activeEpisode && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
@@ -348,7 +357,7 @@ export default function PatientProfile() {
               </TabsList>
 
               <TabsContent value="clinica">
-                <FichaTab patient={patient} clinical={clinical} occupational={occupational} diagnoses={diagnoses} activeEpisode={activeEpisode ?? null} onEditFicha={() => setShowEditFicha(true)} />
+                <FichaTab patient={patient} clinical={clinical} occupational={occupational} diagnoses={diagnoses} activeEpisode={activeEpisode ?? null} />
               </TabsContent>
 
               <TabsContent value="sessions">
@@ -392,7 +401,7 @@ export default function PatientProfile() {
 
       {/* Dialogs */}
       <NewEpisodeDialog open={showNewEpisode} onClose={() => setShowNewEpisode(false)} patientId={id!} userId={user!.id} episodes={episodes} onSaved={async (newEpId: string) => { setActiveEpisodeId(newEpId); await fetchPatientBase(); await fetchEpisodeData(newEpId); }} />
-      <EditFichaDialog open={showEditFicha} onClose={() => setShowEditFicha(false)} patient={patient} clinical={clinical} occupational={occupational} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
+      <EditFichaDialog open={showEditFicha} onClose={() => setShowEditFicha(false)} patient={patient} clinical={clinical} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
       <MarkAbandonDialog open={showAbandon} onClose={() => setShowAbandon(false)} patientId={id!} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
       <ReactivateDialog open={showReactivate} onClose={() => setShowReactivate(false)} patientId={id!} onSaved={fetchAll} />
       <NewFuncEvalDialog open={showNewFuncEval} onClose={() => setShowNewFuncEval(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />

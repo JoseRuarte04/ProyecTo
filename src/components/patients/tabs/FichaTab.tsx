@@ -1,7 +1,6 @@
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
-import { Edit, ClipboardList, Stethoscope, User } from "lucide-react";
+import { ClipboardList, Stethoscope, User } from "lucide-react";
 import { maritalStatusLabel, educationLevelLabel } from "@/components/patients/occupationalOptions";
 import { sexLabel } from "@/components/patients/sexOptions";
 
@@ -11,7 +10,6 @@ interface Props {
   occupational: any;
   diagnoses?: { code: string | null; label: string }[];
   activeEpisode: any;
-  onEditFicha: () => void;
 }
 
 const Field = ({ label, value, full, showEmpty = false }: { label: string; value: any; full?: boolean; showEmpty?: boolean }) => {
@@ -39,7 +37,7 @@ const Section = ({ title, icon, children }: { title: string; icon: React.ReactNo
   </div>
 );
 
-export function FichaTab({ patient, clinical, occupational, diagnoses = [], activeEpisode, onEditFicha }: Props) {
+export function FichaTab({ patient, clinical, occupational, diagnoses = [], activeEpisode }: Props) {
   const primaryDx = diagnoses[0]?.label || clinical?.diagnosis || null;
   const secondaryDx = diagnoses.slice(1);
   const treatmentLabel = clinical?.treatment_type
@@ -49,7 +47,7 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
     ? ({ right: "Diestro/a", left: "Zurdo/a", ambidextrous: "Ambidiestro/a" } as Record<string, string>)[occupational.dominance] || occupational.dominance
     : null;
   const hasOccupationalData = occupational && (occupational.dominance || occupational.marital_status || occupational.education_level || occupational.job || occupational.support_network);
-  const hasClinicalData = clinical && (clinical.injury_date || clinical.surgery_date || clinical.symptom_start_date || clinical.injury_mechanism || clinical.treatment_type || clinical.immobilization_type || clinical.studies || clinical.weeks_post_injury || clinical.weeks_post_surgery || clinical.immobilization_weeks || clinical.diagnosis || clinical.referral_reason);
+  const hasClinicalData = clinical && (clinical.injury_date || clinical.surgery_date || clinical.injury_mechanism || clinical.treatment_type || clinical.immobilization_type || clinical.studies || clinical.weeks_post_injury || clinical.weeks_post_surgery || clinical.immobilization_weeks || clinical.diagnosis || clinical.referral_reason);
   const fmtDate = (d: string | null | undefined) =>
     d ? format(new Date(d + "T12:00:00"), "d MMM yyyy", { locale: es }) : null;
   const periodStr = (w: number | null | undefined, d: number | null | undefined) => {
@@ -65,12 +63,6 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={onEditFicha}>
-          <Edit className="h-4 w-4 mr-1" /> Editar ficha
-        </Button>
-      </div>
-
       <Section title="Episodio activo" icon={<ClipboardList className="h-4 w-4" />}>
         {primaryDx && <Field label="Diagnóstico principal" value={primaryDx} full />}
         {secondaryDx.length > 0 && (
@@ -109,13 +101,9 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
           <Field label="Semanas de inmovilización" value={periodStr(clinical.immobilization_weeks, clinical.immobilization_days)} />
           <Field label="Tipo de inmovilización" value={clinical.immobilization_type} />
           <Field label="Estudios" value={clinical.studies} full />
-          <Field label="Inicio síntomas" value={fmtDate(clinical.symptom_start_date)} />
-          <Field label="Próximo OyT" value={fmtDate(clinical.next_oyt_appointment)} />
-          <Field label="Tratamiento actual" value={clinical.current_treatment} full />
           <Field label="Tratamiento farmacológico" value={clinical.pharmacological_treatment} full />
           <Field label="Antecedentes personales" value={clinical.medical_history} full />
           <Field label="Motivo de consulta" value={clinical.referral_reason} full />
-          <Field label="Notas clínicas" value={clinical.notes} full />
         </Section>
       )}
 
