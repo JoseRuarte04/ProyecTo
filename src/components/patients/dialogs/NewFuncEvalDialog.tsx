@@ -8,6 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface Props {
   open: boolean;
@@ -29,7 +32,11 @@ export function NewFuncEvalDialog({ open, onClose, patientId, userId, onSaved }:
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm());
 
+  const [isDirty, resetDirty] = useDirtyDeps([form]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+
   const resetForm = () => setForm(emptyForm());
+  const closeAndReset = () => { resetForm(); resetDirty(); onClose(); };
 
   const buildNotes = () => {
     const parts: string[] = [];
@@ -56,12 +63,14 @@ export function NewFuncEvalDialog({ open, onClose, patientId, userId, onSaved }:
     if (error) { toast.error("Error al guardar la evaluación funcional"); return; }
     toast.success("Evaluación funcional registrada correctamente");
     resetForm();
+    resetDirty();
     onSaved();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose(); } }}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) guard(closeAndReset); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva Evaluación Funcional</DialogTitle>
@@ -139,12 +148,14 @@ export function NewFuncEvalDialog({ open, onClose, patientId, userId, onSaved }:
         </Accordion>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={() => { resetForm(); onClose(); }}>Cancelar</Button>
+          <Button variant="outline" onClick={() => guard(closeAndReset)}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving || !form.evaluation_date}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }

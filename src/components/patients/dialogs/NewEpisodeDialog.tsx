@@ -10,6 +10,9 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { DiagnosisListEditor } from "../DiagnosisListEditor";
 import { primaryLabel, type DiagnosisItem } from "../diagnoses";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface Props {
   open: boolean;
@@ -32,7 +35,11 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm());
 
+  const [isDirty, resetDirty] = useDirtyDeps([form]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+
   const resetForm = () => setForm(emptyForm());
+  const closeAndReset = () => { resetForm(); resetDirty(); onClose(); };
 
   const handleSave = async () => {
     if (form.diagnoses.length === 0) return;
@@ -96,7 +103,8 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { resetForm(); onClose(); } }}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) guard(closeAndReset); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Nuevo Episodio de Tratamiento</DialogTitle>
@@ -146,7 +154,7 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
             <Input type="number" min={0} value={form.weeks_post_injury} onChange={e => setForm({ ...form, weeks_post_injury: e.target.value })} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => { resetForm(); onClose(); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => guard(closeAndReset)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || form.diagnoses.length === 0}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear episodio"}
             </Button>
@@ -154,5 +162,7 @@ export function NewEpisodeDialog({ open, onClose, patientId, userId, episodes, o
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }

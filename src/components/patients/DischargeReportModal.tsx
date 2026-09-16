@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -48,6 +50,19 @@ export function DischargeReportModal({
   patientName,
 }: DischargeReportModalProps) {
   const [showRegenerateAlert, setShowRegenerateAlert] = useState(false);
+
+  // Snapshot del texto generado, para detectar si el usuario lo editó a mano
+  // antes de exportar. Se resetea al salir de "ready" (regenerar / reabrir).
+  const generatedTextRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (state === "ready" && generatedTextRef.current === null) {
+      generatedTextRef.current = reportText;
+    } else if (state !== "ready") {
+      generatedTextRef.current = null;
+    }
+  }, [state, reportText]);
+  const isDirty = state === "ready" && generatedTextRef.current !== null && reportText !== generatedTextRef.current;
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
 
   const handleExportPdf = () => {
     const doc = new jsPDF();
@@ -182,7 +197,7 @@ export function DischargeReportModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) guard(handleClose); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -263,12 +278,14 @@ export function DischargeReportModal({
               </>
             )}
 
-            <Button variant="ghost" onClick={handleClose}>
+            <Button variant="ghost" onClick={() => guard(handleClose)}>
               Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
 
       <AlertDialog open={showRegenerateAlert} onOpenChange={setShowRegenerateAlert}>
         <AlertDialogContent>

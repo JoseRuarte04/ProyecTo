@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface Props {
   open: boolean;
@@ -18,6 +21,10 @@ interface Props {
 export function MarkAbandonDialog({ open, onClose, patientId, activeEpisodeId, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [reason, setReason] = useState("");
+
+  const [isDirty, resetDirty] = useDirtyDeps([reason]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeAndReset = () => { setReason(""); resetDirty(); onClose(); };
 
   const handleConfirm = async () => {
     setSaving(true);
@@ -36,12 +43,14 @@ export function MarkAbandonDialog({ open, onClose, patientId, activeEpisodeId, o
     if (error) { toast.error("Error al registrar el abandono", { description: error.message }); return; }
     toast.success("Abandono registrado");
     setReason("");
+    resetDirty();
     onSaved();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) guard(closeAndReset); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Marcar abandono de tratamiento</DialogTitle>
@@ -55,13 +64,15 @@ export function MarkAbandonDialog({ open, onClose, patientId, activeEpisodeId, o
           <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej: dejó de asistir, motivos personales, mudanza…" />
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" onClick={() => guard(closeAndReset)}>Cancelar</Button>
           <Button variant="destructive" onClick={handleConfirm} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Marcar abandono"}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }
 
