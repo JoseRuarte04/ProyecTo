@@ -23,6 +23,9 @@ import { createVideoRoom } from "@/lib/videoRoom";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 type FilterStatus = "all" | "scheduled" | "completed" | "cancelled";
 type ViewMode = "list" | "week";
@@ -742,6 +745,10 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
   const [endTime, setEndTime] = useState(appt.appointment_end ? format(parseISO(appt.appointment_end), "HH:mm") : "");
   const [notes, setNotes] = useState(appt.notes || "");
 
+  const [isDirty, resetDirty] = useDirtyDeps([date, startTime, endTime, notes]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeGuarded = () => guard(onClose);
+
   const handleSave = async () => {
     if (!date || !startTime) { toast.error("Completá la fecha y hora"); return; }
     setSaving(true);
@@ -755,12 +762,14 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
     setSaving(false);
     if (error) { toast.error("Error al reprogramar turno"); return; }
     toast.success("Turno reprogramado");
+    resetDirty();
     onSaved();
     onClose();
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
+    <>
+    <Dialog open onOpenChange={(v) => { if (!v) closeGuarded(); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>Reprogramar turno</DialogTitle></DialogHeader>
         <div className="space-y-4">
@@ -771,7 +780,7 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
           </div>
           <div className="space-y-1.5"><Label>Notas</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
             </Button>
@@ -779,6 +788,8 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }
 
@@ -810,11 +821,16 @@ function NewAppointmentDialog({
   const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
   const [showOvertimeConfirm, setShowOvertimeConfirm] = useState(false);
 
+  const [isDirty, resetDirty] = useDirtyDeps([selectedPatient, selectedDate, startTime, endTime, form]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeGuarded = () => guard(onClose);
+
   // Pre-fill cuando se abre desde clic en el calendario
   useEffect(() => {
     if (open) {
       if (prefilledDate) setSelectedDate(prefilledDate);
       if (prefilledTime) setStartTime(prefilledTime);
+      resetDirty();
     } else {
       // Reset al cerrar
       setSelectedPatient(null);
@@ -825,7 +841,7 @@ function NewAppointmentDialog({
       setForm({ type: "consultation", modality: "in_person", notes: "" });
       setOvertimeConflict(null);
     }
-  }, [open, prefilledDate, prefilledTime]);
+  }, [open, prefilledDate, prefilledTime, resetDirty]);
 
   useEffect(() => {
     if (!selectedDate) { setDayAppts([]); return; }
@@ -921,6 +937,7 @@ function NewAppointmentDialog({
     setSaving(false);
     if (error) { toast.error("Error al crear turno"); return; }
     toast.success(isOvertime ? "Sobreturno agendado" : "Turno agendado");
+    resetDirty();
     onSaved();
     onClose();
   };
@@ -950,7 +967,7 @@ function NewAppointmentDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) closeGuarded(); }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nuevo turno</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -1152,7 +1169,7 @@ function NewAppointmentDialog({
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving || !canSave}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar turno"}
               </Button>
@@ -1183,6 +1200,8 @@ function NewAppointmentDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
     </>
   );
 }
