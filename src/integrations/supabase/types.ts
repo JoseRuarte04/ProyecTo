@@ -1142,6 +1142,7 @@ export type Database = {
       }
       obras_sociales: {
         Row: {
+          full_name: string | null
           id: number
           is_active: boolean | null
           name: string
@@ -1149,6 +1150,7 @@ export type Database = {
           type: string | null
         }
         Insert: {
+          full_name?: string | null
           id?: number
           is_active?: boolean | null
           name: string
@@ -1156,6 +1158,7 @@ export type Database = {
           type?: string | null
         }
         Update: {
+          full_name?: string | null
           id?: number
           is_active?: boolean | null
           name?: string
@@ -1353,6 +1356,7 @@ export type Database = {
           deleted_by: string | null
           discharged_at: string | null
           dni: string
+          document_type: string
           email: string | null
           emergency_contact_first_name: string | null
           emergency_contact_last_name: string | null
@@ -1387,6 +1391,7 @@ export type Database = {
           deleted_by?: string | null
           discharged_at?: string | null
           dni: string
+          document_type?: string
           email?: string | null
           emergency_contact_first_name?: string | null
           emergency_contact_last_name?: string | null
@@ -1421,6 +1426,7 @@ export type Database = {
           deleted_by?: string | null
           discharged_at?: string | null
           dni?: string
+          document_type?: string
           email?: string | null
           emergency_contact_first_name?: string | null
           emergency_contact_last_name?: string | null
