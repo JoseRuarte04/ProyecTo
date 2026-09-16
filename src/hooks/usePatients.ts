@@ -11,7 +11,7 @@ export function usePatients(workspace: Workspace, userId: string | undefined, fi
     queryFn: async () => {
       let query = supabase
         .from("patients")
-        .select("id, first_name, last_name, dni, status, insurance, admission_date, therapy_sessions(session_date, is_deleted)")
+        .select("id, first_name, last_name, dni, document_type, status, insurance, admission_date, therapy_sessions(session_date, is_deleted)")
         .eq("is_deleted", false)
         .order("last_name", { ascending: true });
 
