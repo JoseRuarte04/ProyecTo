@@ -15,6 +15,9 @@ import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceFie
 import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
 import { primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
 import { SEX_OPTIONS, sexLabel } from "@/components/patients/sexOptions";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -103,6 +106,13 @@ export default function NewPatientForm() {
   const [emergencyLastName, setEmergencyLastName] = useState("");
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [emergencyRelation, setEmergencyRelation] = useState("");
+
+  const [isDirty] = useDirtyDeps([
+    lastName, firstName, dni, birthDate, gender, nationality, admissionDate,
+    insurance, insuranceNumber, diagnoses, doctorName, referralReason, allergies,
+    phone, email, address, emergencyFirstName, emergencyLastName, emergencyPhone, emergencyRelation,
+  ]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
 
   const or = (v: string) => v.trim() || null;
 
@@ -251,7 +261,7 @@ export default function NewPatientForm() {
       {/* Sticky header */}
       <div className="sticky top-0 z-50 bg-card border-b border-border h-14 shrink-0">
         <div className="max-w-xl mx-auto h-full px-6 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/patients")} className="text-foreground hover:bg-muted shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => guard(() => navigate("/patients"))} className="text-foreground hover:bg-muted shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="flex-1 text-sm font-semibold text-foreground truncate">
@@ -491,6 +501,7 @@ export default function NewPatientForm() {
           )}
         </div>
       </div>
+      <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
     </div>
   );
 }

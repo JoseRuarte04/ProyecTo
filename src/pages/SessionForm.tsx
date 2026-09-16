@@ -15,6 +15,8 @@ import { numFieldErr } from "@/components/session/shared";
 import type { GonioPartKey, GonioBySide, PainEntry, PainTipo, TestResult } from "@/components/session/types";
 import { SPECIFIC_TESTS } from "@/components/session/constants";
 import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 import { DatosStep } from "@/components/session/steps/DatosStep";
 import { FichaClinicaStep } from "@/components/session/steps/FichaClinicaStep";
 import { PerfilOcupacionalStep } from "@/components/session/steps/PerfilOcupacionalStep";
@@ -175,6 +177,7 @@ export default function SessionForm() {
   const [secondaryLoaded, setSecondaryLoaded] = useState(false);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestStateRef = useRef<Record<string, any>>({});
+  const initialSnapshotRef = useRef<string | null>(null);
   latestStateRef.current = {
     session_date, session_type, session_number, week_at_session,
     general_observations, symptom_changes, clinical_changes, discharge_summary, avd_followup,
@@ -202,7 +205,20 @@ export default function SessionForm() {
     currentStep,
   };
 
-   
+  // Se toma una única vez, apenas se asienta el estado inicial (carga desde DB
+  // o borrador restaurado) — antes de eso no hay nada contra qué comparar.
+  useEffect(() => {
+    if (draftRestored && initialSnapshotRef.current === null) {
+      initialSnapshotRef.current = JSON.stringify(latestStateRef.current);
+    }
+  }, [draftRestored]);
+
+  const isDirty = draftRestored
+    && initialSnapshotRef.current !== null
+    && JSON.stringify(latestStateRef.current) !== initialSnapshotRef.current;
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+
+
   useEffect(() => {
     if (!draftRestored) return;
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
@@ -951,7 +967,7 @@ export default function SessionForm() {
       {/* Sticky top bar */}
       <header className="sticky top-0 z-50 bg-card border-b border-border h-14 flex items-center px-4 shrink-0">
         <div className="w-full flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/patients/${patientId}`)} className="text-muted-foreground hover:text-foreground -ml-2 shrink-0">
+          <Button variant="ghost" size="sm" onClick={() => guard(() => navigate(`/patients/${patientId}`))} className="text-muted-foreground hover:text-foreground -ml-2 shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1 min-w-0">
@@ -1104,6 +1120,8 @@ export default function SessionForm() {
           {saving ? "Guardando..." : isEditMode ? "Actualizar sesión" : "Guardar sesión"}
         </Button>
       </div>
+
+      <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
     </div>
   );
 }
