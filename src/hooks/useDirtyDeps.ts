@@ -13,14 +13,22 @@ export function useDirtyDeps(deps: React.DependencyList): [boolean, () => void] 
   const [dirty, setDirty] = React.useState(false);
   const skip = React.useRef(true);
 
+  // Chequea el cambio: solo corre cuando cambia alguna dep. Si `skip` está
+  // prendido (mount, o justo después de un reset()), no marca dirty.
   React.useEffect(() => {
-    if (skip.current) {
-      skip.current = false;
-      return;
-    }
+    if (skip.current) return;
     setDirty(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
+
+  // Apaga `skip` después de CADA commit (sin deps), no solo cuando el efecto
+  // de arriba llega a correr. Si no se separan los dos, un reset() que no
+  // cambia ninguna dep (ej. se llama desde un efecto de "abrir sin prefill")
+  // deja `skip` prendido para siempre y se traga el primer cambio real del
+  // usuario como si fuera parte del reset.
+  React.useEffect(() => {
+    skip.current = false;
+  });
 
   const reset = React.useCallback(() => {
     setDirty(false);
