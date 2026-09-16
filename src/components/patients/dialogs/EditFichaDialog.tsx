@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
 import { SEX_OPTIONS } from "@/components/patients/sexOptions";
+import { DOCUMENT_TYPE_OPTIONS, DEFAULT_DOCUMENT_TYPE } from "@/components/patients/documentTypes";
 import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
 import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
 import { useDirtyDeps } from "@/hooks/useDirtyDeps";
@@ -41,6 +42,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
     setForm({
       first_name: patient?.first_name || "",
       last_name: patient?.last_name || "",
+      document_type: patient?.document_type || DEFAULT_DOCUMENT_TYPE,
       dni: patient?.dni || "",
       birth_date: patient?.birth_date || "",
       gender: patient?.gender || "",
@@ -84,7 +86,8 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
     setSaving(true);
 
     const patientPayload = {
-      first_name: form.first_name, last_name: form.last_name, dni: form.dni,
+      first_name: form.first_name, last_name: form.last_name,
+      document_type: form.document_type || DEFAULT_DOCUMENT_TYPE, dni: form.dni,
       birth_date: emptyToNull(form.birth_date), gender: emptyToNull(form.gender),
       nationality: emptyToNull(form.nationality),
       phone: emptyToNull(form.phone), email: emptyToNull(form.email),
@@ -141,7 +144,15 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Nombre</Label><Input value={form.first_name || ""} onChange={(e) => u("first_name", e.target.value)} /></div>
               <div><Label>Apellido</Label><Input value={form.last_name || ""} onChange={(e) => u("last_name", e.target.value)} /></div>
-              <div><Label>DNI</Label><Input value={form.dni || ""} onChange={(e) => u("dni", e.target.value)} /></div>
+              <div><Label>Tipo de documento</Label>
+                <Select value={form.document_type || DEFAULT_DOCUMENT_TYPE} onValueChange={(v) => u("document_type", v)}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                  <SelectContent>
+                    {DOCUMENT_TYPE_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>N° de documento</Label><Input value={form.dni || ""} onChange={(e) => u("dni", e.target.value)} /></div>
               <div><Label>Fecha de nacimiento</Label><Input type="date" value={form.birth_date || ""} onChange={(e) => u("birth_date", e.target.value)} /></div>
               <div><Label>Sexo</Label>
                 <Select value={form.gender || ""} onValueChange={(v) => u("gender", v)}>

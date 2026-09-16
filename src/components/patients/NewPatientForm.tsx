@@ -18,6 +18,7 @@ import { SEX_OPTIONS, sexLabel } from "@/components/patients/sexOptions";
 import { useDirtyDeps } from "@/hooks/useDirtyDeps";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
+import { DOCUMENT_TYPE_OPTIONS, DEFAULT_DOCUMENT_TYPE, documentTypeLabel } from "@/components/patients/documentTypes";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -84,6 +85,7 @@ export default function NewPatientForm() {
   // Step 1 — Datos personales
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
+  const [documentType, setDocumentType] = useState<string>(DEFAULT_DOCUMENT_TYPE);
   const [dni, setDni] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState("");
@@ -117,7 +119,7 @@ export default function NewPatientForm() {
   const or = (v: string) => v.trim() || null;
 
   // ── Validation helpers ──
-  const isNumericOnly = (v: string) => /^\d+$/.test(v.trim());
+  const isValidDni    = (v: string) => /^\d{7,8}$/.test(v.trim());
   const isValidName   = (v: string) => !v.trim() || /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s'-]+$/.test(v.trim());
   const isValidPhone  = (v: string) => !v.trim() || /^[+\d][\d\s\-()+]*$/.test(v.trim());
   const isValidEmail  = (v: string) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -135,9 +137,9 @@ export default function NewPatientForm() {
       errs.firstName = "El nombre solo puede contener letras";
     }
     if (!dni.trim()) {
-      errs.dni = "El DNI es obligatorio";
-    } else if (!isNumericOnly(dni)) {
-      errs.dni = "El DNI debe contener solo números, sin letras ni símbolos";
+      errs.dni = "Este campo es obligatorio";
+    } else if (documentType === "dni" && !isValidDni(dni)) {
+      errs.dni = "El DNI debe tener 7 u 8 números, sin letras ni símbolos";
     }
     if (!birthDate)    errs.birthDate    = "Este campo es obligatorio";
     if (!nationality.trim()) errs.nationality = "Este campo es obligatorio";
@@ -184,6 +186,7 @@ export default function NewPatientForm() {
         .insert({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
+          document_type: documentType,
           dni: dni.trim(),
           birth_date: or(birthDate),
           gender: or(gender),
@@ -317,7 +320,18 @@ export default function NewPatientForm() {
                 <ErrMsg field="firstName" />
               </div>
               <div>
-                <FieldLabel required>DNI</FieldLabel>
+                <FieldLabel required>Tipo de documento</FieldLabel>
+                <Select value={documentType} onValueChange={setDocumentType}>
+                  <SelectTrigger className={inputClass}>
+                    <SelectValue placeholder="Seleccionar…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DOCUMENT_TYPE_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <FieldLabel required>N° de documento</FieldLabel>
                 <Input value={dni} onChange={(e) => setDni(e.target.value)} className={cn(inputClass, fieldCls("dni"))} />
                 <ErrMsg field="dni" />
               </div>
@@ -461,7 +475,7 @@ export default function NewPatientForm() {
                   label="Contexto"
                   value={workspace.type === "personal" ? "Personal" : `Equipo: ${workspace.teamName}`}
                 />
-                <SummaryRow label="DNI" value={dni} />
+                <SummaryRow label={documentTypeLabel(documentType) ?? "Documento"} value={dni} />
                 <SummaryRow label="Nacimiento" value={birthDate} />
                 {gender && <SummaryRow label="Sexo" value={sexLabel(gender)} />}
                 {nationality && <SummaryRow label="Nacionalidad" value={nationality} />}

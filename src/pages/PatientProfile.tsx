@@ -23,6 +23,7 @@ import { NewEpisodeDialog } from "@/components/patients/dialogs/NewEpisodeDialog
 import { MarkAbandonDialog, ReactivateDialog } from "@/components/patients/dialogs/MarkAbandonDialog";
 import { fetchEpisodeDiagnoses, type DiagnosisItem } from "@/components/patients/diagnoses";
 import { StatusBadge } from "@/components/status";
+import { documentTypeShortLabel } from "@/components/patients/documentTypes";
 
 export default function PatientProfile() {
   const { id } = useParams<{ id: string }>();
@@ -190,7 +191,7 @@ export default function PatientProfile() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                {age !== null && <>{age} años</>}{age !== null && patient.dni ? " · " : ""}{patient.dni && <>DNI {patient.dni}</>}
+                {age !== null && <>{age} años</>}{age !== null && patient.dni ? " · " : ""}{patient.dni && <>{documentTypeShortLabel(patient.document_type)} {patient.dni}</>}
               </p>
               {activeEpisode && patient.status === "active" && (
                 <div className="flex items-center gap-1.5 mt-3">

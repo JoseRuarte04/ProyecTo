@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useDirtyDeps } from "@/hooks/useDirtyDeps";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
+import { documentTypeShortLabel } from "@/components/patients/documentTypes";
 
 type FilterStatus = "all" | "scheduled" | "completed" | "cancelled";
 type ViewMode = "list" | "week";
@@ -76,7 +77,7 @@ const HOUR_END = 21;
 const SLOT_H = 56; // px por hora
 
 // Paciente resumido que devuelve la búsqueda del dialog de turno nuevo
-type PatientLite = Pick<Tables<"patients">, "id" | "first_name" | "last_name" | "dni">;
+type PatientLite = Pick<Tables<"patients">, "id" | "first_name" | "last_name" | "dni" | "document_type">;
 // Turnos del día en el dialog (join sin phone)
 type DayAppointment = Tables<"appointments"> & {
   patients: Pick<Tables<"patients">, "first_name" | "last_name"> | null;
@@ -866,7 +867,7 @@ function NewAppointmentDialog({
     if (term.length < 2) { setPatients([]); return; }
     const { data, error } = await supabase
       .from("patients")
-      .select("id, first_name, last_name, dni")
+      .select("id, first_name, last_name, dni, document_type")
       .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,dni.ilike.%${term}%`)
       .limit(10);
     if (error) {
@@ -991,7 +992,7 @@ function NewAppointmentDialog({
                       {patients.map(p => (
                         <button key={p.id} onClick={() => { setSelectedPatient(p); setPatients([]); setSearchTerm(""); }}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors">
-                          {p.last_name}, {p.first_name} — DNI: {p.dni}
+                          {p.last_name}, {p.first_name} — {documentTypeShortLabel(p.document_type)}: {p.dni}
                         </button>
                       ))}
                     </div>
