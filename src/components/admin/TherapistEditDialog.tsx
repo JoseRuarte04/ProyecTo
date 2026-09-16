@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface Therapist {
   id: string;
@@ -33,6 +36,10 @@ export function TherapistEditDialog({ therapist, open, onClose, onSaved }: Props
   const [license, setLicense]     = useState(therapist.license_number ?? "");
   const [saving, setSaving]       = useState(false);
   const [errors, setErrors]       = useState<Record<string, string>>({});
+
+  const [isDirty, resetDirty] = useDirtyDeps([fullName, email, specialty, license]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeGuarded = () => guard(onClose);
 
   const handleSave = async () => {
     const errs: Record<string, string> = {};
@@ -65,11 +72,13 @@ export function TherapistEditDialog({ therapist, open, onClose, onSaved }: Props
       specialty:      specialty.trim() || null,
       license_number: license.trim() || null,
     });
+    resetDirty();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => !v && closeGuarded()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Editar terapista</DialogTitle>
@@ -106,7 +115,7 @@ export function TherapistEditDialog({ therapist, open, onClose, onSaved }: Props
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" size="sm" onClick={closeGuarded} disabled={saving}>Cancelar</Button>
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
             Guardar
@@ -114,5 +123,7 @@ export function TherapistEditDialog({ therapist, open, onClose, onSaved }: Props
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }

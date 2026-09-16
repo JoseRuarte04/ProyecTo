@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, ChevronRight } from "lucide-react";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface Team {
   id: string;
@@ -37,6 +40,10 @@ export default function AdminTeams() {
   const [newName, setNewName]   = useState("");
   const [newAdmin, setNewAdmin] = useState("");
   const [newLimit, setNewLimit] = useState("5");
+
+  const [isDirty, resetDirty] = useDirtyDeps([newName, newAdmin, newLimit]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeCreate = () => { setCreateOpen(false); resetDirty(); };
 
   const loadTeams = async () => {
     setLoading(true);
@@ -67,6 +74,7 @@ export default function AdminTeams() {
 
   const openCreate = () => {
     setNewName(""); setNewAdmin(""); setNewLimit("5");
+    resetDirty();
     loadTherapists();
     setCreateOpen(true);
   };
@@ -89,6 +97,7 @@ export default function AdminTeams() {
     if (error) { toast.error("Error: " + error.message); return; }
     toast.success("Equipo creado");
     setCreateOpen(false);
+    resetDirty();
     loadTeams();
   };
 
@@ -150,7 +159,7 @@ export default function AdminTeams() {
         </div>
       )}
 
-      <Dialog open={createOpen} onOpenChange={(v) => !v && setCreateOpen(false)}>
+      <Dialog open={createOpen} onOpenChange={(v) => !v && guard(closeCreate)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nuevo equipo</DialogTitle>
@@ -181,7 +190,7 @@ export default function AdminTeams() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={() => guard(closeCreate)} disabled={saving}>Cancelar</Button>
             <Button size="sm" onClick={handleCreate} disabled={saving}>
               {saving && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
               Crear equipo
@@ -189,6 +198,7 @@ export default function AdminTeams() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
     </div>
   );
 }
