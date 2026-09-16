@@ -9,6 +9,49 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-09-16] Tipo de documento en pacientes + Claude puede correr migraciones directo contra Supabase
+
+**Contexto:** El alta de paciente solo tenía un campo "DNI" fijo, pero no todos los pacientes
+tienen DNI (extranjeros, personas mayores con Libreta Cívica/Enrolamiento). Además, a mitad de
+la implementación Jose pidió cambiar una regla de flujo de trabajo vigente desde el 2026-08-10
+("nunca trabajar directo con Supabase, pasar el SQL para que lo corra él").
+
+**Opciones consideradas:**
+1. Tipo de documento: agregar un dropdown nuevo vs. dejar el campo DNI como texto libre sin
+   tipo (más simple, pero pierde la validación estricta de formato que sí tiene sentido para DNI).
+2. Alcance de tipos: incluir CUIT/CUIL como tipo de documento vs. excluirlos (son identificadores
+   tributarios/previsionales, no documentos de identidad — Jose pidió explícitamente excluirlos).
+3. Migraciones Supabase: mantener la regla de "nunca directo" (Claude escribe el SQL, Jose lo
+   corre) vs. permitir que Claude aplique migraciones directo vía MCP.
+
+**Decisión:**
+1. Dropdown "Tipo de documento" con 6 valores: DNI, Libreta Cívica, Libreta de Enrolamiento,
+   Pasaporte, Cédula de identidad extranjera, Otro. Validación de formato (7-8 dígitos numéricos)
+   solo aplica cuando el tipo es DNI — el resto de los tipos solo exige que no esté vacío (un
+   pasaporte puede tener letras, LC/LE tienen formatos históricos variados).
+2. CUIT/CUIL excluidos por pedido explícito de Jose.
+3. Se revoca la regla de "nunca Supabase directo" — de ahora en más Claude puede aplicar
+   migraciones y correr SQL directo contra el proyecto real (`pvuaqatdendcgumwktid`) vía MCP,
+   incluyendo regenerar `types.ts` en el mismo paso. Se sigue escribiendo el archivo de migración
+   en `supabase/migrations/` igual que antes, solo cambia quién lo ejecuta.
+
+**Por qué:** El campo `dni` seguía siendo la misma columna de texto de siempre — no hacía falta
+tocar su tipo de dato, solo agregar la columna `document_type` al lado con un CHECK. Para el
+cambio de regla de Supabase: pedido explícito de Jose durante la sesión, sin motivo técnico
+adicional documentado (ver memoria de Claude para el detalle exacto del pedido).
+
+**Consecuencias / trade-offs aceptados:** La unicidad de `dni` (constraints
+`uq_patients_dni_personal_active`/`uq_patients_dni_team_active`) sigue siendo solo sobre el
+valor de `dni`, sin considerar `document_type` — un DNI y un Pasaporte con el mismo número de
+casualidad colisionarían. Se aceptó el riesgo por ser prácticamente imposible y no pedido. A
+partir de ahora Claude puede modificar el schema de producción sin que Jose revise el SQL antes
+de que se aplique — mitigado por seguir versionando la migración en el repo para que quede
+trazable después.
+
+**Quién lo decidió:** Jose (por chat, durante la implementación).
+
+---
+
 ## [2026-09-15] Barthel con opciones visibles + Evaluación analítica en acordeón — FIM excluido
 
 **Contexto:** A Jose le gustó el patrón de UI de la nueva Evaluación funcional (apartados que

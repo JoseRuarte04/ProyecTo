@@ -9,6 +9,12 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-16] Tipo de documento en alta de paciente y ficha
+- Dropdown "Tipo de documento" (DNI, Libreta Cívica, Libreta de Enrolamiento, Pasaporte, Cédula de identidad extranjera, Otro) antes del número de documento en el alta y en "Editar ficha", con validación de 7-8 dígitos solo para DNI. Listado, ficha, CommandPalette y búsqueda de Turnos ya no muestran "DNI" fijo.
+- Migración `document_type` aplicada directo contra Supabase — Jose revocó la regla de "nunca Supabase directo" a mitad de sesión (ver DECISIONS.md).
+- Verificado de punta a punta en el navegador contra Supabase real — 0 errores de consola. PR: [#13](https://github.com/JoseRuarte04/ProyecTo/pull/13) (abierto, pendiente de review).
+- HEP2go quedó pausado de nuevo — sufrió cambios de alcance que hay que redefinir antes de retomar.
+
 ## [2026-09-15] Borrado el código muerto de "Plan de tratamiento"
 - Se confirmó en el navegador que el diálogo de "Plan de tratamiento" (anotado como candidato en la sesión anterior) era código muerto de punta a punta: ni el componente que lo abría (`PlanCardActions`) se usaba en ningún lado. Se borraron `src/components/patients/dialogs/PlanDialogs.tsx` y `src/components/plans/PlanPdfExport.tsx` enteros, y en `PatientProfile.tsx` el import, los 4 estados de diálogo y las 2 queries a `treatment_plans` que tampoco se mostraban en ningún lado.
 - La tabla `treatment_plans`/`treatment_plan_exercises` queda en la base sin borrar (0 filas en producción) — `Exercises.tsx` todavía la usa como guard antes de borrar un ejercicio, así que no se puede tirar sin revisar eso primero.
