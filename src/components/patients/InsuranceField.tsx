@@ -42,7 +42,7 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
   value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [results, setResults] = useState<Array<{ name: string; type: string | null }>>([]);
+  const [results, setResults] = useState<Array<{ name: string; type: string | null; full_name: string | null }>>([]);
   const [loading, setLoading] = useState(false);
   const [rect, setRect] = useState({ top: 0, left: 0, width: 0, height: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -74,13 +74,13 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
     const t = setTimeout(async () => {
       const { data, error } = await supabase
         .from("obras_sociales")
-        .select("name, type")
+        .select("name, type, full_name")
         .eq("is_active", true)
         .ilike("name_search", `%${term.toLowerCase()}%`)
         .limit(10);
       if (error) console.error("Error al buscar obras sociales:", error);
       if (cancelled) return;
-      setResults((data as Array<{ name: string; type: string | null }>) || []);
+      setResults((data as Array<{ name: string; type: string | null; full_name: string | null }>) || []);
       updateRect();
       setOpen(true);
       setLoading(false);
@@ -129,28 +129,28 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
                   <div key={type}>
                     <p className="px-3 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/50">{typeLabel(type)}</p>
                     {group.map((r) => (
-                      <button key={r.name} type="button" onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { onChange(r.name); lastSelectedRef.current = r.name; setOpen(false); }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
-                        {r.name}
-                      </button>
+                      <OptionButton key={r.name} result={r} onSelect={() => { onChange(r.name); lastSelectedRef.current = r.name; setOpen(false); }} />
                     ))}
                   </div>
                 );
               })
             : results.map((r) => (
-                <div key={r.name}>
-                  <button type="button" onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => { onChange(r.name); lastSelectedRef.current = r.name; setOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
-                    {r.name}
-                  </button>
-                </div>
+                <OptionButton key={r.name} result={r} onSelect={() => { onChange(r.name); lastSelectedRef.current = r.name; setOpen(false); }} />
               ))
           }
         </div>,
         document.body
       )}
     </div>
+  );
+}
+
+function OptionButton({ result, onSelect }: { result: { name: string; full_name: string | null }; onSelect: () => void }) {
+  return (
+    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={onSelect}
+      className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+      <div>{result.name}</div>
+      {result.full_name && <div className="text-xs text-muted-foreground truncate">{result.full_name}</div>}
+    </button>
   );
 }
