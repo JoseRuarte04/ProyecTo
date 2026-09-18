@@ -11,6 +11,7 @@ import { Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { documentTypeShortLabel } from "@/components/patients/documentTypes";
 
 type FilterStatus = "all" | "active" | "paused" | "discharged" | "abandoned";
 
@@ -135,7 +136,7 @@ export default function Patients() {
                     <p className="font-semibold text-sm text-foreground truncate">
                       {p.last_name}, {p.first_name}
                     </p>
-                    <p className="text-xs text-muted-foreground">DNI {p.dni}</p>
+                    <p className="text-xs text-muted-foreground">{documentTypeShortLabel(p.document_type)} {p.dni}</p>
                   </div>
 
                   {/* Estado */}

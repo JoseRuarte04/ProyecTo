@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/command";
 import { LayoutDashboard, Users, Calendar, Dumbbell, Plus, User, CalendarCheck } from "lucide-react";
 import { StatusDot } from "@/components/status";
+import { documentTypeShortLabel } from "@/components/patients/documentTypes";
 
 // Evento global para abrir la paleta desde cualquier botón (ej. "Buscar" del Dashboard)
 export const OPEN_COMMAND_PALETTE_EVENT = "open-command-palette";
@@ -59,7 +60,7 @@ export function CommandPalette() {
     queryFn: async () => {
       let q = supabase
         .from("patients")
-        .select("id, first_name, last_name, dni, status")
+        .select("id, first_name, last_name, dni, document_type, status")
         .eq("is_deleted", false)
         .order("last_name");
       if (workspace.type === "personal") q = q.eq("professional_id", user!.id);
@@ -92,7 +93,7 @@ export function CommandPalette() {
                 <User className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="flex-1 truncate">
                   {p.last_name}, {p.first_name}
-                  {p.dni && <span className="text-muted-foreground text-xs ml-2">DNI {p.dni}</span>}
+                  {p.dni && <span className="text-muted-foreground text-xs ml-2">{documentTypeShortLabel(p.document_type)} {p.dni}</span>}
                 </span>
                 <StatusDot status={p.status} />
               </CommandItem>
