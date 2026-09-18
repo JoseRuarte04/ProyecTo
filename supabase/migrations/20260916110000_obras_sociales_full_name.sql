@@ -2,8 +2,10 @@
 -- name sigue siendo el valor mostrado/guardado en pacientes (el acrónimo de
 -- siempre); full_name es nueva, solo alimenta la búsqueda y se muestra como
 -- subtítulo en el autocomplete.
+-- IF NOT EXISTS: la columna ya se aplicó directo contra producción
+-- (pvuaqatdendcgumwktid) antes de mergear este PR.
 alter table public.obras_sociales
-  add column full_name text;
+  add column if not exists full_name text;
 
 -- unaccent vive en el schema "extensions" en este proyecto (no en "public"),
 -- hay que calificarlo explícito o la función rompe con search_path = public.
@@ -55,6 +57,10 @@ update public.obras_sociales set full_name = 'Obra Social del Personal de Direcc
 -- catálogo compartido (hoy solo se puede insertar por SQL directo). Mismo
 -- criterio que exercise_library: cualquier profesional activo, sin dueño
 -- individual porque el catálogo es compartido entre todos.
+-- DROP...IF EXISTS: esta policy puede ya existir si se aplicó junto con la
+-- columna directo contra producción.
+drop policy if exists "obras_sociales: crear activos" on public.obras_sociales;
+
 create policy "obras_sociales: crear activos"
 on public.obras_sociales
 for insert
