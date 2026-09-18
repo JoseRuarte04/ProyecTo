@@ -39,6 +39,48 @@ ningún costo de compatibilidad de datos — se pudo simplificar limpiamente.
 deprecada (dejó de escribirse, columna sin borrar). FIM sigue con la UX de select oculto,
 inconsistente con Barthel — aceptado hasta que se diseñe una versión compacta.
 
+---
+
+## [2026-09-16] Editar ficha recortado a los campos del alta — 4 columnas clínicas deprecadas
+
+**Contexto:** Javito pidió mover el botón "Editar ficha" (vivía solo dentro de la pestaña Ficha
+Clínica) al lado del nombre del paciente, y que el diálogo deje de tener todos los campos
+clínicos/ocupacionales que acumuló con el tiempo — solo los que pide el alta de paciente.
+
+**Opciones consideradas:**
+1. Qué hacer con los campos clínicos que no están en el alta pero sí en el diálogo de edición
+   (tipo de tratamiento, fechas de lesión/cirugía, inmovilización, tratamiento farmacológico,
+   estudios, antecedentes, inicio de síntomas, tratamiento actual, próximo turno OyT, notas
+   clínicas): sacarlos sin más, o revisar primero si tenían otra vía de edición.
+2. Qué hacer con Perfil ocupacional (lateralidad, estado civil, nivel educativo, trabajo, red de
+   apoyo), que tampoco está en el alta.
+
+**Decisión:**
+1. Se investigó antes de borrar: el paso "Ficha clínica" del wizard de sesión (`FichaClinicaStep.tsx`)
+   solo aparece en la sesión de Admisión (`isAdmission`), pero esa sesión se puede reabrir después
+   con "Editar sesión" (`SessionTimeline.tsx`) — por ahí siguen siendo editables fecha de lesión,
+   fecha de cirugía, mecanismo de lesión, tipo de tratamiento, estudios, antecedentes e
+   inmovilización, y tratamiento farmacológico. Esos se sacaron del diálogo de Editar ficha sin
+   pérdida real de funcionalidad.
+2. Inicio de síntomas, tratamiento actual, próximo turno OyT y notas clínicas **no** se cargan en
+   ningún otro lado — se decidió borrarlos igual, con la aprobación explícita de que no hace falta
+   poder editarlos. Se sacaron tanto del formulario de edición como de la vista de solo lectura de
+   Ficha Clínica (dejarlos ahí, de solo lectura y sin forma de corregirlos, no tenía sentido).
+3. Perfil ocupacional se saca del diálogo — ya se edita en dos lugares a propósito desde el
+   2026-09-15 (Ficha y paso de Admisión de la sesión), este cambio deja solo el segundo.
+4. El botón "Editar ficha" pasa de la pestaña Ficha Clínica a un ícono junto al nombre del
+   paciente en el header de `PatientProfile.tsx`, visible desde cualquier pestaña.
+
+**Por qué:** El diálogo había crecido con el tiempo hasta duplicar casi toda la Ficha Clínica
+además del alta, lo que lo hacía largo y confuso para una edición rápida de datos básicos. Separar
+"corrección rápida de datos personales/contacto" (Editar ficha) de "carga clínica detallada"
+(sesión de Admisión) es más claro para el flujo real de uso.
+
+**Consecuencias / trade-offs aceptados:** `patient_clinical_records.symptom_start_date`,
+`current_treatment`, `next_oyt_appointment` y `notes` quedan deprecadas (sin UI en ningún lado,
+columnas sin borrar). Si en el futuro hace falta cargar alguno de estos 4 datos, hay que agregar
+UI nueva desde cero — no hay ninguna pantalla que los toque hoy.
+
 **Quién lo decidió:** con Jose (confirmado por chat antes de implementar).
 
 ---

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, ArrowLeft, Calendar, CheckCircle2, UserX, RotateCcw } from "lucide-react";
+import { Loader2, Plus, ArrowLeft, Calendar, CheckCircle2, UserX, RotateCcw, Edit } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -174,10 +174,21 @@ export default function PatientProfile() {
               <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mb-4">
                 <span className="text-sm font-semibold text-muted-foreground">{initials}</span>
               </div>
-              <h1 className="leading-tight">
-                <span className="font-serif text-[22px] font-semibold text-foreground block tracking-tight">{patient.last_name}</span>
-                <span className="text-base text-foreground/60 font-normal">{patient.first_name}</span>
-              </h1>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="leading-tight">
+                  <span className="font-serif text-[22px] font-semibold text-foreground block tracking-tight">{patient.last_name}</span>
+                  <span className="text-base text-foreground/60 font-normal">{patient.first_name}</span>
+                </h1>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0 -mr-1.5"
+                  onClick={() => setShowEditFicha(true)}
+                  aria-label="Editar ficha"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 {age !== null && <>{age} años</>}{age !== null && patient.dni ? " · " : ""}{patient.dni && <>DNI {patient.dni}</>}
               </p>
@@ -223,6 +234,18 @@ export default function PatientProfile() {
                 <div>
                   <p className="field-label mb-1">Sesión actual</p>
                   <p className="text-[13px] text-foreground">{currentSessionLabel}</p>
+                </div>
+              )}
+              {nextApptUpcoming && (
+                <div>
+                  <p className="field-label mb-1">Próximo turno</p>
+                  <p className="text-[13px] text-foreground">{format(new Date(nextApptUpcoming.appointment_date), "d MMM yyyy", { locale: es })}</p>
+                </div>
+              )}
+              {patient.clinical_record_number && (
+                <div>
+                  <p className="field-label mb-1">Historia clínica</p>
+                  <p className="text-[13px] text-foreground font-mono">#{patient.clinical_record_number}</p>
                 </div>
               )}
               {patient.phone && (
@@ -301,11 +324,20 @@ export default function PatientProfile() {
 
         {/* Main content */}
         <div className="patient-content flex-1 min-w-0 flex flex-col overflow-hidden">
-          {/* Header bar */}
-          <div className="sticky top-0 z-10 bg-card border-b border-border px-7 py-3 flex items-center gap-4 shrink-0">
+          {/* Header bar — solo en mobile/tablet, donde el sidebar con la misma info está oculto */}
+          <div className="lg:hidden sticky top-0 z-10 bg-card border-b border-border px-7 py-3 flex items-center gap-4 shrink-0">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h2 className="font-serif text-base font-semibold text-foreground">{patient.last_name}, {patient.first_name}</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowEditFicha(true)}
+                  aria-label="Editar ficha"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
                 {age !== null && <span className="text-sm text-muted-foreground">{age} años</span>}
                 {activeEpisode && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
@@ -348,7 +380,7 @@ export default function PatientProfile() {
               </TabsList>
 
               <TabsContent value="clinica">
-                <FichaTab patient={patient} clinical={clinical} occupational={occupational} diagnoses={diagnoses} activeEpisode={activeEpisode ?? null} onEditFicha={() => setShowEditFicha(true)} />
+                <FichaTab patient={patient} clinical={clinical} occupational={occupational} diagnoses={diagnoses} activeEpisode={activeEpisode ?? null} />
               </TabsContent>
 
               <TabsContent value="sessions">
@@ -392,7 +424,7 @@ export default function PatientProfile() {
 
       {/* Dialogs */}
       <NewEpisodeDialog open={showNewEpisode} onClose={() => setShowNewEpisode(false)} patientId={id!} userId={user!.id} episodes={episodes} onSaved={async (newEpId: string) => { setActiveEpisodeId(newEpId); await fetchPatientBase(); await fetchEpisodeData(newEpId); }} />
-      <EditFichaDialog open={showEditFicha} onClose={() => setShowEditFicha(false)} patient={patient} clinical={clinical} occupational={occupational} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
+      <EditFichaDialog open={showEditFicha} onClose={() => setShowEditFicha(false)} patient={patient} clinical={clinical} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
       <MarkAbandonDialog open={showAbandon} onClose={() => setShowAbandon(false)} patientId={id!} activeEpisodeId={activeEpisodeId} onSaved={fetchAll} />
       <ReactivateDialog open={showReactivate} onClose={() => setShowReactivate(false)} patientId={id!} onSaved={fetchAll} />
       <NewFuncEvalDialog open={showNewFuncEval} onClose={() => setShowNewFuncEval(false)} patientId={id!} userId={user!.id} onSaved={fetchAll} />

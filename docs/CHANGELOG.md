@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-16] Editar ficha: botón al header + formulario recortado a los campos del alta
+- El botón "Editar ficha" se movió de la pestaña Ficha Clínica a un ícono junto al nombre del paciente en el header de `PatientProfile.tsx`, visible desde cualquier pestaña.
+- El diálogo se recortó a los mismos campos que pide el alta de paciente (datos personales, obra social/diagnósticos/médico/motivo/alergias, contacto, contacto de emergencia). Perfil ocupacional se saca del diálogo (se sigue editando en el paso de Admisión de la sesión). Los campos clínicos que sí tienen otra vía de edición (reabriendo la sesión de Admisión) se sacan sin pérdida; los 4 que no tenían ninguna otra vía (inicio de síntomas, tratamiento actual, próximo turno OyT, notas clínicas) se borran del formulario y de la vista de solo lectura — quedan deprecados. Ver `DECISIONS.md`.
+- Verificado en el navegador contra Supabase real — 0 errores de consola. Typecheck y lint sin problemas nuevos.
+
 ## [2026-09-15] Borrado el código muerto de "Plan de tratamiento"
 - Se confirmó en el navegador que el diálogo de "Plan de tratamiento" (anotado como candidato en la sesión anterior) era código muerto de punta a punta: ni el componente que lo abría (`PlanCardActions`) se usaba en ningún lado. Se borraron `src/components/patients/dialogs/PlanDialogs.tsx` y `src/components/plans/PlanPdfExport.tsx` enteros, y en `PatientProfile.tsx` el import, los 4 estados de diálogo y las 2 queries a `treatment_plans` que tampoco se mostraban en ningún lado.
 - La tabla `treatment_plans`/`treatment_plan_exercises` queda en la base sin borrar (0 filas en producción) — `Exercises.tsx` todavía la usa como guard antes de borrar un ejercicio, así que no se puede tirar sin revisar eso primero.
