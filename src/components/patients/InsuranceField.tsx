@@ -1,10 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 
 // Valor sentinela guardado en patients.insurance cuando el paciente no tiene
 // cobertura. Distinto de null (= dato no cargado) para estadísticas futuras.
@@ -42,14 +43,19 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
   value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [results, setResults] = useState<Array<{ name: string; type: string | null }>>([]);
+  const [results, setResults] = useState<Array<{ name: string; type: string | null; full_name: string | null }>>([]);
   const [loading, setLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [rect, setRect] = useState({ top: 0, left: 0, width: 0, height: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const lastSelectedRef = useRef<string>("");
   const visibleTypes = Array.from(new Set(results.map((r) => r.type).filter(Boolean)));
   const showTypeGroups = visibleTypes.length > 1;
+  const trimmedValue = value.trim();
+  const showAddOption =
+    trimmedValue.length >= 2 &&
+    !results.some((r) => r.name.trim().toLowerCase() === trimmedValue.toLowerCase());
   const typeLabel = (type: string | null) => {
     if (!type) return "OTRAS";
     const n = type.toLowerCase();
@@ -74,13 +80,13 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
     const t = setTimeout(async () => {
       const { data, error } = await supabase
         .from("obras_sociales")
-        .select("name, type")
+        .select("name, type, full_name")
         .eq("is_active", true)
         .ilike("name_search", `%${term.toLowerCase()}%`)
         .limit(10);
       if (error) console.error("Error al buscar obras sociales:", error);
       if (cancelled) return;
-      setResults((data as Array<{ name: string; type: string | null }>) || []);
+      setResults((data as Array<{ name: string; type: string | null; full_name: string | null }>) || []);
       updateRect();
       setOpen(true);
       setLoading(false);
@@ -105,6 +111,34 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
     return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
   }, []);
 
+  const handleAddNew = async () => {
+    const newName = trimmedValue;
+    if (!newName) return;
+    setAdding(true);
+    const { data, error } = await supabase
+      .from("obras_sociales")
+      .insert({ name: newName, type: null })
+      .select("name, type, full_name")
+      .single();
+    setAdding(false);
+    if (error) {
+      console.error("Error al agregar obra social:", error);
+      // 23505 = unique_violation (índice obras_sociales_name_lower_idx). Puede
+      // pasar si ya existe con otra capitalización y no apareció entre los
+      // primeros 10 resultados de la búsqueda que arma la sugerencia de "agregar".
+      if (error.code === "23505") {
+        toast.error("Esa obra social ya existe en el catálogo", { description: "Probá buscarla con otro término — puede tener mayúsculas/minúsculas distintas." });
+      } else {
+        toast.error("No se pudo agregar la obra social", { description: error.message });
+      }
+      return;
+    }
+    toast.success(`"${data.name}" agregada al catálogo de obras sociales`);
+    onChange(data.name);
+    lastSelectedRef.current = data.name;
+    setOpen(false);
+  };
+
   return (
     <div ref={wrapperRef} className="relative">
       <Input
@@ -116,7 +150,7 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
         autoComplete="off"
       />
       {loading && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
-      {open && results.length > 0 && createPortal(
+      {open && (results.length > 0 || showAddOption) && createPortal(
         <div
           ref={panelRef}
           style={{ position: "fixed", top: rect.top + rect.height + 4, left: rect.left, width: rect.width, zIndex: 60 }}
@@ -132,7 +166,8 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
                       <button key={r.name} type="button" onMouseDown={(e) => e.preventDefault()}
                         onClick={() => { onChange(r.name); lastSelectedRef.current = r.name; setOpen(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
-                        {r.name}
+                        <div>{r.name}</div>
+                        {r.full_name && <div className="text-xs text-muted-foreground">{r.full_name}</div>}
                       </button>
                     ))}
                   </div>
@@ -143,11 +178,19 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
                   <button type="button" onMouseDown={(e) => e.preventDefault()}
                     onClick={() => { onChange(r.name); lastSelectedRef.current = r.name; setOpen(false); }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
-                    {r.name}
+                    <div>{r.name}</div>
+                    {r.full_name && <div className="text-xs text-muted-foreground">{r.full_name}</div>}
                   </button>
                 </div>
               ))
           }
+          {showAddOption && (
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleAddNew} disabled={adding}
+              className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-primary border-t hover:bg-accent disabled:opacity-60">
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              {adding ? "Agregando…" : <span>Agregar <span className="font-medium">"{trimmedValue}"</span> como nueva obra social</span>}
+            </button>
+          )}
         </div>,
         document.body
       )}

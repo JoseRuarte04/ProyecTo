@@ -1142,6 +1142,7 @@ export type Database = {
       }
       obras_sociales: {
         Row: {
+          full_name: string | null
           id: number
           is_active: boolean | null
           name: string
@@ -1149,6 +1150,7 @@ export type Database = {
           type: string | null
         }
         Insert: {
+          full_name?: string | null
           id?: number
           is_active?: boolean | null
           name: string
@@ -1156,6 +1158,7 @@ export type Database = {
           type?: string | null
         }
         Update: {
+          full_name?: string | null
           id?: number
           is_active?: boolean | null
           name?: string
