@@ -9,6 +9,12 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-18] Revisión, saneamiento y merge de los 6 PRs de Javito
+- Revisión encontró dos ramas apiladas (#15→#16→#17) y dos pares de trabajo duplicado (#13/#17, #14/#18). Confirmado contra Supabase real que dos migraciones ya estaban aplicadas en producción sin commit mergeado — blindadas con `IF NOT EXISTS`/`DROP...IF EXISTS` antes de mergear. Ver `DECISIONS.md`.
+- Rebaseadas #16 y #17 sobre `main` para que cada PR quedara solo con sus commits propios; agregado índice único case-insensitive en `obras_sociales.name` antes de mergear el alta de obra social nueva desde la UI.
+- Mergeados en orden #15 → #16 → #17 → #14. Cerrados sin mergear #13 y #18 (superados). PR #19 nuevo para sincronizar el repo con datos que también ya estaban en producción.
+- Auditoría completa de `PROJECT_STATE.md` contra GitHub y Supabase real: 7 desincronizaciones encontradas y corregidas.
+
 ## [2026-09-16] Editar ficha: botón al header + formulario recortado a los campos del alta
 - El botón "Editar ficha" se movió de la pestaña Ficha Clínica a un ícono junto al nombre del paciente en el header de `PatientProfile.tsx`, visible desde cualquier pestaña.
 - El diálogo se recortó a los mismos campos que pide el alta de paciente (datos personales, obra social/diagnósticos/médico/motivo/alergias, contacto, contacto de emergencia). Perfil ocupacional se saca del diálogo (se sigue editando en el paso de Admisión de la sesión). Los campos clínicos que sí tienen otra vía de edición (reabriendo la sesión de Admisión) se sacan sin pérdida; los 4 que no tenían ninguna otra vía (inicio de síntomas, tratamiento actual, próximo turno OyT, notas clínicas) se borran del formulario y de la vista de solo lectura — quedan deprecados. Ver `DECISIONS.md`.

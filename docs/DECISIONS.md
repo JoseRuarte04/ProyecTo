@@ -9,6 +9,63 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-09-18] Migraciones aplicadas directo a producción sin commit mergeado — blindaje y orden de merge de los PRs de Javito
+
+**Contexto:** Al revisar los 6 PRs abiertos de Javito (#13-#18) aparecieron dos problemas
+independientes: (1) `#15`→`#16`→`#17` eran ramas apiladas — cada una contenía todos los commits
+de la anterior, así que mergear cualquiera "de punta" hubiera traído sin review el trabajo de
+las de abajo bajo un título engañoso; (2) las migraciones de `#13`/`#17` (`patients.document_type`)
+y `#14`/`#18` (`obras_sociales.full_name`) ya estaban aplicadas directo contra Supabase de
+producción (`pvuaqatdendcgumwktid`) en sesiones anteriores, sin que el commit correspondiente
+llegara a mergearse a `main` — confirmado por Jose contra la base real. El PR #18 traía además
+un backfill de 30 obras sociales que resultó estar en el mismo caso.
+
+**Opciones consideradas:**
+1. Migraciones ya aplicadas: mergear los PRs tal cual (con `ADD COLUMN`/`CREATE POLICY` sin
+   guardas) vs. blindarlas con `IF NOT EXISTS`/`DROP...IF EXISTS` antes de mergear.
+2. Ramas apiladas: mergear cada PR tal cual viene (trayendo commits duplicados/ya mergeados)
+   vs. rebasar cada una sobre `main` una vez mergeada su base, para que el diff de cada PR
+   refleje solo su trabajo propio.
+3. Duplicados en `obras_sociales.name`: no hacer nada vs. agregar protección antes de mergear
+   el alta de obra social nueva desde la UI (`#14`).
+
+**Decisión:**
+1. Se blindaron ambas migraciones (`20260916100000_patients_document_type.sql`,
+   `20260916110000_obras_sociales_full_name.sql`) con `ADD COLUMN IF NOT EXISTS` y
+   `DROP CONSTRAINT/POLICY IF EXISTS` antes de `ADD`/`CREATE` (Postgres no soporta
+   `ADD CONSTRAINT IF NOT EXISTS` ni `CREATE POLICY IF NOT EXISTS`, así que el idiom es
+   drop-y-recrear). Así el merge no rompe ni contra la producción actual ni contra una base
+   reconstruida desde cero.
+2. Se rebasó `#16` sobre `main` recién mergeado `#15`, y `#17` sobre `main` recién mergeado
+   `#16` — cada PR quedó solo con sus commits propios antes de mergear. Se avisó en cada PR
+   antes del force-push (rebase reescribe historia; si Javito estaba trabajando sobre esa
+   rama vieja, tenía que enterarse antes de que se pisara).
+3. Se agregó `CREATE UNIQUE INDEX ... ON obras_sociales (lower(name))` (verificado antes que
+   no había duplicados case-insensitive previos) más el manejo del error `23505` en el
+   cliente para un mensaje claro en vez del error crudo de Postgres. Se descartó un chequeo
+   solo-cliente porque es racy (dos altas simultáneas pasan la validación antes de que
+   cualquiera de las dos inserte); el índice en DB es la única guarda real.
+4. Orden de merge: `#15` → `#16` → `#17` → `#14`. Cerrados sin mergear `#13` (superado por
+   `#17`) y `#18` (superado por `#14`), con comentario y link al reemplazo en cada uno. El
+   backfill de 30 obras sociales de `#18` se recuperó en un PR nuevo (`#19`) solo de datos,
+   porque también ya estaba aplicado en producción.
+
+**Por qué:** El objetivo era que el merge de git y el estado real de Supabase quedaran
+consistentes de nuevo, sin perder ningún dato ya cargado ni romper un ambiente nuevo que
+corra las migraciones desde cero. El rebase de la cadena evita que un PR (`#17`) termine
+mergeando sin review el contenido de otros dos (`#15`/`#16`) bajo un título que no lo menciona.
+
+**Consecuencias / trade-offs aceptados:** El historial de migraciones de Supabase
+(`list_migrations`) no coincide con los timestamps de los archivos del repo para
+`document_type`, `full_name` ni `exercise_programs` (este último, de una sesión anterior al
+2026-08-11) — quedaron aplicadas bajo otra versión o directamente sin registro. No rompe nada
+hoy porque los archivos relevantes del repo ya son idempotentes, pero es un desfasaje real
+entre repo y base — candidato de limpieza dedicada en `TASKS.md`, no resuelto en esta sesión.
+
+**Quién lo decidió:** Jose (por chat, guiando cada paso hasta autorizar merge/cierre autónomo).
+
+---
+
 ## [2026-09-15] Barthel con opciones visibles + Evaluación analítica en acordeón — FIM excluido
 
 **Contexto:** A Jose le gustó el patrón de UI de la nueva Evaluación funcional (apartados que
