@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 export const ALLOWED_CLINICAL_FILE_TYPES = [
   "image/jpeg",
@@ -41,9 +44,12 @@ export function UploadFileDialog({ open, onClose, patientId, userId, onSaved, ep
   const [fileError, setFileError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [isDirty, resetDirty] = useDirtyDeps([category, description, file]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+
   const resetAndClose = () => {
     setCategory(""); setPhotoDate(new Date().toISOString().split("T")[0]);
-    setDescription(""); setFile(null); setFileError(""); onClose();
+    setDescription(""); setFile(null); setFileError(""); resetDirty(); onClose();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +87,8 @@ export function UploadFileDialog({ open, onClose, patientId, userId, onSaved, ep
   };
 
   return (
-    <Dialog open={open} onOpenChange={resetAndClose}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) guard(resetAndClose); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Agregar archivo</DialogTitle>
@@ -114,7 +121,7 @@ export function UploadFileDialog({ open, onClose, patientId, userId, onSaved, ep
             {fileError && <p className="text-xs text-destructive">{fileError}</p>}
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={resetAndClose}>Cancelar</Button>
+            <Button variant="outline" onClick={() => guard(resetAndClose)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !category || !file}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
               Subir
@@ -123,6 +130,8 @@ export function UploadFileDialog({ open, onClose, patientId, userId, onSaved, ep
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }
 

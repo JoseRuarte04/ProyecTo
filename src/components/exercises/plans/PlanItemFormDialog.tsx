@@ -12,6 +12,9 @@ import { EXERCISE_TYPES, getExerciseTypes } from "@/components/exercises/exercis
 import type { Apartado } from "@/components/exercises/ApartadosPanel";
 import type { ExercisePlanTemplateItem } from "./planLibrary";
 import { toast } from "sonner";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface ExerciseResult {
   id: string;
@@ -48,6 +51,10 @@ export default function PlanItemFormDialog({ open, onClose, planId, apartados, n
   const [formNotes, setFormNotes] = useState(editingItem?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [isDirty, resetDirty] = useDirtyDeps([selectedEx, formSets, formReps, freqValue, freqUnit, formNotes]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeGuarded = () => guard(onClose);
 
   useEffect(() => {
     if (editingItem?.frequency) {
@@ -126,12 +133,14 @@ export default function PlanItemFormDialog({ open, onClose, planId, apartados, n
       if (error) { toast.error("Error al agregar ejercicio", { description: error.message }); return; }
       toast.success("Ejercicio agregado al plan");
     }
+    resetDirty();
     onSaved();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) closeGuarded(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar ejercicio del plan" : "Agregar ejercicio al plan"}</DialogTitle>
@@ -251,7 +260,7 @@ export default function PlanItemFormDialog({ open, onClose, planId, apartados, n
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !selectedEx}>
               {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
               {isEdit ? "Guardar cambios" : "Agregar"}
@@ -260,5 +269,7 @@ export default function PlanItemFormDialog({ open, onClose, planId, apartados, n
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }

@@ -14,6 +14,9 @@ import { MARITAL_STATUS_OPTIONS, EDUCATION_LEVEL_OPTIONS } from "@/components/pa
 import { SEX_OPTIONS } from "@/components/patients/sexOptions";
 import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
 import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface Props {
   open: boolean;
@@ -31,6 +34,9 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
   const [form, setForm] = useState<any>({});
   const [diagnoses, setDiagnoses] = useState<DiagnosisItem[]>([]);
   const [diagnosesLoadFailed, setDiagnosesLoadFailed] = useState(false);
+
+  const [isDirty, resetDirty] = useDirtyDeps([form, diagnoses]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +81,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
       support_network: occupational?.support_network || "",
     });
     setDiagnosesLoadFailed(false);
+    resetDirty();
     (async () => {
       try {
         const list = activeEpisodeId ? await fetchEpisodeDiagnoses(activeEpisodeId) : [];
@@ -84,9 +91,11 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
         console.error("Error cargando diagnósticos:", err);
         setDiagnosesLoadFailed(true);
         toast.error("No se pudieron cargar los diagnósticos", { description: "Se van a dejar sin tocar al guardar — recargá la página para reintentar." });
+      } finally {
+        resetDirty();
       }
     })();
-  }, [open, patient, clinical, occupational, activeEpisodeId]);
+  }, [open, patient, clinical, occupational, activeEpisodeId, resetDirty]);
 
   const u = (field: string, value: string) => setForm((prev: any) => ({ ...prev, [field]: value }));
   const emptyToNull = (v: any) => v === "" || v === undefined ? null : v;
@@ -161,7 +170,8 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) guard(onClose); }}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar ficha</DialogTitle>
@@ -291,12 +301,14 @@ export function EditFichaDialog({ open, onClose, patient, clinical, occupational
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" onClick={() => guard(onClose)}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving || !form.first_name || !form.last_name || !form.dni}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar cambios"}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }

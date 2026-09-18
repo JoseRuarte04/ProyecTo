@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Trash2, Loader2 } from "lucide-react";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 const systemCategories = [
   "General", "Ocupación", "Deporte", "Protección articular", "Cuidado de piel",
@@ -24,6 +27,10 @@ export default function CategoryManager({
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [isDirty, resetDirty] = useDirtyDeps([newName]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeGuarded = () => guard(() => { setNewName(""); resetDirty(); onClose(); });
 
   const fetch = async () => {
     setLoading(true);
@@ -60,6 +67,7 @@ export default function CategoryManager({
     if (error) { toast.error("Error al crear categoría"); return; }
     toast.success("Categoría creada correctamente");
     setNewName("");
+    resetDirty();
     fetch();
     onChanged();
   };
@@ -76,7 +84,7 @@ export default function CategoryManager({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) closeGuarded(); }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Categorías personalizadas</DialogTitle>
@@ -143,6 +151,8 @@ export default function CategoryManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
     </>
   );
 }

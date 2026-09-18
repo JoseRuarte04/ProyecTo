@@ -10,6 +10,9 @@ import { Loader2, MapPin, Video } from "lucide-react";
 import { toast } from "sonner";
 import { createVideoRoom } from "@/lib/videoRoom";
 import { cn } from "@/lib/utils";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface Props {
   open: boolean;
@@ -29,6 +32,10 @@ export function NewPatientApptDialog({ open, onClose, patientId, userId, onSaved
     notes: "",
   });
 
+  const [isDirty, resetDirty] = useDirtyDeps([form]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const closeAndReset = () => { resetDirty(); onClose(); };
+
   const handleSave = async () => {
     if (!form.appointment_date) { toast.error("Ingresá fecha y hora"); return; }
     setSaving(true);
@@ -42,12 +49,14 @@ export function NewPatientApptDialog({ open, onClose, patientId, userId, onSaved
     setSaving(false);
     if (error) { toast.error("Error al crear turno"); return; }
     toast.success("Turno creado");
+    resetDirty();
     onSaved();
     onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) guard(closeAndReset); }}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Nuevo Turno</DialogTitle></DialogHeader>
         <div className="space-y-4">
@@ -105,7 +114,7 @@ export function NewPatientApptDialog({ open, onClose, patientId, userId, onSaved
             <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button variant="outline" onClick={() => guard(closeAndReset)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
             </Button>
@@ -113,5 +122,7 @@ export function NewPatientApptDialog({ open, onClose, patientId, userId, onSaved
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }

@@ -17,6 +17,9 @@ import { Loader2, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { EdemaCircometryTable, buildCircometriaPayload, normalizeCircometriaValue, isCircometriaFormat, isNewEdemaFormat, normalizeEdemaValue, EDEMA_POINTS, type CircometriaItem } from "@/components/clinical/EdemaCircometryTable";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 // --- Constants ---
 
@@ -123,6 +126,12 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
     posture: "", emotional_state: "", notes: "",
   });
 
+  const [isDirty, resetDirty] = useDirtyDeps([
+    painScore, gonioAromPre, gonioAromPost, gonioPromPre, gonioPromPost,
+    tests, edemaCircItems, dynMsdVals, dynMsiVals, form,
+  ]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+
   const u = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }));
   const painColor = painScore[0] <= 3 ? "text-emerald-600" : painScore[0] <= 6 ? "text-amber-500" : "text-red-600";
 
@@ -189,13 +198,17 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
     setSaving(false);
     if (error) { toast.error("Error al guardar la evaluación analítica"); return; }
     toast.success("Evaluación analítica registrada correctamente");
+    resetDirty();
     onSaved(); onClose();
   };
 
   const allSections = ["dolor", "edema", "movilidad", "fuerza", "sensibilidad", "pruebas", "trofico", "postura"];
+  const closeGuarded = () => guard(() => { resetDirty(); onClose(); });
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) closeGuarded(); }}>
+
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva Evaluación Analítica</DialogTitle>
@@ -544,11 +557,13 @@ export function NewAnalEvalDialog({ open, onClose, patientId, userId, onSaved }:
         </Accordion>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}</Button>
         </div>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }
 

@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Mail } from "lucide-react";
+import { useDirtyDeps } from "@/hooks/useDirtyDeps";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 interface Props {
   open: boolean;
@@ -23,11 +26,15 @@ export function InviteTherapistDialog({ open, onClose, onInvited }: Props) {
   const [saving, setSaving]       = useState(false);
   const [errors, setErrors]       = useState<Record<string, string>>({});
 
+  const [isDirty, resetDirty] = useDirtyDeps([email, fullName, specialty, license]);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+
   const reset = () => {
     setEmail(""); setFullName(""); setSpecialty(""); setLicense(""); setErrors({});
+    resetDirty();
   };
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => guard(() => { reset(); onClose(); });
 
   const handleInvite = async () => {
     const errs: Record<string, string> = {};
@@ -73,6 +80,7 @@ export function InviteTherapistDialog({ open, onClose, onInvited }: Props) {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -139,5 +147,7 @@ export function InviteTherapistDialog({ open, onClose, onInvited }: Props) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+    </>
   );
 }
