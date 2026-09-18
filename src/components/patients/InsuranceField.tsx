@@ -123,7 +123,14 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
     setAdding(false);
     if (error) {
       console.error("Error al agregar obra social:", error);
-      toast.error("No se pudo agregar la obra social", { description: error.message });
+      // 23505 = unique_violation (índice obras_sociales_name_lower_idx). Puede
+      // pasar si ya existe con otra capitalización y no apareció entre los
+      // primeros 10 resultados de la búsqueda que arma la sugerencia de "agregar".
+      if (error.code === "23505") {
+        toast.error("Esa obra social ya existe en el catálogo", { description: "Probá buscarla con otro término — puede tener mayúsculas/minúsculas distintas." });
+      } else {
+        toast.error("No se pudo agregar la obra social", { description: error.message });
+      }
       return;
     }
     toast.success(`"${data.name}" agregada al catálogo de obras sociales`);
