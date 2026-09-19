@@ -2223,6 +2223,7 @@ export type Database = {
       is_super_admin: { Args: never; Returns: boolean }
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
+      obra_social_usage_count: { Args: { p_name: string }; Returns: number }
       remove_team_member: {
         Args: { p_team_id: string; p_user_id: string }
         Returns: undefined
