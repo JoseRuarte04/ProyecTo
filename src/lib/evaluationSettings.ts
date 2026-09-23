@@ -1,3 +1,5 @@
+import { ClipboardList, BarChart2 } from "lucide-react";
+
 // Definición de las evaluaciones/escalas que se pueden activar o desactivar
 // por espacio de trabajo (personal o de equipo) — ver evaluation_settings en Supabase.
 export const EVALUATION_KEYS = [
@@ -32,10 +34,11 @@ export const EVALUATION_LABELS: Record<EvaluationKey, string> = {
   analitica_other: "Otros (estado trófico, postura, emotividad)",
 };
 
-export const EVALUATION_GROUPS: { step: string; keys: EvaluationKey[] }[] = [
-  { step: "Evaluación funcional", keys: ["barthel", "fim", "occupations", "performance_context"] },
+export const EVALUATION_GROUPS: { step: string; icon: typeof ClipboardList; keys: EvaluationKey[] }[] = [
+  { step: "Evaluación funcional", icon: ClipboardList, keys: ["barthel", "fim", "occupations", "performance_context"] },
   {
     step: "Evaluación analítica",
+    icon: BarChart2,
     keys: [
       "analitica_pain", "analitica_edema", "analitica_mobility", "analitica_muscle_strength",
       "analitica_sensitivity", "analitica_scar", "analitica_specific_tests", "analitica_other",
