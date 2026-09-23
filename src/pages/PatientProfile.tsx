@@ -365,20 +365,22 @@ export default function PatientProfile() {
 
           <div className="flex-1 overflow-y-auto p-7">
             <Tabs defaultValue="clinica" className="space-y-4">
-              <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 gap-0">
-                {[
-                  { value: "clinica", label: "Ficha Clínica" },
-                  { value: "sessions", label: "Sesiones" },
-                  { value: "evolucion", label: "Evolución" },
-                  { value: "evaluaciones", label: "Evaluaciones" },
-                  { value: "ejercicios", label: "Ejercicios" },
-                  { value: "archivos", label: "Archivos" },
-                ].map(tab => (
-                  <TabsTrigger key={tab.value} value={tab.value} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide">
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+              <div className="overflow-x-auto -mx-7 px-7">
+                <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 gap-0 w-max min-w-full">
+                  {[
+                    { value: "clinica", label: "Ficha Clínica" },
+                    { value: "sessions", label: "Sesiones" },
+                    { value: "evolucion", label: "Evolución" },
+                    { value: "evaluaciones", label: "Evaluaciones" },
+                    { value: "ejercicios", label: "Ejercicios" },
+                    { value: "archivos", label: "Archivos" },
+                  ].map(tab => (
+                    <TabsTrigger key={tab.value} value={tab.value} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide whitespace-nowrap shrink-0">
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
 
               <TabsContent value="clinica">
                 <FichaTab patient={patient} clinical={clinical} occupational={occupational} diagnoses={diagnoses} activeEpisode={activeEpisode ?? null} />

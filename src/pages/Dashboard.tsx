@@ -63,14 +63,26 @@ export default function Dashboard() {
 
       {/* Actions bar */}
       <div className="flex items-center gap-2.5">
-        <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => navigate("/patients")}>
+        <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shrink-0" onClick={() => navigate("/patients")}>
           <Plus className="h-4 w-4" /> Nueva sesión
         </Button>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate("/appointments")}>
-          <CalendarCheck className="h-4 w-4" /> Nuevo turno
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 shrink-0 sm:px-3 px-2.5"
+          onClick={() => navigate("/appointments")}
+          aria-label="Nuevo turno"
+        >
+          <CalendarCheck className="h-4 w-4" /> <span className="hidden sm:inline">Nuevo turno</span>
         </Button>
-        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={openCommandPalette}>
-          <Search className="h-4 w-4" /> Buscar
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2 text-muted-foreground shrink-0 sm:px-3 px-2.5"
+          onClick={openCommandPalette}
+          aria-label="Buscar"
+        >
+          <Search className="h-4 w-4" /> <span className="hidden sm:inline">Buscar</span>
           <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
             ⌘K
           </kbd>

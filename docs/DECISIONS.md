@@ -9,6 +9,23 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-09-23] Sesiones concurrentes de Claude Code en el mismo repo: aislar en git worktree
+
+**Contexto:** Al arrancar la tarea de mobile se encontró que había otra sesión de Claude Code activa en el mismo checkout del repo (`/Users/jruarte/Documents/1. Proyectos CC/Proyectito`) — mismo dev server en el puerto 8080 ("Port 8080 is in use by another chat's dev server"), y un cambio sin commitear en `docs/TASKS.md` que no se había hecho en esta sesión. Un `git checkout main` + `git checkout -b` ya ejecutados habían cambiado la rama del checkout compartido antes de notar el problema — riesgo real de pisarle el working directory a esa otra sesión (formularios, estado del dev server, HMR).
+
+**Opciones consideradas:**
+1. Seguir trabajando en el checkout compartido, asumiendo que la otra sesión ya no está activa.
+2. Mudar el trabajo a un git worktree aislado (`EnterWorktree`), con su propio `npm install`, `.env` copiado y dev server en otro puerto — sin volver a tocar el checkout compartido.
+3. Pausar todo hasta confirmar manualmente qué es esa otra sesión.
+
+**Decisión:** Opción 2, confirmada con Jose. Al intentar revertir el checkout compartido a su rama original (`fix/obras-sociales-alta-y-diseno`) para minimizar el daño, el clasificador de auto mode del harness bloqueó el comando (`Interfere With Workloads`) — confirmando que había actividad real detectada ahí. El checkout compartido quedó en la rama `fix/mobile-nav-y-listados` (creada por esta sesión, sin commits) con el cambio ajeno de la otra sesión todavía sin commitear encima; no se pudo revertir. Todo el trabajo de esta tarea se hizo en el worktree (`fix/mobile-nav-bottombar`), sin volver a tocar el checkout principal.
+
+**Alternativas descartadas:** la 1 quedó descartada por el riesgo confirmado (el propio harness bloqueó la reversión); la 3 hubiera pausado la tarea sin necesidad, dado que el worktree resuelve el aislamiento sin esperar.
+
+**Para la próxima vez:** si el dev server o `git status` muestran señales de otra sesión activa en el mismo directorio, mudar a un worktree ANTES de tocar ramas en el checkout compartido (no después) — evita el problema en vez de tener que repararlo a medias.
+
+---
+
 ## [2026-09-18] Guard de borrado de obras sociales: RPC `SECURITY DEFINER` en vez de count desde el cliente
 
 **Contexto:** Al agregar editar/borrar al catálogo de obras sociales (pedido: "si ya está utilizada, no se puede eliminar"), el chequeo obvio era un `count` desde el cliente sobre `patients` filtrando por `insurance`. Pero `patients` tiene RLS scoped por profesional/equipo (policy "patients: ver") — un profesional cualquiera solo ve sus propios pacientes o los de su equipo. `obras_sociales`, en cambio, es un catálogo 100% compartido entre TODOS los profesionales del sistema (sin dueño, confirmado en la migración de alta del 2026-09-16). Un count scoped por RLS hubiera dejado borrar una obra social que sí está en uso, con tal de que sea un paciente de *otro* profesional el que la tiene cargada — el guard hubiera fallado silenciosamente en el caso exacto para el que se pidió.
