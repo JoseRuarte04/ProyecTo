@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-18] Obras sociales: editar y borrar desde el catálogo
+- Nuevo diálogo `ObrasSocialesManager.tsx` (link "Administrar" en `InsuranceField`, visible en alta y Editar ficha): búsqueda, edición inline (nombre/nombre completo/tipo) y borrado.
+- Borrado guardado con un RPC `SECURITY DEFINER` nuevo (`obra_social_usage_count`) en vez de un count desde el cliente, porque `patients` tiene RLS por profesional/equipo y el catálogo es compartido por todos — ver `DECISIONS.md`.
+- 2 migraciones aplicadas (policies UPDATE/DELETE + el RPC) y `types.ts` regenerado. PR [#21](https://github.com/JoseRuarte04/ProyecTo/pull/21).
+
 ## [2026-09-18] Revisión, saneamiento y merge de los 6 PRs de Javito
 - Revisión encontró dos ramas apiladas (#15→#16→#17) y dos pares de trabajo duplicado (#13/#17, #14/#18). Confirmado contra Supabase real que dos migraciones ya estaban aplicadas en producción sin commit mergeado — blindadas con `IF NOT EXISTS`/`DROP...IF EXISTS` antes de mergear. Ver `DECISIONS.md`.
 - Rebaseadas #16 y #17 sobre `main` para que cada PR quedara solo con sus commits propios; agregado índice único case-insensitive en `obras_sociales.name` antes de mergear el alta de obra social nueva desde la UI.

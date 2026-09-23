@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Settings } from "lucide-react";
+import ObrasSocialesManager from "@/components/patients/ObrasSocialesManager";
 
 // Valor sentinela guardado en patients.insurance cuando el paciente no tiene
 // cobertura. Distinto de null (= dato no cargado) para estadísticas futuras.
@@ -17,6 +18,7 @@ export function InsuranceField({ value, onChange, placeholder, className }: {
 }) {
   const checkboxId = useId();
   const noInsurance = value === NO_INSURANCE;
+  const [managerOpen, setManagerOpen] = useState(false);
   return (
     <div className="space-y-2">
       {noInsurance ? (
@@ -24,16 +26,27 @@ export function InsuranceField({ value, onChange, placeholder, className }: {
       ) : (
         <ObrasSocialesAutocomplete value={value} onChange={onChange} placeholder={placeholder} className={className} />
       )}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id={checkboxId}
-          checked={noInsurance}
-          onCheckedChange={(checked) => onChange(checked ? NO_INSURANCE : "")}
-        />
-        <Label htmlFor={checkboxId} className="text-xs font-normal text-muted-foreground cursor-pointer">
-          No posee obra social
-        </Label>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id={checkboxId}
+            checked={noInsurance}
+            onCheckedChange={(checked) => onChange(checked ? NO_INSURANCE : "")}
+          />
+          <Label htmlFor={checkboxId} className="text-xs font-normal text-muted-foreground cursor-pointer">
+            No posee obra social
+          </Label>
+        </div>
+        <button
+          type="button"
+          onClick={() => setManagerOpen(true)}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Settings className="h-3 w-3" />
+          Administrar
+        </button>
       </div>
+      <ObrasSocialesManager open={managerOpen} onClose={() => setManagerOpen(false)} />
     </div>
   );
 }

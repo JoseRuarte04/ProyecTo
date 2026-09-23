@@ -9,6 +9,21 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-09-18] Guard de borrado de obras sociales: RPC `SECURITY DEFINER` en vez de count desde el cliente
+
+**Contexto:** Al agregar editar/borrar al catálogo de obras sociales (pedido: "si ya está utilizada, no se puede eliminar"), el chequeo obvio era un `count` desde el cliente sobre `patients` filtrando por `insurance`. Pero `patients` tiene RLS scoped por profesional/equipo (policy "patients: ver") — un profesional cualquiera solo ve sus propios pacientes o los de su equipo. `obras_sociales`, en cambio, es un catálogo 100% compartido entre TODOS los profesionales del sistema (sin dueño, confirmado en la migración de alta del 2026-09-16). Un count scoped por RLS hubiera dejado borrar una obra social que sí está en uso, con tal de que sea un paciente de *otro* profesional el que la tiene cargada — el guard hubiera fallado silenciosamente en el caso exacto para el que se pidió.
+
+**Opciones consideradas:**
+1. Count directo desde el cliente sobre `patients` (simple, pero con el hueco de RLS de arriba).
+2. RPC `SECURITY DEFINER` que hace el count bypaseando RLS, igual que `is_active_professional()` ya bypasea RLS sobre `profiles` para sus propios chequeos.
+3. No hacer guard scoped al sistema completo y aceptar el riesgo (documentarlo como limitación conocida).
+
+**Decisión:** Opción 2 — `obra_social_usage_count(p_name text)`, `SECURITY DEFINER`, `SET search_path TO public`, grant solo a `authenticated`. Se eligió sobre la opción 1 porque el pedido explícito era que el guard funcione de verdad, no una aproximación; y sobre la opción 3 porque el hueco no es un edge case raro — el producto ya tiene equipos con pacientes de distintos profesionales conviviendo en la misma base. Nota: `Exercises.tsx` tiene el mismo tipo de guard pero scoped por RLS (sin RPC) — no se tocó en esta sesión por estar fuera de alcance, pero es candidato a revisar con el mismo criterio si se prioriza (ver `TASKS.md`).
+
+**Alternativas descartadas:** ninguna especial — la 1 y la 3 quedaron descartadas por el motivo de arriba, no hubo otra opción evaluada en profundidad.
+
+---
+
 ## [2026-09-18] Migraciones aplicadas directo a producción sin commit mergeado — blindaje y orden de merge de los PRs de Javito
 
 **Contexto:** Al revisar los 6 PRs abiertos de Javito (#13-#18) aparecieron dos problemas
