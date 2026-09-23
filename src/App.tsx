@@ -29,6 +29,7 @@ const QuickDashPublicPage = lazy(() => import("./pages/QuickDashPublicPage"));
 const PlanPublicPage = lazy(() => import("./pages/PlanPublicPage"));
 const WorkspacePicker = lazy(() => import("./pages/WorkspacePicker"));
 const MiEquipo = lazy(() => import("./pages/MiEquipo"));
+const EvaluationSettings = lazy(() => import("./pages/EvaluationSettings"));
 const InvitationRegister = lazy(() => import("./pages/InvitationRegister"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -75,6 +76,7 @@ const App = () => (
                 <Route path="exercises" element={<Exercises />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="mi-equipo" element={<MiEquipo />} />
+                <Route path="evaluaciones" element={<EvaluationSettings />} />
               </Route>
               <Route path="/registro" element={<InvitationRegister />} />
               <Route path="/accept-invite" element={<AcceptInvite />} />
