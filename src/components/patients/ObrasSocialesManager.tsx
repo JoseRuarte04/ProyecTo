@@ -141,7 +141,7 @@ export default function ObrasSocialesManager({ open, onClose }: { open: boolean;
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No se encontraron obras sociales.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               {filtered.map((item) => (
                 <div key={item.id} className="rounded-md border border-border/50 px-3 py-2">
                   {editingId === item.id ? (
