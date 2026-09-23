@@ -3,6 +3,7 @@ import { es } from "date-fns/locale";
 import { ClipboardList, Stethoscope, User } from "lucide-react";
 import { maritalStatusLabel, educationLevelLabel } from "@/components/patients/occupationalOptions";
 import { sexLabel } from "@/components/patients/sexOptions";
+import { cn } from "@/lib/utils";
 
 interface Props {
   patient: any;
@@ -16,9 +17,9 @@ const Field = ({ label, value, full, showEmpty = false }: { label: string; value
   const isEmpty = value == null || value === "";
   if (isEmpty && !showEmpty) return null;
   return (
-    <div className={full ? "col-span-2" : ""}>
+    <div className={cn("min-w-0", full ? "col-span-2" : "")}>
       <p className="field-label mb-0.5">{label}</p>
-      <p className={`text-sm whitespace-pre-wrap ${isEmpty ? "text-muted-foreground" : "text-foreground"}`}>
+      <p className={`text-sm whitespace-pre-wrap break-words ${isEmpty ? "text-muted-foreground" : "text-foreground"}`}>
         {isEmpty ? "Sin registrar" : value}
       </p>
     </div>
