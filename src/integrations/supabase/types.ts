@@ -488,6 +488,36 @@ export type Database = {
           },
         ]
       }
+      evaluation_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          evaluation_key: string
+          id: string
+          owner_id: string
+          owner_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          evaluation_key: string
+          id?: string
+          owner_id: string
+          owner_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          evaluation_key?: string
+          id?: string
+          owner_id?: string
+          owner_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exercise_body_regions: {
         Row: {
           created_at: string
