@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-23] Mobile: barra de navegación inferior + listados/tabs responsive
+- El sidebar en mobile pasa de hamburger + drawer a una barra inferior fija (`AppBottomNav.tsx`); "Más" agrupa perfil, workspace, Mi equipo y logout.
+- Corregidos dos overflows de página completa a 375px (listado de Pacientes, tabs de ficha) y el wrap de campos largos en Ficha Clínica.
+- Fila de acciones del Dashboard y vista por defecto de Turnos ajustadas a mobile. PR [#23](https://github.com/JoseRuarte04/ProyecTo/pull/23).
+
 ## [2026-09-18] Obras sociales: editar y borrar desde el catálogo
 - Nuevo diálogo `ObrasSocialesManager.tsx` (link "Administrar" en `InsuranceField`, visible en alta y Editar ficha): búsqueda, edición inline (nombre/nombre completo/tipo) y borrado.
 - Borrado guardado con un RPC `SECURITY DEFINER` nuevo (`obra_social_usage_count`) en vez de un count desde el cliente, porque `patients` tiene RLS por profesional/equipo y el catálogo es compartido por todos — ver `DECISIONS.md`.
