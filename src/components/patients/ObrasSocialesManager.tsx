@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Pencil, Trash2, Loader2, Check, X, Search } from "lucide-react";
+import { Pencil, Trash2, Loader2, Check, X, Search, Plus } from "lucide-react";
 
 type ObraSocial = { id: number; name: string; full_name: string | null; type: string | null };
 
@@ -29,6 +29,11 @@ export default function ObrasSocialesManager({ open, onClose }: { open: boolean;
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ObraSocial | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newFullName, setNewFullName] = useState("");
+  const [newType, setNewType] = useState<string>("sindical");
+  const [savingNew, setSavingNew] = useState(false);
 
   const fetch = async () => {
     setLoading(true);
@@ -99,6 +104,39 @@ export default function ObrasSocialesManager({ open, onClose }: { open: boolean;
     fetch();
   };
 
+  const startCreate = () => {
+    setAddingNew(true);
+    setNewName("");
+    setNewFullName("");
+    setNewType("sindical");
+  };
+
+  const cancelCreate = () => setAddingNew(false);
+
+  const saveCreate = async () => {
+    const trimmedName = newName.trim();
+    if (!trimmedName) { toast.error("El nombre no puede estar vacío"); return; }
+    setSavingNew(true);
+    const { error } = await supabase.from("obras_sociales").insert({
+      name: trimmedName,
+      full_name: newFullName.trim() || null,
+      type: newType === "otras" ? null : newType,
+    });
+    setSavingNew(false);
+    if (error) {
+      console.error("Error al agregar obra social:", error);
+      if (error.code === "23505") {
+        toast.error("Ya existe una obra social con ese nombre");
+      } else {
+        toast.error("No se pudo agregar la obra social", { description: error.message });
+      }
+      return;
+    }
+    toast.success(`"${trimmedName}" agregada al catálogo`);
+    setAddingNew(false);
+    fetch();
+  };
+
   const handleDeleteClick = async (item: ObraSocial) => {
     const { data, error } = await supabase.rpc("obra_social_usage_count", { p_name: item.name });
     if (error) {
@@ -124,24 +162,54 @@ export default function ObrasSocialesManager({ open, onClose }: { open: boolean;
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(v) => { if (!v) { setEditingId(null); onClose(); } }}>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) { setEditingId(null); setAddingNew(false); onClose(); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Obras sociales</DialogTitle>
-            <DialogDescription>Catálogo compartido entre todos los profesionales. Editá o eliminá las que hagan falta.</DialogDescription>
+            <DialogDescription>Catálogo compartido entre todos los profesionales. Agregá, editá o eliminá las que hagan falta.</DialogDescription>
           </DialogHeader>
 
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar…" className="pl-8" />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar…" className="pl-8" />
+            </div>
+            <Button type="button" size="sm" variant="outline" className="shrink-0 gap-1" onClick={startCreate} disabled={addingNew}>
+              <Plus className="h-3.5 w-3.5" />
+              Agregar
+            </Button>
           </div>
+
+          {addingNew && (
+            <div className="rounded-md border border-primary/30 bg-muted/30 px-3 py-2 space-y-2">
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nombre (sigla)" autoFocus />
+              <Input value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder="Nombre completo (opcional)" />
+              <div className="flex items-center gap-2">
+                <Select value={newType} onValueChange={setNewType}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sindical">Sindical</SelectItem>
+                    <SelectItem value="prepaga">Prepaga</SelectItem>
+                    <SelectItem value="otras">Otras</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex-1" />
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={cancelCreate} disabled={savingNew}>
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button size="sm" className="h-8 w-8 p-0" onClick={saveCreate} disabled={savingNew}>
+                  {savingNew ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">No se encontraron obras sociales.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               {filtered.map((item) => (
                 <div key={item.id} className="rounded-md border border-border/50 px-3 py-2">
                   {editingId === item.id ? (
