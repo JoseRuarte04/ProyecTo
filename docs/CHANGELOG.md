@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-23] Evaluaciones: activar/desactivar escalas por espacio de trabajo
+- Tabla nueva `evaluation_settings` (RLS: personal por `auth.uid()`, equipo editable solo por admins) + página `/evaluaciones` y botón nuevo en el sidebar, para elegir qué escalas del wizard de sesiones se muestran (Barthel, FIM, Ocupaciones, Contexto de desempeño, y las 8 sub-secciones de Eval. analítica).
+- El wizard oculta lo deshabilitado solo al crear una sesión nueva; al editar una ya guardada se muestra todo igual, porque no hay estado "borrador" server-side en este modelo. Ver `DECISIONS.md`.
+- Verificado en el navegador contra Supabase real con el usuario de prueba RLS. PR [#24](https://github.com/JoseRuarte04/ProyecTo/pull/24).
+
 ## [2026-09-18] Obras sociales: editar y borrar desde el catálogo
 - Nuevo diálogo `ObrasSocialesManager.tsx` (link "Administrar" en `InsuranceField`, visible en alta y Editar ficha): búsqueda, edición inline (nombre/nombre completo/tipo) y borrado.
 - Borrado guardado con un RPC `SECURITY DEFINER` nuevo (`obra_social_usage_count`) en vez de un count desde el cliente, porque `patients` tiene RLS por profesional/equipo y el catálogo es compartido por todos — ver `DECISIONS.md`.

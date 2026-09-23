@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut, Users2, User, Building2, ChevronsUpDown } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut, Users2, User, Building2, ChevronsUpDown, Settings } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -46,9 +46,13 @@ export function AppSidebar() {
   const isTeamMode = workspace.type === "team";
   const isTeamAdmin = isTeamMode && (workspace as { type: "team"; isAdmin: boolean }).isAdmin;
 
+  // "Configuraciones" siempre visible en workspace personal (cada uno
+  // configura el propio); en workspace de equipo solo para el admin (hoy
+  // solo agrupa Evaluaciones, que es config compartida en modo equipo).
   const navItems = [
     ...baseNavItems,
     ...(isTeamAdmin ? [{ title: "Mi equipo", url: "/mi-equipo", icon: Users2 }] : []),
+    ...(!isTeamMode || isTeamAdmin ? [{ title: "Configuraciones", url: "/configuraciones", icon: Settings }] : []),
   ];
 
   const handleSetWorkspace = (ws: { type: "personal" } | { type: "team"; teamId: string }) => {
