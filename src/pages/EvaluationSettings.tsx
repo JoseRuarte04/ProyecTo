@@ -1,4 +1,5 @@
-import { Loader2, User, Building2 } from "lucide-react";
+import { Loader2, User, Building2, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/PageHeader";
@@ -7,6 +8,7 @@ import { useEvaluationSettings } from "@/hooks/useEvaluationSettings";
 import { EVALUATION_GROUPS, EVALUATION_LABELS } from "@/lib/evaluationSettings";
 
 export default function EvaluationSettings() {
+  const navigate = useNavigate();
   const { workspace } = useWorkspace();
   const { settings, loading, canEdit, setEnabled, ownerLabel } = useEvaluationSettings();
 
@@ -22,6 +24,13 @@ export default function EvaluationSettings() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <button
+        onClick={() => navigate("/configuraciones")}
+        className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" /> Configuraciones
+      </button>
+
       <PageHeader
         title="Evaluaciones"
         subtitle="Elegí qué escalas ves al crear una sesión nueva."
