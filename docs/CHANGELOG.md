@@ -12,7 +12,8 @@ Formato: `## [YYYY-MM-DD] Título corto`
 ## [2026-09-30] Ajustes de alta, perfil ocupacional y wizard de sesión (PR #25)
 - 6 cambios pedidos por Jose: nombre preferido en el alta, reorden de Perfil ocupacional, Dolor "EVA"→"END", título + Barthel/FIM/QuickDASH agrupados al final de Eval. funcional, renombrado Intervenciones→Evolución con campo Objetivo nuevo (se elimina el step Evolución viejo), y QuickDASH integrado al wizard pasando de ser por episodio a ser por sesión.
 - 3 migraciones aplicadas contra Supabase real. Verificado de punta a punta en el navegador con el usuario de prueba, incluyendo el flujo completo del link de QuickDASH simulando al paciente.
-- PR: [#25](https://github.com/JoseRuarte04/ProyecTo/pull/25) (abierto, pendiente de review).
+- Sumado después: menú "..." en el historial de sesiones para generar el link de QuickDASH sin entrar a editar.
+- PR: [#25](https://github.com/JoseRuarte04/ProyecTo/pull/25) (mergeado, deploy a producción verificado).
 
 ## [2026-09-30] Merge de los 3 PRs abiertos de Javito (#22, #23, #24) + blindaje de migración
 - Analizados #22/#23/#24 con `gh` y Supabase real — sin el problema grave de septiembre (ramas apiladas/duplicados), solo un choque menor: #22 y #23 arreglaron el mismo bug de overflow (`min-w-0`) en paralelo sin saberlo (dos sesiones corriendo la misma noche).
