@@ -6,7 +6,7 @@ import { differenceInYears, differenceInCalendarDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { toast } from "sonner";
-import { emptyFim, emptyBarthel, calcFimTotal, calcBarthelTotal } from "@/components/evaluations/FunctionalScales";
+import { emptyFim, emptyBarthel, calcFimTotal, calcBarthelTotal, emptyQuickDash, calcQuickDashPartial } from "@/components/evaluations/FunctionalScales";
 import { emptyPerformanceContext, type PerformanceContextValues } from "@/components/evaluations/performanceContextTypes";
 import type { IndependenceLevel } from "@/components/evaluations/occupationsTaxonomy";
 import { buildCircometriaPayload, normalizeCircometriaValue, isCircometriaFormat, type CircometriaItem } from "@/components/clinical/EdemaCircometryTable";
@@ -23,7 +23,6 @@ import { DatosStep } from "@/components/session/steps/DatosStep";
 import { FichaClinicaStep } from "@/components/session/steps/FichaClinicaStep";
 import { PerfilOcupacionalStep } from "@/components/session/steps/PerfilOcupacionalStep";
 import { FuncionalStep } from "@/components/session/steps/FuncionalStep";
-import { EvolucionStep } from "@/components/session/steps/EvolucionStep";
 import { AnaliticaStep } from "@/components/session/steps/AnaliticaStep";
 import { CierreStep } from "@/components/session/steps/CierreStep";
 
@@ -62,10 +61,7 @@ export default function SessionForm() {
   const [session_number, setSessionNumber] = useState("");
   const [week_at_session, setWeekAtSession] = useState("");
   const [general_observations, setGeneralObservations] = useState("");
-  const [symptom_changes, setSymptomChanges] = useState("");
-  const [clinical_changes, setClinicalChanges] = useState("");
   const [discharge_summary, setDischargeSummary] = useState("");
-  const [avd_followup, setAvdFollowup] = useState("");
 
   // Functional eval
   const [occupations_items, setOccupationsItems] = useState<Record<string, IndependenceLevel>>({});
@@ -75,6 +71,7 @@ export default function SessionForm() {
     setPerformanceContextState((prev) => ({ ...prev, [field]: value }));
   const [fim_items, setFimItems] = useState<Record<string, number | null>>(emptyFim());
   const [barthel_items, setBarthelItems] = useState<Record<string, number | null>>(emptyBarthel());
+  const [quickdash_items, setQuickdashItems] = useState<(number | null)[]>(emptyQuickDash());
 
   const isAdmission = session_type === "admission";
 
@@ -175,6 +172,7 @@ export default function SessionForm() {
   const [emotional_state, setEmotionalState] = useState("");
 
   // Cierre
+  const [session_goals, setSessionGoals] = useState("");
   const [interventions, setInterventions] = useState("");
   const [home_instructions_sent, setHomeInstructionsSent] = useState("");
   const [notes, setNotes] = useState("");
@@ -188,8 +186,8 @@ export default function SessionForm() {
   const initialSnapshotRef = useRef<string | null>(null);
   latestStateRef.current = {
     session_date, session_type, session_number, week_at_session,
-    general_observations, symptom_changes, clinical_changes, discharge_summary, avd_followup,
-    occupations_items, occupations_notes, performance_context, fim_items, barthel_items,
+    general_observations, discharge_summary,
+    occupations_items, occupations_notes, performance_context, fim_items, barthel_items, quickdash_items,
     cli_diagnoses, cli_doctor_name, cli_injury_date, cli_surgery_date, cli_injury_mechanism,
     cli_treatment_type, cli_immob_weeks, cli_immob_days, cli_immob_type, cli_medical_history, cli_pharma, cli_studies,
     occ_dominance, occ_marital_status, occ_education_level, occ_support_network, occ_job,
@@ -209,7 +207,7 @@ export default function SessionForm() {
     scar_flexibilidad, scar_sensibilidad, scar_relieve, scar_temperatura, scar_observaciones,
     vss_pigmentacion, vss_vascularizacion, vss_flexibilidad, vss_altura,
     posture, emotional_state,
-    interventions, home_instructions_sent, notes,
+    session_goals, interventions, home_instructions_sent, notes,
     currentStep,
   };
 
@@ -249,15 +247,13 @@ export default function SessionForm() {
         if (d.session_number !== undefined) setSessionNumber(d.session_number);
         if (d.week_at_session !== undefined) setWeekAtSession(d.week_at_session);
         if (d.general_observations !== undefined) setGeneralObservations(d.general_observations);
-        if (d.symptom_changes !== undefined) setSymptomChanges(d.symptom_changes);
-        if (d.clinical_changes !== undefined) setClinicalChanges(d.clinical_changes);
         if (d.discharge_summary !== undefined) setDischargeSummary(d.discharge_summary);
-        if (d.avd_followup !== undefined) setAvdFollowup(d.avd_followup);
         if (d.occupations_items !== undefined) setOccupationsItems(d.occupations_items);
         if (d.occupations_notes !== undefined) setOccupationsNotes(d.occupations_notes);
         if (d.performance_context !== undefined) setPerformanceContextState(d.performance_context);
         if (d.fim_items !== undefined) setFimItems(d.fim_items);
         if (d.barthel_items !== undefined) setBarthelItems(d.barthel_items);
+        if (d.quickdash_items !== undefined) setQuickdashItems(d.quickdash_items);
         if (d.cli_diagnoses !== undefined) setCliDiagnoses(d.cli_diagnoses);
         else if (d.cli_diagnosis) setCliDiagnoses([{ code: null, label: d.cli_diagnosis }]); // draft viejo
         if (d.cli_doctor_name !== undefined) setCliDoctorName(d.cli_doctor_name);
@@ -328,6 +324,7 @@ export default function SessionForm() {
         if (d.vss_altura !== undefined) setVssAltura(d.vss_altura);
         if (d.posture !== undefined) setPosture(d.posture);
         if (d.emotional_state !== undefined) setEmotionalState(d.emotional_state);
+        if (d.session_goals !== undefined) setSessionGoals(d.session_goals);
         if (d.interventions !== undefined) setInterventions(d.interventions);
         if (d.home_instructions_sent !== undefined) setHomeInstructionsSent(d.home_instructions_sent);
         if (d.notes !== undefined) setNotes(d.notes);
@@ -368,9 +365,7 @@ export default function SessionForm() {
         setSessionNumber(s.session_number != null ? String(s.session_number) : "");
         setWeekAtSession(s.week_at_session != null ? String(s.week_at_session) : "");
         setGeneralObservations(s.general_observations || "");
-        setSymptomChanges(s.symptom_changes || "");
-        setClinicalChanges(s.clinical_changes || "");
-        setAvdFollowup(s.avd_followup || "");
+        setSessionGoals(s.session_goals || "");
         setInterventions(s.interventions || "");
         setHomeInstructionsSent(s.home_instructions_sent || "");
         setNotes(s.notes || "");
@@ -396,6 +391,7 @@ export default function SessionForm() {
           });
           if (fe.fim_items && typeof fe.fim_items === "object") setFimItems(fe.fim_items as any);
           if (fe.barthel_items && typeof fe.barthel_items === "object") setBarthelItems(fe.barthel_items as any);
+          if (fe.quickdash_items && Array.isArray(fe.quickdash_items)) setQuickdashItems(fe.quickdash_items as any);
         }
 
         const ae = analRes.data;
@@ -749,8 +745,8 @@ export default function SessionForm() {
       session_date, session_type: session_type || null,
       session_number: session_number ? parseInt(session_number) : null,
       week_at_session: week_at_session ? parseInt(week_at_session) : null,
-      general_observations: generalObsFinal, symptom_changes: symptom_changes || null,
-      clinical_changes: clinical_changes || null, avd_followup: avd_followup || null,
+      general_observations: generalObsFinal,
+      session_goals: session_goals || null,
       interventions: interventions || null, home_instructions_sent: home_instructions_sent || null, notes: notes || null,
     } as any;
 
@@ -809,9 +805,10 @@ export default function SessionForm() {
 
     const fim_answered = Object.values(fim_items).some((v) => v !== null);
     const barthel_answered = Object.values(barthel_items).some((v) => v !== null);
+    const quickdash_answered = quickdash_items.some((v) => v !== null);
     const occupations_answered = Object.keys(occupations_items).length > 0;
     const performance_context_answered = Object.values(performance_context).some((v) => v.trim());
-    const hasFunctionalData = showFunctional && (occupations_answered || occupations_notes.trim() !== "" || performance_context_answered || fim_answered || barthel_answered);
+    const hasFunctionalData = showFunctional && (occupations_answered || occupations_notes.trim() !== "" || performance_context_answered || fim_answered || barthel_answered || quickdash_answered);
     const functionalPayload = {
       patient_id: patientId!, professional_id: user.id, episode_id: activeEpisodeId, session_id: session.id,
       evaluation_date: session_date,
@@ -831,6 +828,10 @@ export default function SessionForm() {
       client_factor_body_structures: performance_context.client_factor_body_structures.trim() || null,
       fim_items: fim_answered ? (fim_items as any) : null, fim_score: fim_answered ? calcFimTotal(fim_items) : null,
       barthel_items: barthel_answered ? (barthel_items as any) : null, barthel_score: barthel_answered ? calcBarthelTotal(barthel_items) : null,
+      // Si el profesional no tocó QuickDASH en el wizard, no mandamos estas
+      // claves: así no pisamos un resultado que el paciente haya completado
+      // por link mientras la sesión seguía abierta (ver create_quickdash_token).
+      ...(quickdash_answered ? { quickdash_items: quickdash_items as any, quickdash_score: calcQuickDashPartial(quickdash_items) } : {}),
     } as any;
     if (editingFuncEval) {
       const { error: feErr } = await supabase.from("functional_evaluations").update(functionalPayload).eq("id", editingFuncEval.id);
@@ -928,15 +929,14 @@ export default function SessionForm() {
     "sec-datos": !!session_date,
     "sec-ficha": cli_diagnoses.length > 0,
     "sec-ocupacional": !!(occ_job || occ_dominance),
-    "sec-funcional": showFunctional && (Object.values(fim_items).some(v => v !== null) || Object.values(barthel_items).some(v => v !== null)),
-    "sec-evolucion": !!general_observations,
+    "sec-funcional": showFunctional && (Object.values(fim_items).some(v => v !== null) || Object.values(barthel_items).some(v => v !== null) || quickdash_items.some(v => v !== null)),
     "sec-analitica": show_measurements && (
       pains.some((p) => p.localizacion || p.aparicion || p.caracteristicas || p.observaciones || p.evaTouched) ||
       !!(edema_obs || godet_test || edema_circ_items.length > 0) ||
       !!(kapandji_val || fist_closure || mobility_observations) || hasGonioValues(all_pre_gonio) || hasGonioValues(all_prom_pre_gonio) ||
       !!(dyn_msd_vals.some(Boolean) || dyn_msi_vals.some(Boolean) || danielsRows.some((r) => r.muscle || r.grade))
     ),
-    "sec-intervenciones": !!interventions,
+    "sec-intervenciones": !!(session_goals || interventions),
     "sec-notas": !!(notes || home_instructions_sent),
   };
 
@@ -1078,18 +1078,10 @@ export default function SessionForm() {
                 performance_context={performance_context} setPerformanceContext={setPerformanceContext}
                 fim_items={fim_items} setFimItems={setFimItems}
                 barthel_items={barthel_items} setBarthelItems={setBarthelItems}
+                quickdash_items={quickdash_items} setQuickdashItems={setQuickdashItems}
                 showEval={showEval}
-              />
-            )}
-
-            {!isAdmission && currentSections.includes("sec-evolucion") && (
-              <EvolucionStep
-                general_observations={general_observations} setGeneralObservations={setGeneralObservations}
-                symptom_changes={symptom_changes} setSymptomChanges={setSymptomChanges}
-                clinical_changes={clinical_changes} setClinicalChanges={setClinicalChanges}
-                avd_followup={avd_followup} setAvdFollowup={setAvdFollowup}
-                session_number={session_number}
-                week_at_session={week_at_session}
+                sessionId={sessionId ?? null}
+                patientId={patientId!}
               />
             )}
 
@@ -1097,6 +1089,7 @@ export default function SessionForm() {
 
             {(currentSections.includes("sec-intervenciones") || currentSections.includes("sec-notas")) && (
               <CierreStep
+                session_goals={session_goals} setSessionGoals={setSessionGoals}
                 interventions={interventions} setInterventions={setInterventions}
                 home_instructions_sent={home_instructions_sent} setHomeInstructionsSent={setHomeInstructionsSent}
                 notes={notes} setNotes={setNotes}

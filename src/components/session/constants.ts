@@ -1,4 +1,4 @@
-import { Calendar, FileText, BarChart2, ClipboardList, MessageSquare, Briefcase, Stethoscope } from "lucide-react";
+import { Calendar, BarChart2, ClipboardList, MessageSquare, Briefcase, Stethoscope } from "lucide-react";
 import type { PainEntry } from "./types";
 
 export type StepDef = { id: string; label: string; icon: React.ComponentType<{ className?: string }>; sections: string[] };
@@ -9,15 +9,14 @@ export const STEPS_ADMISSION: StepDef[] = [
   { id: "step-ocupacional", label: "Perfil ocupacional",     icon: Briefcase,     sections: ["sec-ocupacional"] },
   { id: "step-funcional",   label: "Eval. funcional",        icon: ClipboardList, sections: ["sec-funcional"] },
   { id: "step-analitica",   label: "Eval. analítica",        icon: BarChart2,     sections: ["sec-analitica"] },
-  { id: "step-cierre",      label: "Intervenciones y notas", icon: MessageSquare, sections: ["sec-intervenciones", "sec-notas"] },
+  { id: "step-cierre",      label: "Evolución y notas",      icon: MessageSquare, sections: ["sec-intervenciones", "sec-notas"] },
 ];
 
 export const STEPS_SESSION: StepDef[] = [
   { id: "step-datos",       label: "Datos",                  icon: Calendar,      sections: ["sec-datos"] },
   { id: "step-funcional",   label: "Eval. funcional",        icon: ClipboardList, sections: ["sec-funcional"] },
-  { id: "step-evolucion",   label: "Evolución",              icon: FileText,      sections: ["sec-evolucion"] },
   { id: "step-analitica",   label: "Eval. analítica",        icon: BarChart2,     sections: ["sec-analitica"] },
-  { id: "step-cierre",      label: "Intervenciones y notas", icon: MessageSquare, sections: ["sec-intervenciones", "sec-notas"] },
+  { id: "step-cierre",      label: "Evolución y notas",      icon: MessageSquare, sections: ["sec-intervenciones", "sec-notas"] },
 ];
 
 export const GONIO_PARTS = {

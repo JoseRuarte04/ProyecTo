@@ -45,7 +45,7 @@ export function AlertasClinicas({ alerts, edema, force }: AlertasClinicasProps) 
     activeAlerts.push({
       severity: "red",
       icon: <AlertTriangle className="h-4 w-4" />,
-      title: "Dolor elevado (EVA ≥ 7)",
+      title: "Dolor elevado (END ≥ 7)",
       description: "Nivel de dolor crítico. Revisar causa antes de continuar con el plan.",
     });
   }
@@ -54,7 +54,7 @@ export function AlertasClinicas({ alerts, edema, force }: AlertasClinicasProps) 
     activeAlerts.push({
       severity: "yellow",
       icon: <TrendingUp className="h-4 w-4" />,
-      title: "EVA sin descenso en 3 sesiones",
+      title: "END sin descenso en 3 sesiones",
       description: "El dolor no mejoró en las últimas 3 evaluaciones consecutivas. Revisar plan de tratamiento.",
     });
   }

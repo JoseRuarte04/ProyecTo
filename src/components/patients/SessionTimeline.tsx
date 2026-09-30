@@ -4,9 +4,13 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Edit, Trash2, ChevronDown, ClipboardList, Activity } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
+import { MoreVertical, Edit, Trash2, ChevronDown, ClipboardList, Activity, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { EDEMA_POINTS, isNewEdemaFormat, normalizeEdemaValue, isCircometriaFormat, normalizeCircometriaValue } from "@/components/clinical/EdemaCircometryTable";
+import { useEvaluationSettings } from "@/hooks/useEvaluationSettings";
+import { QuickDashPatientLink } from "@/components/evaluations/QuickDashPatientLink";
 
 const FINGER_LABELS: Record<string, string> = {
   thumb: "Pulgar", index: "Índice", middle: "Medio", ring: "Anular", pinky: "Meñique",
@@ -53,6 +57,8 @@ export function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onD
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deleteSession, setDeleteSession] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
+  const [quickdashFor, setQuickdashFor] = useState<string | null>(null);
+  const { settings: evalSettings } = useEvaluationSettings();
 
   const typeLabel: Record<string, string> = { admission: "Admisión", follow_up: "Seguimiento", discharge: "Alta" };
   const typeColor: Record<string, string> = {
@@ -134,15 +140,39 @@ export function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onD
                     {s.week_at_session != null && <span className="text-[11px] text-muted-foreground">· Semana {s.week_at_session} POP/PL</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1" onClick={(ev) => ev.stopPropagation()}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/patients/${patientId}/sessions/${s.id}/edit`)} aria-label="Editar sesión">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  {s.session_type !== "admission" && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteSession(s)} aria-label="Eliminar sesión">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+                <div onClick={(ev) => ev.stopPropagation()}>
+                  <Popover open={quickdashFor === s.id} onOpenChange={(open) => !open && setQuickdashFor(null)}>
+                    <PopoverAnchor asChild>
+                      <div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Acciones de la sesión">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48" onCloseAutoFocus={(e) => e.preventDefault()}>
+                            <DropdownMenuItem onClick={() => navigate(`/patients/${patientId}/sessions/${s.id}/edit`)}>
+                              <Edit className="h-4 w-4 mr-2" /> Editar sesión
+                            </DropdownMenuItem>
+                            {evalSettings.quickdash && (
+                              <DropdownMenuItem onClick={() => setQuickdashFor(s.id)}>
+                                <Link2 className="h-4 w-4 mr-2" /> Generar QuickDASH
+                              </DropdownMenuItem>
+                            )}
+                            {s.session_type !== "admission" && (
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteSession(s)}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar sesión
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </PopoverAnchor>
+                    <PopoverContent align="end" className="w-80 space-y-2" onFocusOutside={(e) => e.preventDefault()}>
+                      <p className="text-sm font-medium text-foreground">Enviar QuickDASH al paciente</p>
+                      <QuickDashPatientLink sessionId={s.id} patientId={patientId} />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className={`transition-transform ${isOpen ? "rotate-180" : ""}`}>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />

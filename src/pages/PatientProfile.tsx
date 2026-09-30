@@ -37,7 +37,6 @@ export default function PatientProfile() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [funcEvals, setFuncEvals] = useState<any[]>([]);
   const [analEvals, setAnalEvals] = useState<any[]>([]);
-  const [quickdashTokens, setQuickdashTokens] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [clinicalFiles, setClinicalFiles] = useState<any[]>([]);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
@@ -110,28 +109,26 @@ export default function PatientProfile() {
       }
       setClinical(c.data); setSessions(s.data || []); setFuncEvals(fe.data || []);
       setAnalEvals(ae.data || []); setAppointments(ap.data || []);
-      setQuickdashTokens([]); setDiagnoses([]);
+      setDiagnoses([]);
       const files = cf.data || []; setClinicalFiles(files); setLoading(false); fetchSignedUrls(files);
       return;
     }
 
-    const [c, s, fe, ae, cf, ap, qt] = await Promise.all([
+    const [c, s, fe, ae, cf, ap] = await Promise.all([
       supabase.from("patient_clinical_records").select("*").eq("patient_id", id).eq("episode_id", episodeId).maybeSingle(),
       supabase.from("therapy_sessions").select("*").eq("patient_id", id).eq("episode_id", episodeId).eq("is_deleted", false).order("session_date", { ascending: false }),
       supabase.from("functional_evaluations").select("*").eq("patient_id", id).eq("episode_id", episodeId).order("evaluation_date", { ascending: false }),
       supabase.from("analytical_evaluations").select("*").eq("patient_id", id).eq("episode_id", episodeId).order("evaluation_date", { ascending: false }),
       supabase.from("clinical_files").select("*").eq("patient_id", id).eq("is_deleted", false).order("photo_date", { ascending: false }),
       apptPromise,
-      supabase.from("quickdash_tokens").select("completed_at, result").eq("episode_id", episodeId).not("result", "is", null).order("completed_at", { ascending: true }),
     ]);
-    const epErrors = [c.error, s.error, fe.error, ae.error, cf.error, ap.error, qt.error].filter(Boolean);
+    const epErrors = [c.error, s.error, fe.error, ae.error, cf.error, ap.error].filter(Boolean);
     if (epErrors.length > 0) {
       console.error("Error cargando datos del episodio:", epErrors);
       toast.error("No se pudieron cargar algunos datos de la ficha", { description: "Probá recargar la página." });
     }
     setClinical(c.data); setSessions(s.data || []); setFuncEvals(fe.data || []);
     setAnalEvals(ae.data || []); setAppointments(ap.data || []);
-    setQuickdashTokens(qt.data || []);
     setDiagnoses(await fetchEpisodeDiagnoses(episodeId));
     const files = cf.data || []; setClinicalFiles(files); setLoading(false); fetchSignedUrls(files);
   };
@@ -178,7 +175,10 @@ export default function PatientProfile() {
               <div className="flex items-start justify-between gap-2">
                 <h1 className="leading-tight">
                   <span className="font-serif text-[22px] font-semibold text-foreground block tracking-tight">{patient.last_name}</span>
-                  <span className="text-base text-foreground/60 font-normal">{patient.first_name}</span>
+                  <span className="text-base text-foreground/60 font-normal">
+                    {patient.first_name}
+                    {patient.preferred_name && ` "${patient.preferred_name}"`}
+                  </span>
                 </h1>
                 <Button
                   variant="ghost"
@@ -391,11 +391,11 @@ export default function PatientProfile() {
               </TabsContent>
 
               <TabsContent value="evolucion">
-                <EvolucionTab analEvals={analEvals} funcEvals={funcEvals} sessions={sessions} episode={activeEpisode ?? null} patientId={id!} quickdashTokens={quickdashTokens} />
+                <EvolucionTab analEvals={analEvals} funcEvals={funcEvals} sessions={sessions} episode={activeEpisode ?? null} patientId={id!} />
               </TabsContent>
 
               <TabsContent value="evaluaciones">
-                <EvaluacionesTab funcEvals={funcEvals} analEvals={analEvals} patientId={id!} activeEpisodeId={activeEpisodeId} onNewFuncEval={() => setShowNewFuncEval(true)} />
+                <EvaluacionesTab funcEvals={funcEvals} analEvals={analEvals} patientId={id!} onNewFuncEval={() => setShowNewFuncEval(true)} />
               </TabsContent>
 
               <TabsContent value="ejercicios">

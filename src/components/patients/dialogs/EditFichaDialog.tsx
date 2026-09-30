@@ -42,6 +42,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
     setForm({
       first_name: patient?.first_name || "",
       last_name: patient?.last_name || "",
+      preferred_name: patient?.preferred_name || "",
       document_type: patient?.document_type || DEFAULT_DOCUMENT_TYPE,
       dni: patient?.dni || "",
       birth_date: patient?.birth_date || "",
@@ -87,6 +88,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
 
     const patientPayload = {
       first_name: form.first_name, last_name: form.last_name,
+      preferred_name: emptyToNull(form.preferred_name),
       document_type: form.document_type || DEFAULT_DOCUMENT_TYPE, dni: form.dni,
       birth_date: emptyToNull(form.birth_date), gender: emptyToNull(form.gender),
       nationality: emptyToNull(form.nationality),
@@ -144,6 +146,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><Label>Nombre</Label><Input value={form.first_name || ""} onChange={(e) => u("first_name", e.target.value)} /></div>
               <div><Label>Apellido</Label><Input value={form.last_name || ""} onChange={(e) => u("last_name", e.target.value)} /></div>
+              <div><Label>Nombre preferido</Label><Input value={form.preferred_name || ""} onChange={(e) => u("preferred_name", e.target.value)} placeholder="Cómo le gusta que le llamen" /></div>
               <div><Label>Tipo de documento</Label>
                 <Select value={form.document_type || DEFAULT_DOCUMENT_TYPE} onValueChange={(v) => u("document_type", v)}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>

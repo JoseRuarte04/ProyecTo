@@ -9,6 +9,21 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-09-30] QuickDASH: de "por episodio" a "por sesión", con "gana el último guardado"
+
+**Contexto:** QuickDASH vivía 100% fuera del wizard de sesión — un link público (`/q/:token`) que el paciente completaba, con el resultado atado a `quickdash_tokens.episode_id` (un solo QuickDASH vigente por todo el tratamiento). Jose pidió integrarlo al wizard para que el profesional también pudiera completarlo, igual que Barthel/FIM (que sí son por sesión).
+
+**Opciones consideradas:**
+1. Dejar el link por episodio como está y agregar un botón en el wizard que solo muestre el resultado ya completado (de solo lectura).
+2. Pasar QuickDASH a ser por sesión (como Barthel/FIM), con dos vías para completarlo en esa sesión puntual — el profesional en el wizard, o un link nuevo para el paciente atado a esa sesión — y que gane el que se guarde último.
+3. Mantener ambos flujos en paralelo (por episodio para el link histórico, por sesión para lo que complete el profesional), mostrando los dos.
+
+**Decisión:** Opción 2, confirmada con Jose en dos rondas de preguntas. Se aprovechó que `functional_evaluations` ya tenía las columnas `quickdash_items`/`quickdash_score` sin usar (mismo lugar que Barthel/FIM) y que `quickdash_tokens.session_id` existía huérfano desde mayo (se había reemplazado por `episode_id` en su momento, migración `20260512000001`). Se revivió `session_id` como vínculo activo, se migró `create_quickdash_token` de `p_episode_id` a `p_session_id`, y `complete_quickdash_token` ahora además escribe en `functional_evaluations` de esa sesión. "Gana el último guardado" se resuelve sin lógica de prioridad: si el profesional no toca QuickDASH en el wizard, esa clave no se manda en el payload de guardado de la sesión, así que nunca pisa en `null` lo que el paciente haya completado por link mientras la sesión seguía abierta.
+
+**Alternativas descartadas:** la 1 no resolvía el pedido de Jose (quería que el profesional pudiera completarlo, no solo verlo). La 3 se descartó porque dejaba dos lugares distintos completando el mismo cuestionario con alcances distintos (episodio vs. sesión) — confuso para el día a día y para los gráficos de evolución, que tuvieron que migrar de leer `quickdash_tokens` a leer `functional_evaluations`.
+
+**Efecto colateral:** el flujo viejo por episodio (tab "QuickDASH" en la pestaña Evaluaciones, `QuickDashEpisodeSection.tsx`) quedó redundante y se borró junto con `QuickDashTokenManager.tsx` (que ya estaba huérfano, sin usar en ningún lado). `quickdash_tokens.episode_id` no se borró de la tabla — sigue ahí para no romper el historial de tokens viejos, aunque ya no es el vínculo activo (candidato de limpieza en `TASKS.md`).
+
 ## [2026-09-23] Sesiones concurrentes de Claude Code en el mismo repo: aislar en git worktree
 
 **Contexto:** Al arrancar la tarea de mobile se encontró que había otra sesión de Claude Code activa en el mismo checkout del repo (`/Users/jruarte/Documents/1. Proyectos CC/Proyectito`) — mismo dev server en el puerto 8080 ("Port 8080 is in use by another chat's dev server"), y un cambio sin commitear en `docs/TASKS.md` que no se había hecho en esta sesión. Un `git checkout main` + `git checkout -b` ya ejecutados habían cambiado la rama del checkout compartido antes de notar el problema — riesgo real de pisarle el working directory a esa otra sesión (formularios, estado del dev server, HMR).
