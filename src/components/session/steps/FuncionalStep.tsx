@@ -1,6 +1,7 @@
 import { ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { FimSection, BarthelSection, calcFimTotal, calcBarthelTotal } from "@/components/evaluations/FunctionalScales";
+import { FimSection, BarthelSection, QuickDashSection, calcFimTotal, calcBarthelTotal, calcQuickDashPartial } from "@/components/evaluations/FunctionalScales";
+import { QuickDashPatientLink } from "@/components/evaluations/QuickDashPatientLink";
 import { OccupationsChecklist } from "@/components/evaluations/OccupationsChecklist";
 import { PerformanceContextSections } from "@/components/evaluations/PerformanceContextSections";
 import type { PerformanceContextValues } from "@/components/evaluations/performanceContextTypes";
@@ -19,7 +20,11 @@ interface FuncionalStepProps {
   setFimItems: React.Dispatch<React.SetStateAction<Record<string, number | null>>>;
   barthel_items: Record<string, number | null>;
   setBarthelItems: React.Dispatch<React.SetStateAction<Record<string, number | null>>>;
+  quickdash_items: (number | null)[];
+  setQuickdashItems: (items: (number | null)[]) => void;
   showEval: (key: EvaluationKey) => boolean;
+  sessionId: string | null;
+  patientId: string;
 }
 
 export function FuncionalStep({
@@ -28,11 +33,14 @@ export function FuncionalStep({
   performance_context, setPerformanceContext,
   fim_items, setFimItems,
   barthel_items, setBarthelItems,
+  quickdash_items, setQuickdashItems,
   showEval,
+  sessionId, patientId,
 }: FuncionalStepProps) {
   const fimScore = calcFimTotal(fim_items);
   const barthelScore = calcBarthelTotal(barthel_items);
-  const nothingEnabled = !showEval("barthel") && !showEval("fim") && !showEval("occupations") && !showEval("performance_context");
+  const quickdashScore = calcQuickDashPartial(quickdash_items);
+  const nothingEnabled = !showEval("barthel") && !showEval("fim") && !showEval("quickdash") && !showEval("occupations") && !showEval("performance_context");
 
   return (
     <SectionCard
@@ -43,6 +51,7 @@ export function FuncionalStep({
         <div className="flex gap-1">
           {fimScore !== null && <Badge variant="secondary" className="text-[10px]">FIM {fimScore}/126</Badge>}
           {barthelScore !== null && <Badge variant="secondary" className="text-[10px]">Barthel {barthelScore}/100</Badge>}
+          {quickdashScore !== null && <Badge variant="secondary" className="text-[10px]">QuickDASH {quickdashScore}/100</Badge>}
         </div>
       }
     >
@@ -52,9 +61,6 @@ export function FuncionalStep({
             No hay evaluaciones habilitadas para este paso — configuralas en "Evaluaciones" desde el sidebar.
           </p>
         )}
-        {showEval("barthel") && <BarthelSection items={barthel_items} onChange={setBarthelItems} />}
-        {showEval("fim") && <FimSection items={fim_items} onChange={setFimItems} />}
-
         {showEval("occupations") && (
           <div className="pt-2">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">1. Ocupaciones</p>
@@ -69,6 +75,24 @@ export function FuncionalStep({
 
         {showEval("performance_context") && (
           <PerformanceContextSections values={performance_context} onChange={setPerformanceContext} />
+        )}
+
+        {(showEval("barthel") || showEval("fim") || showEval("quickdash")) && (
+          <div className="pt-2">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">
+              Evaluaciones estandarizadas para índices
+            </p>
+            <div className="space-y-5">
+              {showEval("barthel") && <BarthelSection items={barthel_items} onChange={setBarthelItems} />}
+              {showEval("fim") && <FimSection items={fim_items} onChange={setFimItems} />}
+              {showEval("quickdash") && (
+                <div className="space-y-2">
+                  <QuickDashSection items={quickdash_items} onChange={setQuickdashItems} />
+                  <QuickDashPatientLink sessionId={sessionId} patientId={patientId} />
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </SectionCard>

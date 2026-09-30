@@ -108,7 +108,6 @@ export function usePatientDashboard(
   funcEvals: any[],
   sessions: any[],
   episode: any | null,
-  quickdashTokens: any[] = [],
 ): PatientDashboardData {
   const [aromSelector, setAromSelector] = useState<AromSelector>({ part: "wrist", field: "ext" });
 
@@ -278,17 +277,17 @@ export function usePatientDashboard(
       .filter(Boolean) as { date: string; value: number }[];
   }, [sorted, effectiveAromSelector, affectedSide]);
 
-  // ── QuickDASH — lee de quickdash_tokens (episode-scoped) ─────────────────
+  // ── QuickDASH — lee de functional_evaluations (por sesión) ───────────────
 
   const quickdashData = useMemo((): QuickdashData => {
-    const sorted = [...quickdashTokens]
-      .filter((t) => t.result?.score != null)
-      .sort((a, b) => new Date(a.completed_at).getTime() - new Date(b.completed_at).getTime());
+    const withScore = [...funcEvals]
+      .filter((fe) => fe.quickdash_score != null)
+      .sort((a, b) => new Date(a.evaluation_date).getTime() - new Date(b.evaluation_date).getTime());
     return {
-      current: sorted.at(-1)?.result.score ?? null,
-      series: sorted.map((t) => ({ date: t.completed_at.slice(0, 10), value: t.result.score as number })),
+      current: withScore.at(-1)?.quickdash_score ?? null,
+      series: withScore.map((fe) => ({ date: fe.evaluation_date.slice(0, 10), value: fe.quickdash_score as number })),
     };
-  }, [quickdashTokens]);
+  }, [funcEvals]);
 
   // ── Alerts ────────────────────────────────────────────────────────────────
 

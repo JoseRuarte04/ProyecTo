@@ -1403,6 +1403,7 @@ export type Database = {
           last_name: string
           nationality: string | null
           phone: string | null
+          preferred_name: string | null
           professional_id: string
           status: Database["public"]["Enums"]["patient_status"]
           team_id: string | null
@@ -1438,6 +1439,7 @@ export type Database = {
           last_name: string
           nationality?: string | null
           phone?: string | null
+          preferred_name?: string | null
           professional_id: string
           status?: Database["public"]["Enums"]["patient_status"]
           team_id?: string | null
@@ -1473,6 +1475,7 @@ export type Database = {
           last_name?: string
           nationality?: string | null
           phone?: string | null
+          preferred_name?: string | null
           professional_id?: string
           status?: Database["public"]["Enums"]["patient_status"]
           team_id?: string | null
@@ -1741,6 +1744,7 @@ export type Database = {
           patient_id: string
           professional_id: string
           session_date: string
+          session_goals: string | null
           session_number: number | null
           session_type: string | null
           symptom_changes: string | null
@@ -1765,6 +1769,7 @@ export type Database = {
           patient_id: string
           professional_id: string
           session_date?: string
+          session_goals?: string | null
           session_number?: number | null
           session_type?: string | null
           symptom_changes?: string | null
@@ -1789,6 +1794,7 @@ export type Database = {
           patient_id?: string
           professional_id?: string
           session_date?: string
+          session_goals?: string | null
           session_number?: number | null
           session_type?: string | null
           symptom_changes?: string | null
@@ -2207,9 +2213,9 @@ export type Database = {
       }
       create_quickdash_token: {
         Args: {
-          p_episode_id: string
           p_expires_at: string
           p_patient_id: string
+          p_session_id: string
         }
         Returns: string
       }

@@ -5,6 +5,7 @@ import { ClipboardList, BarChart2 } from "lucide-react";
 export const EVALUATION_KEYS = [
   "barthel",
   "fim",
+  "quickdash",
   "occupations",
   "performance_context",
   "analitica_pain",
@@ -22,6 +23,7 @@ export type EvaluationKey = (typeof EVALUATION_KEYS)[number];
 export const EVALUATION_LABELS: Record<EvaluationKey, string> = {
   barthel: "Índice de Barthel",
   fim: "FIM",
+  quickdash: "QuickDASH",
   occupations: "Ocupaciones (checklist AOTA/MOHO)",
   performance_context: "Contexto de desempeño",
   analitica_pain: "Dolor",
@@ -35,7 +37,7 @@ export const EVALUATION_LABELS: Record<EvaluationKey, string> = {
 };
 
 export const EVALUATION_GROUPS: { step: string; icon: typeof ClipboardList; keys: EvaluationKey[] }[] = [
-  { step: "Evaluación funcional", icon: ClipboardList, keys: ["barthel", "fim", "occupations", "performance_context"] },
+  { step: "Evaluación funcional", icon: ClipboardList, keys: ["barthel", "fim", "quickdash", "occupations", "performance_context"] },
   {
     step: "Evaluación analítica",
     icon: BarChart2,

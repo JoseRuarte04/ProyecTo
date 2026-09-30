@@ -10,15 +10,14 @@ interface EvolucionTabProps {
   sessions: any[];
   episode: any | null;
   patientId: string;
-  quickdashTokens?: any[];
 }
 
-export function EvolucionTab({ analEvals, funcEvals, sessions, episode, patientId, quickdashTokens = [] }: EvolucionTabProps) {
+export function EvolucionTab({ analEvals, funcEvals, sessions, episode, patientId }: EvolucionTabProps) {
   const {
     eva, edema, force, arom, quickdash,
     alerts, lastSession, sessionCount,
     aromSelector, setAromSelector,
-  } = usePatientDashboard(analEvals, funcEvals, sessions, episode, quickdashTokens);
+  } = usePatientDashboard(analEvals, funcEvals, sessions, episode);
 
   return (
     <div className="space-y-6">

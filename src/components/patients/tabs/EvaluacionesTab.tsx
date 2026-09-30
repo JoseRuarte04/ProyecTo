@@ -3,17 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { FuncEvalList } from "@/components/patients/FuncEvalList";
 import { AnalEvalList } from "@/components/evaluations/AnalyticalEvalForm";
-import { QuickDashEpisodeSection } from "@/components/evaluations/QuickDashEpisodeSection";
 
 interface Props {
   funcEvals: any[];
   analEvals: any[];
   patientId: string;
-  activeEpisodeId: string | null;
   onNewFuncEval: () => void;
 }
 
-export function EvaluacionesTab({ funcEvals, analEvals, patientId, activeEpisodeId, onNewFuncEval }: Props) {
+export function EvaluacionesTab({ funcEvals, analEvals, patientId, onNewFuncEval }: Props) {
   const [subTab, setSubTab] = useState("functional");
 
   return (
@@ -23,7 +21,6 @@ export function EvaluacionesTab({ funcEvals, analEvals, patientId, activeEpisode
           {[
             { value: "functional", label: "Funcional" },
             { value: "analytical", label: "Analítica" },
-            { value: "quickdash", label: "QuickDASH" },
           ].map(t => (
             <button
               key={t.value}
@@ -58,12 +55,6 @@ export function EvaluacionesTab({ funcEvals, analEvals, patientId, activeEpisode
             <p className="text-xs text-muted-foreground text-center py-8">Las evaluaciones analíticas se registran desde Sesiones.</p>
           )}
         </>
-      )}
-
-      {subTab === "quickdash" && (
-        activeEpisodeId
-          ? <QuickDashEpisodeSection episodeId={activeEpisodeId} patientId={patientId} />
-          : <p className="text-sm text-muted-foreground text-center py-8">Sin episodio activo. Creá un episodio para registrar QuickDASH.</p>
       )}
     </div>
   );
