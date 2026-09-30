@@ -17,6 +17,7 @@ import { SectionCard, SubSection, inputClass, textareaClass, numFieldErr } from 
 import { GonioGrid, GonioPartSelector } from "../GonioComponents";
 import { SPECIFIC_TESTS, SCAR_OPTIONS, VSS_OPTIONS, SCAR_PLACEHOLDER, DANIELS_FULL_GRADES } from "../constants";
 import type { PainEntry, PainTipo, GonioPartKey, GonioBySide, TestResult } from "../types";
+import type { EvaluationKey } from "@/lib/evaluationSettings";
 
 interface AnaliticaStepProps {
   // Pain
@@ -84,6 +85,7 @@ interface AnaliticaStepProps {
   trophic_state: string; setTrophicState: (v: string) => void;
   posture: string; setPosture: (v: string) => void;
   emotional_state: string; setEmotionalState: (v: string) => void;
+  showEval: (key: EvaluationKey) => boolean;
 }
 
 export function AnaliticaStep(props: AnaliticaStepProps) {
@@ -106,7 +108,12 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
     vss_pigmentacion, setVssPigmentacion, vss_vascularizacion, setVssVascularizacion, vss_flexibilidad, setVssFlexibilidad, vss_altura, setVssAltura,
     specificTests, setSpecificTests,
     trophic_state, setTrophicState, posture, setPosture, emotional_state, setEmotionalState,
+    showEval,
   } = props;
+
+  const nothingEnabled = !showEval("analitica_pain") && !showEval("analitica_edema") && !showEval("analitica_mobility")
+    && !showEval("analitica_muscle_strength") && !showEval("analitica_sensitivity") && !showEval("analitica_scar")
+    && !showEval("analitica_specific_tests") && !showEval("analitica_other");
 
   // Gonio UI navigation state (local to this step)
   const [gonio_side, setGonioSide] = useState<"MSD" | "MSI">("MSD");
@@ -136,6 +143,7 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
     <SectionCard id="sec-analitica" icon={BarChart2} title="Evaluación analítica">
       <div className="space-y-3">
       {/* Dolor — múltiple */}
+      {showEval("analitica_pain") && (
       <SubSection title="Dolor">
         <div className="space-y-3">
           {pains.map((pain, idx) => (
@@ -240,8 +248,10 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
           </Button>
         </div>
       </SubSection>
+      )}
 
       {/* Edema */}
+      {showEval("analitica_edema") && (
       <SubSection title="Edema">
         <div>
           <h4 className="text-xs font-medium text-muted-foreground mb-2">Circometría</h4>
@@ -266,8 +276,10 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
           <Textarea rows={2} value={edema_obs} onChange={(e) => setEdemaObs(e.target.value)} className={textareaClass} />
         </div>
       </SubSection>
+      )}
 
       {/* Movilidad */}
+      {showEval("analitica_mobility") && (
       <SubSection title="Movilidad">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-sm font-semibold text-foreground">Goniometría</span>
@@ -404,8 +416,10 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
           <Textarea rows={2} value={mobility_observations} onChange={(e) => setMobilityObservations(e.target.value)} className={textareaClass} />
         </div>
       </SubSection>
+      )}
 
       {/* Fuerza */}
+      {showEval("analitica_muscle_strength") && (
       <SubSection title="Fuerza muscular">
         {isAdmission ? (
           <div className="mb-3">
@@ -564,8 +578,10 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
           </div>
         </div>
       </SubSection>
+      )}
 
       {/* Sensibilidad */}
+      {showEval("analitica_sensitivity") && (
       <SubSection title="Sensibilidad">
         <div>
           <h4 className="text-xs font-medium text-muted-foreground mb-2">Epicrítica (funcional)</h4>
@@ -588,8 +604,10 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
           <Textarea rows={2} value={sensitivity} onChange={(e) => setSensitivity(e.target.value)} className={textareaClass} />
         </div>
       </SubSection>
+      )}
 
       {/* Cicatriz */}
+      {showEval("analitica_scar") && (
       <SubSection
         title="Cicatriz"
         badge={vssTotalLive > 0 ? <Badge variant="secondary" className="text-[10px]">VSS {vssTotalLive}/15</Badge> : null}
@@ -673,8 +691,10 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
           <Textarea rows={2} value={scar_observaciones} onChange={(e) => setScarObservaciones(e.target.value)} className={textareaClass} />
         </div>
       </SubSection>
+      )}
 
       {/* Pruebas específicas */}
+      {showEval("analitica_specific_tests") && (
       <SubSection title="Pruebas específicas">
         <div className="flex flex-wrap gap-2">
           {SPECIFIC_TESTS.map((t) => {
@@ -703,13 +723,22 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
         </div>
         <p className="text-xs text-muted-foreground">Clic para alternar: sin evaluar → positivo (+) → negativo (−)</p>
       </SubSection>
+      )}
 
       {/* Otros */}
+      {showEval("analitica_other") && (
       <SubSection title="Otros">
         <div><Label>Estado trófico</Label><Textarea rows={2} value={trophic_state} onChange={(e) => setTrophicState(e.target.value)} className={textareaClass} /></div>
         <div><Label>Postura</Label><Textarea rows={2} value={posture} onChange={(e) => setPosture(e.target.value)} className={textareaClass} /></div>
         <div><Label>Emotividad</Label><Textarea rows={2} value={emotional_state} onChange={(e) => setEmotionalState(e.target.value)} className={textareaClass} /></div>
       </SubSection>
+      )}
+
+      {nothingEnabled && (
+        <p className="text-sm text-muted-foreground">
+          No hay evaluaciones habilitadas para este paso — configuralas en "Evaluaciones" desde el sidebar.
+        </p>
+      )}
       </div>
     </SectionCard>
   );

@@ -5,6 +5,7 @@ import { OccupationsChecklist } from "@/components/evaluations/OccupationsCheckl
 import { PerformanceContextSections } from "@/components/evaluations/PerformanceContextSections";
 import type { PerformanceContextValues } from "@/components/evaluations/performanceContextTypes";
 import type { IndependenceLevel } from "@/components/evaluations/occupationsTaxonomy";
+import type { EvaluationKey } from "@/lib/evaluationSettings";
 import { SectionCard } from "../shared";
 
 interface FuncionalStepProps {
@@ -18,6 +19,7 @@ interface FuncionalStepProps {
   setFimItems: React.Dispatch<React.SetStateAction<Record<string, number | null>>>;
   barthel_items: Record<string, number | null>;
   setBarthelItems: React.Dispatch<React.SetStateAction<Record<string, number | null>>>;
+  showEval: (key: EvaluationKey) => boolean;
 }
 
 export function FuncionalStep({
@@ -26,9 +28,11 @@ export function FuncionalStep({
   performance_context, setPerformanceContext,
   fim_items, setFimItems,
   barthel_items, setBarthelItems,
+  showEval,
 }: FuncionalStepProps) {
   const fimScore = calcFimTotal(fim_items);
   const barthelScore = calcBarthelTotal(barthel_items);
+  const nothingEnabled = !showEval("barthel") && !showEval("fim") && !showEval("occupations") && !showEval("performance_context");
 
   return (
     <SectionCard
@@ -43,20 +47,29 @@ export function FuncionalStep({
       }
     >
       <div className="space-y-5">
-        <BarthelSection items={barthel_items} onChange={setBarthelItems} />
-        <FimSection items={fim_items} onChange={setFimItems} />
+        {nothingEnabled && (
+          <p className="text-sm text-muted-foreground">
+            No hay evaluaciones habilitadas para este paso — configuralas en "Evaluaciones" desde el sidebar.
+          </p>
+        )}
+        {showEval("barthel") && <BarthelSection items={barthel_items} onChange={setBarthelItems} />}
+        {showEval("fim") && <FimSection items={fim_items} onChange={setFimItems} />}
 
-        <div className="pt-2">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">1. Ocupaciones</p>
-          <OccupationsChecklist
-            items={occupations_items}
-            onChange={setOccupationsItems}
-            notes={occupations_notes}
-            onNotesChange={setOccupationsNotes}
-          />
-        </div>
+        {showEval("occupations") && (
+          <div className="pt-2">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">1. Ocupaciones</p>
+            <OccupationsChecklist
+              items={occupations_items}
+              onChange={setOccupationsItems}
+              notes={occupations_notes}
+              onNotesChange={setOccupationsNotes}
+            />
+          </div>
+        )}
 
-        <PerformanceContextSections values={performance_context} onChange={setPerformanceContext} />
+        {showEval("performance_context") && (
+          <PerformanceContextSections values={performance_context} onChange={setPerformanceContext} />
+        )}
       </div>
     </SectionCard>
   );

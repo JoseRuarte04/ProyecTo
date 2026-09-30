@@ -16,6 +16,8 @@ import type { GonioPartKey, GonioBySide, PainEntry, PainTipo, TestResult } from 
 import { SPECIFIC_TESTS } from "@/components/session/constants";
 import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { useEvaluationSettings } from "@/hooks/useEvaluationSettings";
+import type { EvaluationKey } from "@/lib/evaluationSettings";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 import { DatosStep } from "@/components/session/steps/DatosStep";
 import { FichaClinicaStep } from "@/components/session/steps/FichaClinicaStep";
@@ -36,6 +38,12 @@ export default function SessionForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isEditMode = !!sessionId;
+
+  // Evaluaciones deshabilitadas por config del espacio de trabajo: se ocultan
+  // solo al crear una sesión nueva. Al editar una ya guardada se muestran
+  // igual (puede tener datos cargados de antes de deshabilitarlas).
+  const { settings: evalSettings } = useEvaluationSettings();
+  const showEval = (key: EvaluationKey) => isEditMode || evalSettings[key];
 
   const [patient, setPatient] = useState<any>(null);
   const [clinical, setClinical] = useState<any>(null);
@@ -960,6 +968,7 @@ export default function SessionForm() {
     vss_pigmentacion, setVssPigmentacion, vss_vascularizacion, setVssVascularizacion, vss_flexibilidad, setVssFlexibilidad, vss_altura, setVssAltura,
     specificTests, setSpecificTests,
     trophic_state, setTrophicState, posture, setPosture, emotional_state, setEmotionalState,
+    showEval,
   };
 
   return (
@@ -1069,6 +1078,7 @@ export default function SessionForm() {
                 performance_context={performance_context} setPerformanceContext={setPerformanceContext}
                 fim_items={fim_items} setFimItems={setFimItems}
                 barthel_items={barthel_items} setBarthelItems={setBarthelItems}
+                showEval={showEval}
               />
             )}
 
