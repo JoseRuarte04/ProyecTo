@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-23] Obras sociales: alta desde "Administrar" + fix de overflow
+- El diálogo "Administrar" solo tenía editar/borrar — se agregó un botón "Agregar" con formulario inline, mismo patrón que editar.
+- Corregido bug visual reportado: el diálogo desbordaba horizontalmente (grid blowout por texto largo sin truncar bien) y tapaba los botones de editar/borrar — fix con `min-w-0` en el contenedor de la lista.
+- Se confirmó que el guard de borrado contra obras sociales en uso ya funcionaba bien, no requería cambios. PR [#22](https://github.com/JoseRuarte04/ProyecTo/pull/22).
+
 ## [2026-09-18] Obras sociales: editar y borrar desde el catálogo
 - Nuevo diálogo `ObrasSocialesManager.tsx` (link "Administrar" en `InsuranceField`, visible en alta y Editar ficha): búsqueda, edición inline (nombre/nombre completo/tipo) y borrado.
 - Borrado guardado con un RPC `SECURITY DEFINER` nuevo (`obra_social_usage_count`) en vez de un count desde el cliente, porque `patients` tiene RLS por profesional/equipo y el catálogo es compartido por todos — ver `DECISIONS.md`.
