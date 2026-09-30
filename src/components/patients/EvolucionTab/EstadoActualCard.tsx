@@ -78,7 +78,7 @@ function EvaCard({ eva }: { eva: EvaData }) {
 
   return (
     <MetricCard>
-      <MetricLabel icon={Activity} label="Dolor (EVA)" />
+      <MetricLabel icon={Activity} label="Dolor (END)" />
       {current == null ? (
         <EmptyValue message="Sin registro" />
       ) : (

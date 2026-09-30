@@ -110,7 +110,7 @@ export function UltimaSesionResumen({ lastSession, patientId }: UltimaSesionResu
         {/* Values */}
         {hasValues && (
           <div className="flex items-center gap-2 flex-wrap">
-            {evaVal  && <ValueChip label="EVA"     value={evaVal} />}
+            {evaVal  && <ValueChip label="END"     value={evaVal} />}
             {dynMsd  && <ValueChip label="Din MSD" value={dynMsd} />}
             {dynMsi  && <ValueChip label="Din MSI" value={dynMsi} />}
           </div>

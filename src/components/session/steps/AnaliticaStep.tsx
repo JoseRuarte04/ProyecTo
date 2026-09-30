@@ -211,7 +211,7 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
                 <Input value={pain.caracteristicas} onChange={e => setPains(prev => prev.map(p => p.id === pain.id ? { ...p, caracteristicas: e.target.value } : p))} placeholder="urente, punzante, etc." className={inputClass} />
               </div>
               <div>
-                <Label>Intensidad EVA (0-10)</Label>
+                <Label>END (0-10)</Label>
                 <div className="flex items-center gap-3">
                   <Slider
                     min={0} max={10} step={1}

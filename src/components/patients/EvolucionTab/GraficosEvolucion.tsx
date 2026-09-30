@@ -97,7 +97,7 @@ function EvaChart({ eva }: { eva: EvaData }) {
   const data = eva.series.map((p) => ({ date: p.date, value: p.value }));
 
   return (
-    <ChartCard title="Dolor — EVA">
+    <ChartCard title="Dolor — END">
       {data.length === 0 ? (
         <EmptyChart message="Sin registros de dolor aún" />
       ) : (
@@ -118,7 +118,7 @@ function EvaChart({ eva }: { eva: EvaData }) {
             <Line
               type="monotone"
               dataKey="value"
-              name="EVA"
+              name="END"
               stroke={COLOR_PRIMARY}
               strokeWidth={2}
               dot={{ r: 4, fill: COLOR_PRIMARY, strokeWidth: 0 }}
