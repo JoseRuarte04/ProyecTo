@@ -74,6 +74,7 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
         <Field label="Fecha de admisión" value={patient.admission_date ? format(new Date(patient.admission_date), "d MMM yyyy", { locale: es }) : null} />
         <Field label="Nº de episodio" value={activeEpisode?.episode_number} />
         <Field label="Nº de afiliado" value={patient.insurance_number} />
+        <Field label="Nombre preferido" value={patient.preferred_name} />
         <Field label="Nacionalidad" value={patient.nationality} />
         <Field label="Alergias" value={patient.allergies} />
         {patient.gender && (
@@ -110,11 +111,11 @@ export function FichaTab({ patient, clinical, occupational, diagnoses = [], acti
 
       {hasOccupationalData && (
         <Section title="Perfil ocupacional" icon={<User className="h-4 w-4" />}>
-          <Field label="Lateralidad" value={dominanceLabel} />
-          <Field label="Estado civil" value={maritalStatusLabel(occupational.marital_status)} />
           <Field label="Nivel educativo" value={educationLevelLabel(occupational.education_level)} />
           <Field label="Trabajo" value={occupational.job} />
+          <Field label="Estado civil" value={maritalStatusLabel(occupational.marital_status)} />
           <Field label="Red de apoyo" value={occupational.support_network} />
+          <Field label="Lateralidad" value={dominanceLabel} />
         </Section>
       )}
 

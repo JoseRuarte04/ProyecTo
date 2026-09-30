@@ -85,6 +85,7 @@ export default function NewPatientForm() {
   // Step 1 — Datos personales
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
+  const [preferredName, setPreferredName] = useState("");
   const [documentType, setDocumentType] = useState<string>(DEFAULT_DOCUMENT_TYPE);
   const [dni, setDni] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -186,6 +187,7 @@ export default function NewPatientForm() {
         .insert({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
+          preferred_name: or(preferredName),
           document_type: documentType,
           dni: dni.trim(),
           birth_date: or(birthDate),
@@ -318,6 +320,10 @@ export default function NewPatientForm() {
                 <FieldLabel required>Nombre</FieldLabel>
                 <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={cn(inputClass, fieldCls("firstName"))} />
                 <ErrMsg field="firstName" />
+              </div>
+              <div>
+                <FieldLabel>Nombre preferido</FieldLabel>
+                <Input value={preferredName} onChange={(e) => setPreferredName(e.target.value)} className={inputClass} placeholder="Cómo le gusta que le llamen" />
               </div>
               <div>
                 <FieldLabel required>Tipo de documento</FieldLabel>
