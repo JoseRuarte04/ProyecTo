@@ -95,7 +95,10 @@ export default function Appointments() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterStatus>("scheduled");
-  const [view, setView] = useState<ViewMode>("week");
+  // La vista "Semana" (grilla de 7 columnas) es ilegible en mobile — arrancar
+  // en "Lista" ahí. Solo el valor inicial: no pisa un toggle manual del
+  // usuario si el viewport cambia después (ej. rotar el celular).
+  const [view, setView] = useState<ViewMode>(() => (window.innerWidth < 768 ? "list" : "week"));
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [showNew, setShowNew] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState("");

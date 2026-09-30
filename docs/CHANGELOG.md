@@ -9,9 +9,25 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-09-30] Merge de los 3 PRs abiertos de Javito (#22, #23, #24) + blindaje de migración
+- Analizados #22/#23/#24 con `gh` y Supabase real — sin el problema grave de septiembre (ramas apiladas/duplicados), solo un choque menor: #22 y #23 arreglaron el mismo bug de overflow (`min-w-0`) en paralelo sin saberlo (dos sesiones corriendo la misma noche).
+- Mergeados en orden #22 → #23 → #24. Antes de mergear #24 se blindó `20260923100000_evaluation_settings.sql`: el trigger y las 2 policies no tenían guard de idempotencia (solo la tabla y el índice) — se agregó `DROP TRIGGER/POLICY IF EXISTS` antes de cada `CREATE`, confirmado 1:1 contra los nombres reales en producción.
+- Typecheck/lint/build verificados en cada rama antes de mergear, CI verde en los 3. Ver `DECISIONS.md`.
+
+## [2026-09-23] Obras sociales: alta desde "Administrar" + fix de overflow
+- El diálogo "Administrar" solo tenía editar/borrar — se agregó un botón "Agregar" con formulario inline, mismo patrón que editar.
+- Corregido bug visual reportado: el diálogo desbordaba horizontalmente (grid blowout por texto largo sin truncar bien) y tapaba los botones de editar/borrar — fix con `min-w-0` en el contenedor de la lista.
+- Se confirmó que el guard de borrado contra obras sociales en uso ya funcionaba bien, no requería cambios. PR [#22](https://github.com/JoseRuarte04/ProyecTo/pull/22).
+
+## [2026-09-23] Mobile: barra de navegación inferior + listados/tabs responsive
+- El sidebar en mobile pasa de hamburger + drawer a una barra inferior fija (`AppBottomNav.tsx`); "Más" agrupa perfil, workspace, Mi equipo y logout.
+- Corregidos dos overflows de página completa a 375px (listado de Pacientes, tabs de ficha) y el wrap de campos largos en Ficha Clínica.
+- Fila de acciones del Dashboard y vista por defecto de Turnos ajustadas a mobile. PR [#23](https://github.com/JoseRuarte04/ProyecTo/pull/23).
+
 ## [2026-09-23] Evaluaciones: activar/desactivar escalas por espacio de trabajo
 - Tabla nueva `evaluation_settings` (RLS: personal por `auth.uid()`, equipo editable solo por admins) + página `/evaluaciones` y botón nuevo en el sidebar, para elegir qué escalas del wizard de sesiones se muestran (Barthel, FIM, Ocupaciones, Contexto de desempeño, y las 8 sub-secciones de Eval. analítica).
 - El wizard oculta lo deshabilitado solo al crear una sesión nueva; al editar una ya guardada se muestra todo igual, porque no hay estado "borrador" server-side en este modelo. Ver `DECISIONS.md`.
+- Migración blindada con `DROP TRIGGER/POLICY IF EXISTS` antes de mergear (ver entrada del 2026-09-30 más arriba).
 - Verificado en el navegador contra Supabase real con el usuario de prueba RLS. PR [#24](https://github.com/JoseRuarte04/ProyecTo/pull/24).
 
 ## [2026-09-18] Obras sociales: editar y borrar desde el catálogo

@@ -9,6 +9,21 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-09-23] Sesiones concurrentes de Claude Code en el mismo repo: aislar en git worktree
+
+**Contexto:** Al arrancar la tarea de mobile se encontró que había otra sesión de Claude Code activa en el mismo checkout del repo (`/Users/jruarte/Documents/1. Proyectos CC/Proyectito`) — mismo dev server en el puerto 8080 ("Port 8080 is in use by another chat's dev server"), y un cambio sin commitear en `docs/TASKS.md` que no se había hecho en esta sesión. Un `git checkout main` + `git checkout -b` ya ejecutados habían cambiado la rama del checkout compartido antes de notar el problema — riesgo real de pisarle el working directory a esa otra sesión (formularios, estado del dev server, HMR).
+
+**Opciones consideradas:**
+1. Seguir trabajando en el checkout compartido, asumiendo que la otra sesión ya no está activa.
+2. Mudar el trabajo a un git worktree aislado (`EnterWorktree`), con su propio `npm install`, `.env` copiado y dev server en otro puerto — sin volver a tocar el checkout compartido.
+3. Pausar todo hasta confirmar manualmente qué es esa otra sesión.
+
+**Decisión:** Opción 2, confirmada con Jose. Al intentar revertir el checkout compartido a su rama original (`fix/obras-sociales-alta-y-diseno`) para minimizar el daño, el clasificador de auto mode del harness bloqueó el comando (`Interfere With Workloads`) — confirmando que había actividad real detectada ahí. El checkout compartido quedó en la rama `fix/mobile-nav-y-listados` (creada por esta sesión, sin commits) con el cambio ajeno de la otra sesión todavía sin commitear encima; no se pudo revertir. Todo el trabajo de esta tarea se hizo en el worktree (`fix/mobile-nav-bottombar`), sin volver a tocar el checkout principal.
+
+**Alternativas descartadas:** la 1 quedó descartada por el riesgo confirmado (el propio harness bloqueó la reversión); la 3 hubiera pausado la tarea sin necesidad, dado que el worktree resuelve el aislamiento sin esperar.
+
+**Para la próxima vez:** si el dev server o `git status` muestran señales de otra sesión activa en el mismo directorio, mudar a un worktree ANTES de tocar ramas en el checkout compartido (no después) — evita el problema en vez de tener que repararlo a medias.
+
 ## [2026-09-23] Config de evaluaciones habilitadas: una tabla con `owner_type` en vez de dos, y `isEditMode` como proxy de "sesión finalizada"
 
 **Contexto:** Pedido: un botón en el sidebar para que cada Terapista active/desactive qué evaluaciones (Barthel, FIM, las 8 sub-secciones de Eval. analítica, etc.) se muestran en el wizard de sesiones, porque hay demasiadas y varían según especialidad. En la aclaración con el usuario, la preferencia declarada fue "ambos [personal y equipo], el de equipo es de primer nivel (prioridad)" — y para el caso de datos ya cargados en una escala que se deshabilita después, "si es una sesión ya finalizada se muestra los datos".

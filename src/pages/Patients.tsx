@@ -83,22 +83,24 @@ export default function Patients() {
           />
         </div>
 
-        {/* Tabs de estado */}
-        <div className="flex border-b border-border">
-          {statusTabs.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={cn(
-                "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-                filter === f.value
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Tabs de estado — scroll horizontal contenido, no empuja la página */}
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex border-b border-border w-max min-w-full">
+            {statusTabs.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={cn(
+                  "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0",
+                  filter === f.value
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -109,8 +111,8 @@ export default function Patients() {
         <p className="text-muted-foreground text-center py-12">No se encontraron pacientes.</p>
       ) : (
         <div className="dashboard-card overflow-hidden">
-          {/* Encabezado de columnas */}
-          <div className="grid grid-cols-[1fr_80px_100px_80px] gap-4 px-4 py-2 border-b border-border bg-muted">
+          {/* Encabezado de columnas — solo desde sm, en mobile la fila ya se entiende sin header */}
+          <div className="hidden sm:grid grid-cols-[1fr_80px_100px_80px] gap-4 px-4 py-2 border-b border-border bg-muted">
             <p className="field-label">Paciente</p>
             <p className="field-label text-center">Estado</p>
             <p className="field-label">Obra social</p>
@@ -126,33 +128,47 @@ export default function Patients() {
                   key={p.id}
                   onClick={() => navigate(`/patients/${p.id}`)}
                   className={cn(
-                    "relative grid grid-cols-[1fr_80px_100px_80px] gap-4 px-4 items-center",
-                    "min-h-[56px] py-3 group hover:bg-muted/40 transition-colors cursor-pointer",
+                    "relative px-4 min-h-[56px] py-3 group hover:bg-muted/40 transition-colors cursor-pointer",
                     idx !== filtered.length - 1 && "border-b border-border/60"
                   )}
                 >
-                  {/* Nombre + DNI */}
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm text-foreground truncate">
-                      {p.last_name}, {p.first_name}
+                  {/* Mobile: nombre a la izquierda, resto apilado a la derecha */}
+                  <div className="flex sm:hidden items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm text-foreground truncate">
+                        {p.last_name}, {p.first_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{documentTypeShortLabel(p.document_type)} {p.dni}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1 text-right">
+                      <StatusBadge status={p.status} />
+                      <p className="text-xs text-muted-foreground truncate max-w-[140px]">{p.insurance || "—"}</p>
+                      <p className="text-[11px] text-muted-foreground tabular-nums">
+                        {lastSessionDate
+                          ? format(new Date(lastSessionDate + "T12:00:00"), "dd/MM/yy")
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Desktop: alineado con el encabezado de columnas */}
+                  <div className="hidden sm:grid grid-cols-[1fr_80px_100px_80px] gap-4 items-center">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">
+                        {p.last_name}, {p.first_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{documentTypeShortLabel(p.document_type)} {p.dni}</p>
+                    </div>
+                    <div className="flex justify-center">
+                      <StatusBadge status={p.status} />
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{p.insurance || "—"}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums text-right">
+                      {lastSessionDate
+                        ? format(new Date(lastSessionDate + "T12:00:00"), "dd/MM/yy")
+                        : "—"}
                     </p>
-                    <p className="text-xs text-muted-foreground">{documentTypeShortLabel(p.document_type)} {p.dni}</p>
                   </div>
-
-                  {/* Estado */}
-                  <div className="flex justify-center">
-                    <StatusBadge status={p.status} />
-                  </div>
-
-                  {/* Obra social */}
-                  <p className="text-xs text-muted-foreground truncate">{p.insurance || "—"}</p>
-
-                  {/* Última sesión */}
-                  <p className="text-xs text-muted-foreground tabular-nums text-right">
-                    {lastSessionDate
-                      ? format(new Date(lastSessionDate + "T12:00:00"), "dd/MM/yy")
-                      : "—"}
-                  </p>
                 </div>
               );
             })}
