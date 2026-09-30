@@ -21,10 +21,14 @@ create index if not exists evaluation_settings_owner_idx on evaluation_settings 
 
 alter table evaluation_settings enable row level security;
 
+drop trigger if exists set_updated_at on evaluation_settings;
+
 create trigger set_updated_at
   before update on evaluation_settings
   for each row
   execute function update_updated_at_column();
+
+drop policy if exists "evaluation_settings: ver" on evaluation_settings;
 
 create policy "evaluation_settings: ver"
   on evaluation_settings for select
@@ -32,6 +36,8 @@ create policy "evaluation_settings: ver"
     (owner_type = 'professional' and owner_id = auth.uid())
     or (owner_type = 'team' and is_team_member(owner_id))
   );
+
+drop policy if exists "evaluation_settings: gestionar" on evaluation_settings;
 
 create policy "evaluation_settings: gestionar"
   on evaluation_settings for all
