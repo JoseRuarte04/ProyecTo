@@ -39,6 +39,10 @@ export function PerfilOcupacionalStep({
   return (
     <SectionCard id="sec-ocupacional" icon={Briefcase} title="Perfil ocupacional">
       <div className="space-y-4">
+        <OptionSelect label="Nivel educativo" value={occ_education_level} onChange={setOccEducationLevel} options={EDUCATION_LEVEL_OPTIONS} />
+        <div><FieldLabel>Trabajo</FieldLabel><Textarea rows={2} value={occ_job} onChange={(e) => setOccJob(e.target.value)} className={textareaClass} /></div>
+        <OptionSelect label="Estado civil" value={occ_marital_status} onChange={setOccMaritalStatus} options={MARITAL_STATUS_OPTIONS} />
+        <div><FieldLabel>Red de apoyo</FieldLabel><Textarea rows={2} value={occ_support_network} onChange={(e) => setOccSupportNetwork(e.target.value)} className={textareaClass} /></div>
         <div>
           <FieldLabel>Dominancia</FieldLabel>
           <Select value={occ_dominance} onValueChange={setOccDominance}>
@@ -50,10 +54,6 @@ export function PerfilOcupacionalStep({
             </SelectContent>
           </Select>
         </div>
-        <OptionSelect label="Estado civil" value={occ_marital_status} onChange={setOccMaritalStatus} options={MARITAL_STATUS_OPTIONS} />
-        <OptionSelect label="Nivel educativo" value={occ_education_level} onChange={setOccEducationLevel} options={EDUCATION_LEVEL_OPTIONS} />
-        <div><FieldLabel>Red de apoyo</FieldLabel><Textarea rows={2} value={occ_support_network} onChange={(e) => setOccSupportNetwork(e.target.value)} className={textareaClass} /></div>
-        <div><FieldLabel>Trabajo</FieldLabel><Textarea rows={2} value={occ_job} onChange={(e) => setOccJob(e.target.value)} className={textareaClass} /></div>
       </div>
     </SectionCard>
   );
