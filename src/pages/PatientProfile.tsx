@@ -154,7 +154,7 @@ export default function PatientProfile() {
   const currentSessionLabel = sessionCount > 0 ? `Nº ${sessionCount}` : null;
   const now = new Date();
   const nextApptUpcoming = [...appointments]
-    .filter(a => new Date(a.appointment_date) > now && a.status !== "cancelled")
+    .filter(a => new Date(a.appointment_date) > now && ["scheduled", "waiting"].includes(a.status))
     .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime())[0];
 
   return (
