@@ -2285,7 +2285,13 @@ export type Database = {
     }
     Enums: {
       appointment_modality: "in_person" | "virtual"
-      appointment_status: "scheduled" | "completed" | "cancelled"
+      appointment_status:
+        | "scheduled"
+        | "completed"
+        | "cancelled"
+        | "waiting"
+        | "absent"
+        | "absent_with_notice"
       appointment_type: "consultation" | "follow_up" | "evaluation"
       audit_action:
         | "insert"
@@ -2434,7 +2440,14 @@ export const Constants = {
   public: {
     Enums: {
       appointment_modality: ["in_person", "virtual"],
-      appointment_status: ["scheduled", "completed", "cancelled"],
+      appointment_status: [
+        "scheduled",
+        "completed",
+        "cancelled",
+        "waiting",
+        "absent",
+        "absent_with_notice",
+      ],
       appointment_type: ["consultation", "follow_up", "evaluation"],
       audit_action: [
         "insert",
