@@ -115,8 +115,10 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
     // ahora haría un reemplazo completo sobre una lista que puede estar vacía
     // por el error, no porque el paciente no tenga diagnósticos.
     if (activeEpisodeId && !diagnosesLoadFailed) {
-      await saveEpisodeDiagnoses(activeEpisodeId, patient.id, diagnoses);
-      await supabase.from("treatment_episodes").update({ diagnosis: primaryLabel(diagnoses) }).eq("id", activeEpisodeId);
+      const { error: dxErr } = await saveEpisodeDiagnoses(activeEpisodeId, patient.id, diagnoses);
+      if (dxErr) { setSaving(false); toast.error("Error al guardar los diagnósticos: " + dxErr.message); return; }
+      const { error: epErr } = await supabase.from("treatment_episodes").update({ diagnosis: primaryLabel(diagnoses) }).eq("id", activeEpisodeId);
+      if (epErr) { setSaving(false); toast.error("Error al guardar el episodio: " + epErr.message); return; }
     }
     const patientRes = await supabase.from("patients").update(patientPayload).eq("id", patient.id);
     const clinicalRes = clinical?.id
