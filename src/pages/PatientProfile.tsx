@@ -268,7 +268,7 @@ export default function PatientProfile() {
                 }}
                 size="sm" className="w-full"
               >
-                <Plus className="h-4 w-4 mr-2" /> {sessions.length === 0 ? "Registrar admisión" : "Evolución"}
+                <Plus className="h-4 w-4 mr-2" /> {sessions.length === 0 ? "Registrar admisión" : "Nueva sesión"}
               </Button>
               <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={() => setShowNewAppt(true)}>
                 <Calendar className="h-4 w-4 mr-2" /> Nuevo turno
