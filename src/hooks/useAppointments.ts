@@ -1,9 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Database, Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
-type FilterStatus = "all" | "scheduled" | "completed" | "cancelled";
+export type FilterStatus = "all" | "pending" | "completed" | "absent" | "cancelled";
+
+const FILTER_STATUSES: Record<Exclude<FilterStatus, "all">, Database["public"]["Enums"]["appointment_status"][]> = {
+  pending: ["scheduled", "waiting"],
+  completed: ["completed"],
+  absent: ["absent", "absent_with_notice"],
+  cancelled: ["cancelled"],
+};
 
 // Forma de las filas que devuelve useAppointments (join con patients)
 export type AppointmentWithPatient = Tables<"appointments"> & {
@@ -20,25 +27,32 @@ export function useAppointments(filter: FilterStatus) {
         .from("appointments")
         .select("*, patients(first_name, last_name, phone)")
         .order("appointment_date", { ascending: true });
-      if (filter !== "all") q = q.eq("status", filter);
+      if (filter !== "all") q = q.in("status", FILTER_STATUSES[filter]);
       const { data } = await q;
       return data ?? [];
     },
   });
 }
 
-export function useCompleteAppointment() {
+type AppointmentStatusValue = Database["public"]["Enums"]["appointment_status"];
+
+export function useUpdateAppointmentStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("appointments").update({ status: "completed" as const }).eq("id", id);
+    mutationFn: async ({ id, status }: { id: string; status: AppointmentStatusValue }) => {
+      // Si el turno estaba cancelado y se reactiva, se limpia el motivo de cancelación.
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status, cancellation_reason: null, cancellation_notes: null })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Turno completado");
+      toast.success("Estado actualizado");
       queryClient.invalidateQueries({ queryKey: [APPOINTMENTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] }); // turnos del día en el Dashboard
     },
-    onError: () => toast.error("Error al completar turno"),
+    onError: () => toast.error("No se pudo cambiar el estado del turno"),
   });
 }
 

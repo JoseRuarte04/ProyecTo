@@ -223,6 +223,33 @@ export type Database = {
           },
         ]
       }
+      appointment_settings: {
+        Row: {
+          created_at: string
+          id: string
+          max_absences: number | null
+          owner_id: string
+          owner_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_absences?: number | null
+          owner_id: string
+          owner_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_absences?: number | null
+          owner_id?: string
+          owner_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -1513,6 +1540,39 @@ export type Database = {
           },
         ]
       }
+      priority_pathologies: {
+        Row: {
+          code: string | null
+          created_at: string
+          id: string
+          label: string
+          level: string
+          owner_id: string
+          owner_type: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          label: string
+          level: string
+          owner_id: string
+          owner_type: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          level?: string
+          owner_id?: string
+          owner_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2285,7 +2345,13 @@ export type Database = {
     }
     Enums: {
       appointment_modality: "in_person" | "virtual"
-      appointment_status: "scheduled" | "completed" | "cancelled"
+      appointment_status:
+        | "scheduled"
+        | "completed"
+        | "cancelled"
+        | "waiting"
+        | "absent"
+        | "absent_with_notice"
       appointment_type: "consultation" | "follow_up" | "evaluation"
       audit_action:
         | "insert"
@@ -2434,7 +2500,14 @@ export const Constants = {
   public: {
     Enums: {
       appointment_modality: ["in_person", "virtual"],
-      appointment_status: ["scheduled", "completed", "cancelled"],
+      appointment_status: [
+        "scheduled",
+        "completed",
+        "cancelled",
+        "waiting",
+        "absent",
+        "absent_with_notice",
+      ],
       appointment_type: ["consultation", "follow_up", "evaluation"],
       audit_action: [
         "insert",

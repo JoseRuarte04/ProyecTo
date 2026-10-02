@@ -7,7 +7,7 @@ import { format, addDays, subDays, differenceInYears, differenceInMinutes } from
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { useDayAppointments, useActivePatients, useRecentSessions, useStalePatients } from "@/hooks/useDashboard";
-import { StatusDot, APPOINTMENT_TYPE_LABEL, APPOINTMENT_TYPE_STRIPE, SESSION_TYPE_LABEL } from "@/components/status";
+import { AppointmentStatusDot, APPOINTMENT_TYPE_LABEL, APPOINTMENT_TYPE_STRIPE, SESSION_TYPE_LABEL } from "@/components/status";
 import { DashboardSkeleton } from "@/components/skeletons";
 import { openCommandPalette } from "@/components/CommandPalette";
 
@@ -37,12 +37,12 @@ export default function Dashboard() {
   const hours = Math.floor(totalMinutes / 60);
   const mins = totalMinutes % 60;
 
-  const nextAppt = dayAppointments.find(a => new Date(a.appointment_date) >= now && a.status !== "cancelled");
+  const nextAppt = dayAppointments.find(a => new Date(a.appointment_date) >= now && ["scheduled", "waiting"].includes(a.status));
   const nextTime = nextAppt ? format(new Date(nextAppt.appointment_date), "HH:mm") : null;
   const nextPatient = nextAppt?.patients ? `${nextAppt.patients.first_name} ${nextAppt.patients.last_name}` : null;
 
   const incompleteTodayCount = dayAppointments.filter(
-    a => !["completed", "cancelled", "discharged"].includes(a.status)
+    a => ["scheduled", "waiting"].includes(a.status)
   ).length;
 
   return (
@@ -120,8 +120,8 @@ export default function Dashboard() {
                 const patient = a.patients;
                 const age = patient?.birth_date ? differenceInYears(new Date(), new Date(patient.birth_date)) : null;
                 const typeName = APPOINTMENT_TYPE_LABEL[a.type] || a.type;
-                const isNow = Math.abs(new Date(a.appointment_date).getTime() - now.getTime()) < 30 * 60 * 1000 && a.status !== "cancelled";
-                const isCancelled = a.status === "cancelled";
+                const isNow = Math.abs(new Date(a.appointment_date).getTime() - now.getTime()) < 30 * 60 * 1000 && ["scheduled", "waiting"].includes(a.status);
+                const isCancelled = ["cancelled", "absent", "absent_with_notice"].includes(a.status);
                 const isCompleted = a.status === "completed";
                 const stripeClass = APPOINTMENT_TYPE_STRIPE[a.type] || "bg-slate-300";
 
@@ -153,8 +153,8 @@ export default function Dashboard() {
 
                     <div className="flex items-center gap-2 shrink-0">
                       {isNow && <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Ahora</span>}
-                      {isCompleted && <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Completado</span>}
-                      <StatusDot status={a.status} />
+                      {isCompleted && <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Atendido</span>}
+                      <AppointmentStatusDot status={a.status} />
                     </div>
                   </div>
                 );

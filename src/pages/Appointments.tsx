@@ -4,9 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAppointments, useCompleteAppointment, useCancelAppointment, APPOINTMENTS_KEY, type AppointmentWithPatient } from "@/hooks/useAppointments";
+import { useAppointments, useUpdateAppointmentStatus, useCancelAppointment, APPOINTMENTS_KEY, type AppointmentWithPatient, type FilterStatus } from "@/hooks/useAppointments";
 import type { Tables } from "@/integrations/supabase/types";
-import { StatusBadge, APPOINTMENT_TYPE_STRIPE } from "@/components/status";
+import { APPOINTMENT_TYPE_STRIPE, OCCUPYING_STATUSES, appointmentStatusStyle } from "@/components/status";
+import { AppointmentStatusSelect } from "@/components/AppointmentStatusSelect";
 import { PageHeader } from "@/components/PageHeader";
 import { ListSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
+import { AlertTriangle, Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
 import { whatsappUrl } from "@/lib/whatsapp";
 import { createVideoRoom } from "@/lib/videoRoom";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
@@ -27,9 +28,13 @@ import { cn } from "@/lib/utils";
 import { useDirtyDeps } from "@/hooks/useDirtyDeps";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
+import { usePatientPriorities } from "@/hooks/usePatientPriorities";
+import { PRIORITY_META } from "@/lib/priority";
+import { PriorityDot } from "@/components/PriorityDot";
+import { useAppointmentSettings } from "@/hooks/useAppointmentSettings";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { documentTypeShortLabel } from "@/components/patients/documentTypes";
 
-type FilterStatus = "all" | "scheduled" | "completed" | "cancelled";
 type ViewMode = "list" | "week";
 
 const TYPE_MAP: Record<string, string> = {
@@ -51,22 +56,7 @@ const TYPE_CHIP: Record<string, string> = {
 // Barra de 4px en lista (por tipo)
 const TYPE_BAR = APPOINTMENT_TYPE_STRIPE;
 
-// Bloque en calendario: fondo suave + borde izquierdo por estado (Google Calendar style)
-const STATUS_BLOCK: Record<string, string> = {
-  scheduled: "bg-sky-100 border-l-[3px] border-sky-500 text-sky-900 hover:bg-sky-200 hover:shadow-sm",
-  completed: "bg-emerald-50 border-l-[3px] border-emerald-500 text-emerald-900 hover:bg-emerald-100 hover:shadow-sm",
-  cancelled: "bg-red-50 border-l-[3px] border-red-400 text-red-800 opacity-60",
-};
-
-// Barra de color superior en el panel de detalle
-const STATUS_HEADER_COLOR: Record<string, string> = {
-  scheduled: "bg-sky-500",
-  completed: "bg-emerald-500",
-  cancelled: "bg-red-400",
-};
-
 const CANCELLATION_REASONS = [
-  { value: "no_show",                label: "No asistió" },
   { value: "patient_cancelled",      label: "Canceló el paciente" },
   { value: "professional_cancelled", label: "Canceló el profesional" },
   { value: "rescheduled",            label: "Reprogramado" },
@@ -84,9 +74,10 @@ type DayAppointment = Tables<"appointments"> & {
   patients: Pick<Tables<"patients">, "first_name" | "last_name"> | null;
 };
 
-function displayStatus(a: AppointmentWithPatient): string {
-  return a.status === "cancelled" && a.cancellation_reason === "no_show" ? "no_show" : a.status;
-}
+type StatusValue = Database["public"]["Enums"]["appointment_status"];
+
+// Los turnos que todavía se pueden operar (confirmar llegada, atender, cancelar, reprogramar).
+const isOpen = (status: string) => (OCCUPYING_STATUSES as string[]).includes(status);
 
 /* ═══════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
@@ -95,7 +86,7 @@ function displayStatus(a: AppointmentWithPatient): string {
 export default function Appointments() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<FilterStatus>("scheduled");
+  const [filter, setFilter] = useState<FilterStatus>("all");
   // La vista "Semana" (grilla de 7 columnas) es ilegible en mobile — arrancar
   // en "Lista" ahí. Solo el valor inicial: no pisa un toggle manual del
   // usuario si el viewport cambia después (ej. rotar el celular).
@@ -116,7 +107,14 @@ export default function Appointments() {
   const [cancelNotes, setCancelNotes] = useState("");
 
   const { data: appointments = [], isLoading: loading } = useAppointments(filter);
-  const { mutate: completeAppointment } = useCompleteAppointment();
+  const priorities = usePatientPriorities(appointments.map(a => a.patient_id));
+  const { mutate: updateStatus, isPending: updatingStatus } = useUpdateAppointmentStatus();
+  const changeStatus = (appt: AppointmentWithPatient, status: string) => {
+    updateStatus(
+      { id: appt.id, status: status as StatusValue },
+      { onSuccess: () => setSelectedAppt(cur => (cur?.id === appt.id ? { ...cur, status: status as StatusValue, cancellation_reason: null, cancellation_notes: null } : cur)) }
+    );
+  };
   const { mutate: cancelAppointment } = useCancelAppointment();
 
   const refreshAppointments = () =>
@@ -142,10 +140,11 @@ export default function Appointments() {
   };
 
   const filterTabs: { label: string; value: FilterStatus }[] = [
-    { label: "Programados", value: "scheduled" },
-    { label: "Completados", value: "completed" },
-    { label: "Cancelados", value: "cancelled" },
     { label: "Todos", value: "all" },
+    { label: "Pendientes", value: "pending" },
+    { label: "Atendidos", value: "completed" },
+    { label: "Ausentes", value: "absent" },
+    { label: "Cancelados", value: "cancelled" },
   ];
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -254,6 +253,7 @@ export default function Appointments() {
                     <div className={cn("w-1 self-stretch rounded-full", TYPE_BAR[a.type] || "bg-muted")} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
+                        {priorities[a.patient_id] && <PriorityDot level={priorities[a.patient_id]} />}
                         <p className="font-semibold text-sm text-foreground truncate">
                           {a.patients?.last_name}, {a.patients?.first_name}
                         </p>
@@ -278,17 +278,17 @@ export default function Appointments() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <StatusBadge status={displayStatus(a)} />
-                      {a.status === "scheduled" && (
+                      <AppointmentStatusSelect status={a.status} onChange={next => changeStatus(a, next)} disabled={updatingStatus} />
+                      {isOpen(a.status) && (
                         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                onClick={() => completeAppointment(a.id)}>
+                                onClick={() => changeStatus(a, "completed")}>
                                 <CheckCircle className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Completar</TooltipContent>
+                            <TooltipContent>Marcar atendido</TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -419,8 +419,8 @@ export default function Appointments() {
                             data-appointment-block="true"
                             onClick={e => { e.stopPropagation(); openDetail(a); }}
                             className={cn(
-                              "absolute left-0.5 right-0.5 rounded-md px-1.5 py-1 overflow-hidden cursor-pointer transition-all duration-150",
-                              STATUS_BLOCK[a.status] || "bg-muted text-foreground",
+                              "absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-1 overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-sm",
+                              appointmentStatusStyle(a.status).block,
                               a.is_overtime && "border border-dashed border-orange-400",
                               isSelected && "ring-2 ring-sky-400 ring-offset-1 z-10"
                             )}
@@ -435,7 +435,7 @@ export default function Appointments() {
                             </div>
                             {height > 30 && (
                               <p className="text-[9px] opacity-60 leading-tight mt-0.5">
-                                {startStr}{endStr ? `–${endStr}` : ""} · {TYPE_MAP[a.type] || a.type}
+                                {startStr}{endStr ? `–${endStr}` : ""} · {a.status === "scheduled" ? (TYPE_MAP[a.type] || a.type) : appointmentStatusStyle(a.status).label}
                               </p>
                             )}
                           </div>
@@ -460,7 +460,8 @@ export default function Appointments() {
         appt={selectedAppt}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        onComplete={id => { completeAppointment(id); setDetailOpen(false); }}
+        onStatusChange={(a, status) => changeStatus(a, status)}
+        statusPending={updatingStatus}
         onReschedule={a => { setRescheduleAppt(a); setDetailOpen(false); }}
         onCancel={id => { openCancelDialog(id); setDetailOpen(false); }}
         onUpdated={a => { setSelectedAppt(a); refreshAppointments(); }}
@@ -472,7 +473,7 @@ export default function Appointments() {
         onClose={() => setShowNew(false)}
         userId={user!.id}
         onSaved={refreshAppointments}
-        existingAppointments={appointments.filter(a => a.status === "scheduled")}
+        existingAppointments={appointments.filter(a => isOpen(a.status))}
         prefilledDate={prefilledDate}
         prefilledTime={prefilledTime}
       />
@@ -523,12 +524,13 @@ export default function Appointments() {
 ═══════════════════════════════════════════════════════════ */
 
 function AppointmentDetailPanel({
-  appt, open, onClose, onComplete, onReschedule, onCancel, onUpdated,
+  appt, open, onClose, onStatusChange, statusPending, onReschedule, onCancel, onUpdated,
 }: {
   appt: AppointmentWithPatient | null;
   open: boolean;
   onClose: () => void;
-  onComplete: (id: string) => void;
+  onStatusChange: (appt: AppointmentWithPatient, status: string) => void;
+  statusPending: boolean;
   onReschedule: (appt: AppointmentWithPatient) => void;
   onCancel: (id: string) => void;
   onUpdated: (appt: AppointmentWithPatient) => void;
@@ -552,7 +554,9 @@ function AppointmentDetailPanel({
       const target = e.target as HTMLElement;
       const inPanel = panelRef.current?.contains(target);
       const inBlock = !!target.closest("[data-appointment-block]");
-      if (!inPanel && !inBlock) onClose();
+      // El menú de estados se renderiza en un portal, fuera del panel
+      const inMenu = !!target.closest("[role='menu']");
+      if (!inPanel && !inBlock && !inMenu) onClose();
     };
     const t = setTimeout(() => document.addEventListener("mousedown", handler), 80);
     return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
@@ -574,7 +578,7 @@ function AppointmentDetailPanel({
       )}
     >
       {/* Barra de color por estado */}
-      <div className={cn("h-1.5 shrink-0", STATUS_HEADER_COLOR[appt.status] || "bg-muted")} />
+      <div className={cn("h-1.5 shrink-0", appointmentStatusStyle(appt.status).header)} />
 
       {/* Header */}
       <div className="px-5 pt-4 pb-3 border-b border-border shrink-0">
@@ -613,7 +617,7 @@ function AppointmentDetailPanel({
           <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", TYPE_CHIP[appt.type] || "bg-muted text-foreground")}>
             {TYPE_MAP[appt.type] || appt.type}
           </span>
-          <StatusBadge status={displayStatus(appt)} />
+          <AppointmentStatusSelect status={appt.status} onChange={next => onStatusChange(appt, next)} disabled={statusPending} />
           {appt.is_overtime && (
             <span className="inline-flex items-center gap-1 text-xs font-medium bg-orange-100 text-orange-600 rounded-full px-2.5 py-1">
               <Zap className="h-3 w-3" /> Sobreturno
@@ -628,12 +632,12 @@ function AppointmentDetailPanel({
 
         {/* Info de cancelación */}
         {appt.status === "cancelled" && (cancelLabel || appt.cancellation_notes) && (
-          <div className="bg-red-50 border border-red-100 rounded-xl p-3 space-y-1">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
             {cancelLabel && (
-              <p className="text-xs font-semibold text-red-700">{cancelLabel}</p>
+              <p className="text-xs font-semibold text-slate-700">{cancelLabel}</p>
             )}
             {appt.cancellation_notes && (
-              <p className="text-xs text-red-600 italic">"{appt.cancellation_notes}"</p>
+              <p className="text-xs text-slate-600 italic">"{appt.cancellation_notes}"</p>
             )}
           </div>
         )}
@@ -653,7 +657,7 @@ function AppointmentDetailPanel({
       </div>
 
       {/* Acciones (solo para turnos programados) */}
-      {appt.status === "scheduled" && (
+      {isOpen(appt.status) && (
         <div className="px-4 py-4 border-t border-border space-y-2 shrink-0">
           {appt.modality === "virtual" && (
             appt.video_link ? (
@@ -697,9 +701,9 @@ function AppointmentDetailPanel({
           <Button
             className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
             size="sm"
-            onClick={() => onComplete(appt.id)}
+            onClick={() => onStatusChange(appt, "completed")}
           >
-            <CheckCircle className="h-4 w-4" /> Completar
+            <CheckCircle className="h-4 w-4" /> Marcar atendido
           </Button>
           <Button
             className="w-full gap-2"
@@ -825,6 +829,9 @@ function NewAppointmentDialog({
   const [form, setForm] = useState({ type: "consultation" as string, modality: "in_person" as "in_person" | "virtual", notes: "" });
   const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
   const [showOvertimeConfirm, setShowOvertimeConfirm] = useState(false);
+  const { maxAbsences } = useAppointmentSettings();
+  const priorities = usePatientPriorities([...patients.map(p => p.id), ...(selectedPatient ? [selectedPatient.id] : [])]);
+  const [absenceCount, setAbsenceCount] = useState(0);
 
   const [isDirty, resetDirty] = useDirtyDeps([selectedPatient, selectedDate, startTime, endTime, form]);
   const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
@@ -855,7 +862,7 @@ function NewAppointmentDialog({
     supabase
       .from("appointments")
       .select("*, patients(first_name, last_name)")
-      .eq("status", "scheduled")
+      .in("status", OCCUPYING_STATUSES)
       .gte("appointment_date", `${selectedDate}T00:00:00`)
       .lt("appointment_date", `${selectedDate}T23:59:59`)
       .then(({ data, error }) => {
@@ -866,6 +873,25 @@ function NewAppointmentDialog({
         setDayAppts(data || []); setLoadingSlots(false);
       });
   }, [selectedDate]);
+
+  // Ausencias previas del paciente elegido, para advertir si alcanzó el máximo configurado.
+  useEffect(() => {
+    if (!selectedPatient || maxAbsences === null) { setAbsenceCount(0); return; }
+    let cancelled = false;
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("patient_id", selectedPatient.id)
+      .eq("status", "absent")
+      .then(({ count, error }) => {
+        if (cancelled) return;
+        if (error) { console.error("Error contando ausencias:", error); setAbsenceCount(0); return; }
+        setAbsenceCount(count ?? 0);
+      });
+    return () => { cancelled = true; };
+  }, [selectedPatient, maxAbsences]);
+
+  const absenceLimitReached = maxAbsences !== null && absenceCount >= maxAbsences;
 
   const searchPatients = async (term: string) => {
     setSearchTerm(term);
@@ -983,7 +1009,10 @@ function NewAppointmentDialog({
               <Label>Paciente *</Label>
               {selectedPatient ? (
                 <div className="flex items-center justify-between bg-muted px-3 py-2 rounded-md">
-                  <span className="text-sm">{selectedPatient.last_name}, {selectedPatient.first_name}</span>
+                  <span className="text-sm flex items-center gap-2">
+                    {priorities[selectedPatient.id] && <PriorityDot level={priorities[selectedPatient.id]} />}
+                    {selectedPatient.last_name}, {selectedPatient.first_name}
+                  </span>
                   <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedPatient(null)}>Cambiar</Button>
                 </div>
               ) : (
@@ -1009,8 +1038,9 @@ function NewAppointmentDialog({
                     <div className="border border-border rounded-md divide-y divide-border max-h-36 overflow-y-auto">
                       {patients.map(p => (
                         <button key={p.id} onClick={() => { setSelectedPatient(p); setPatients([]); setSearchTerm(""); }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors">
-                          {p.last_name}, {p.first_name} — {documentTypeShortLabel(p.document_type)}: {p.dni}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2">
+                          {priorities[p.id] && <PriorityDot level={priorities[p.id]} />}
+                          <span>{p.last_name}, {p.first_name} — {documentTypeShortLabel(p.document_type)}: {p.dni}</span>
                         </button>
                       ))}
                     </div>
@@ -1018,6 +1048,23 @@ function NewAppointmentDialog({
                 </div>
               )}
             </div>
+
+            {selectedPatient && absenceLimitReached && (
+              <Alert className="border-amber-300 bg-amber-50 text-amber-900 [&>svg]:text-amber-700">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Este paciente acumula {absenceCount} {absenceCount === 1 ? "ausencia" : "ausencias"}</AlertTitle>
+                <AlertDescription>
+                  Alcanzó el máximo de {maxAbsences} que configuraste. Podés agendar el turno igual.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {selectedPatient && priorities[selectedPatient.id] && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 -mt-2">
+                <PriorityDot level={priorities[selectedPatient.id]} />
+                {PRIORITY_META[priorities[selectedPatient.id]].label}: {PRIORITY_META[priorities[selectedPatient.id]].hint.toLowerCase()}.
+              </p>
+            )}
 
             {/* Fecha */}
             <div className="space-y-1.5">
