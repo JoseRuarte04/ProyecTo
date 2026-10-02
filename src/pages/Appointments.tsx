@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -828,6 +829,7 @@ function NewAppointmentDialog({
   const [isDirty, resetDirty] = useDirtyDeps([selectedPatient, selectedDate, startTime, endTime, form]);
   const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
   const closeGuarded = () => guard(onClose);
+  const navigate = useNavigate();
 
   // Pre-fill cuando se abre desde clic en el calendario
   useEffect(() => {
@@ -986,9 +988,22 @@ function NewAppointmentDialog({
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar paciente..." value={searchTerm} onChange={e => searchPatients(e.target.value)} className="pl-10" />
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Buscar paciente..." value={searchTerm} onChange={e => searchPatients(e.target.value)} className="pl-10" />
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" className="shrink-0" aria-label="Nuevo paciente"
+                            onClick={() => guard(() => { onClose(); navigate("/patients/new"); })}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Nuevo paciente</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   {patients.length > 0 && (
                     <div className="border border-border rounded-md divide-y divide-border max-h-36 overflow-y-auto">
