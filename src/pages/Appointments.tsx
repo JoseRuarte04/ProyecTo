@@ -546,7 +546,9 @@ function AppointmentDetailPanel({
       const target = e.target as HTMLElement;
       const inPanel = panelRef.current?.contains(target);
       const inBlock = !!target.closest("[data-appointment-block]");
-      if (!inPanel && !inBlock) onClose();
+      // El menú de estados se renderiza en un portal, fuera del panel
+      const inMenu = !!target.closest("[role='menu']");
+      if (!inPanel && !inBlock && !inMenu) onClose();
     };
     const t = setTimeout(() => document.addEventListener("mousedown", handler), 80);
     return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
