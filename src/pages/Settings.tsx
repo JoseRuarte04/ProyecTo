@@ -1,4 +1,4 @@
-import { ClipboardList, ChevronRight } from "lucide-react";
+import { ClipboardList, CalendarClock, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -8,6 +8,12 @@ const SETTINGS_ITEMS = [
     description: "Elegí qué escalas se muestran en el wizard de sesiones.",
     url: "/configuraciones/evaluaciones",
     icon: ClipboardList,
+  },
+  {
+    title: "Turnos",
+    description: "Elegí cuántas ausencias de un paciente disparan una advertencia.",
+    url: "/configuraciones/turnos",
+    icon: CalendarClock,
   },
 ];
 

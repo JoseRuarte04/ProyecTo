@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
+import { AlertTriangle, Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
 import { whatsappUrl } from "@/lib/whatsapp";
 import { createVideoRoom } from "@/lib/videoRoom";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
@@ -27,6 +27,11 @@ import { cn } from "@/lib/utils";
 import { useDirtyDeps } from "@/hooks/useDirtyDeps";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
+import { usePatientPriorities } from "@/hooks/usePatientPriorities";
+import { PRIORITY_META } from "@/lib/priority";
+import { PriorityDot } from "@/components/PriorityDot";
+import { useAppointmentSettings } from "@/hooks/useAppointmentSettings";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { documentTypeShortLabel } from "@/components/patients/documentTypes";
 
 type ViewMode = "list" | "week";
@@ -101,6 +106,7 @@ export default function Appointments() {
   const [cancelNotes, setCancelNotes] = useState("");
 
   const { data: appointments = [], isLoading: loading } = useAppointments(filter);
+  const priorities = usePatientPriorities(appointments.map(a => a.patient_id));
   const { mutate: updateStatus, isPending: updatingStatus } = useUpdateAppointmentStatus();
   const changeStatus = (appt: AppointmentWithPatient, status: string) => {
     updateStatus(
@@ -246,6 +252,7 @@ export default function Appointments() {
                     <div className={cn("w-1 self-stretch rounded-full", TYPE_BAR[a.type] || "bg-muted")} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
+                        {priorities[a.patient_id] && <PriorityDot level={priorities[a.patient_id]} />}
                         <p className="font-semibold text-sm text-foreground truncate">
                           {a.patients?.last_name}, {a.patients?.first_name}
                         </p>
@@ -821,6 +828,9 @@ function NewAppointmentDialog({
   const [form, setForm] = useState({ type: "consultation" as string, modality: "in_person" as "in_person" | "virtual", notes: "" });
   const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
   const [showOvertimeConfirm, setShowOvertimeConfirm] = useState(false);
+  const { maxAbsences } = useAppointmentSettings();
+  const priorities = usePatientPriorities([...patients.map(p => p.id), ...(selectedPatient ? [selectedPatient.id] : [])]);
+  const [absenceCount, setAbsenceCount] = useState(0);
 
   const [isDirty, resetDirty] = useDirtyDeps([selectedPatient, selectedDate, startTime, endTime, form]);
   const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
@@ -861,6 +871,25 @@ function NewAppointmentDialog({
         setDayAppts(data || []); setLoadingSlots(false);
       });
   }, [selectedDate]);
+
+  // Ausencias previas del paciente elegido, para advertir si alcanzó el máximo configurado.
+  useEffect(() => {
+    if (!selectedPatient || maxAbsences === null) { setAbsenceCount(0); return; }
+    let cancelled = false;
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("patient_id", selectedPatient.id)
+      .eq("status", "absent")
+      .then(({ count, error }) => {
+        if (cancelled) return;
+        if (error) { console.error("Error contando ausencias:", error); setAbsenceCount(0); return; }
+        setAbsenceCount(count ?? 0);
+      });
+    return () => { cancelled = true; };
+  }, [selectedPatient, maxAbsences]);
+
+  const absenceLimitReached = maxAbsences !== null && absenceCount >= maxAbsences;
 
   const searchPatients = async (term: string) => {
     setSearchTerm(term);
@@ -978,7 +1007,10 @@ function NewAppointmentDialog({
               <Label>Paciente *</Label>
               {selectedPatient ? (
                 <div className="flex items-center justify-between bg-muted px-3 py-2 rounded-md">
-                  <span className="text-sm">{selectedPatient.last_name}, {selectedPatient.first_name}</span>
+                  <span className="text-sm flex items-center gap-2">
+                    {priorities[selectedPatient.id] && <PriorityDot level={priorities[selectedPatient.id]} />}
+                    {selectedPatient.last_name}, {selectedPatient.first_name}
+                  </span>
                   <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedPatient(null)}>Cambiar</Button>
                 </div>
               ) : (
@@ -991,8 +1023,9 @@ function NewAppointmentDialog({
                     <div className="border border-border rounded-md divide-y divide-border max-h-36 overflow-y-auto">
                       {patients.map(p => (
                         <button key={p.id} onClick={() => { setSelectedPatient(p); setPatients([]); setSearchTerm(""); }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors">
-                          {p.last_name}, {p.first_name} — {documentTypeShortLabel(p.document_type)}: {p.dni}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2">
+                          {priorities[p.id] && <PriorityDot level={priorities[p.id]} />}
+                          <span>{p.last_name}, {p.first_name} — {documentTypeShortLabel(p.document_type)}: {p.dni}</span>
                         </button>
                       ))}
                     </div>
@@ -1000,6 +1033,23 @@ function NewAppointmentDialog({
                 </div>
               )}
             </div>
+
+            {selectedPatient && absenceLimitReached && (
+              <Alert className="border-amber-300 bg-amber-50 text-amber-900 [&>svg]:text-amber-700">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Este paciente acumula {absenceCount} {absenceCount === 1 ? "ausencia" : "ausencias"}</AlertTitle>
+                <AlertDescription>
+                  Alcanzó el máximo de {maxAbsences} que configuraste. Podés agendar el turno igual.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {selectedPatient && priorities[selectedPatient.id] && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 -mt-2">
+                <PriorityDot level={priorities[selectedPatient.id]} />
+                {PRIORITY_META[priorities[selectedPatient.id]].label}: {PRIORITY_META[priorities[selectedPatient.id]].hint.toLowerCase()}.
+              </p>
+            )}
 
             {/* Fecha */}
             <div className="space-y-1.5">

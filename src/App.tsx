@@ -31,6 +31,7 @@ const WorkspacePicker = lazy(() => import("./pages/WorkspacePicker"));
 const MiEquipo = lazy(() => import("./pages/MiEquipo"));
 const Settings = lazy(() => import("./pages/Settings"));
 const EvaluationSettings = lazy(() => import("./pages/EvaluationSettings"));
+const AppointmentSettings = lazy(() => import("./pages/AppointmentSettings"));
 const InvitationRegister = lazy(() => import("./pages/InvitationRegister"));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -79,6 +80,7 @@ const App = () => (
                 <Route path="mi-equipo" element={<MiEquipo />} />
                 <Route path="configuraciones" element={<Settings />} />
                 <Route path="configuraciones/evaluaciones" element={<EvaluationSettings />} />
+                <Route path="configuraciones/turnos" element={<AppointmentSettings />} />
               </Route>
               <Route path="/registro" element={<InvitationRegister />} />
               <Route path="/accept-invite" element={<AcceptInvite />} />
