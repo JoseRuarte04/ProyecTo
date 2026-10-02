@@ -9,6 +9,16 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-02] Proceso: toda sesión de Claude Code arranca en su propio git worktree
+
+**Contexto:** el choque de sesiones concurrentes sobre el mismo checkout ya pasó varias veces (2026-09-23: dos sesiones arreglaron el mismo bug de overflow en paralelo sin saberlo; 2026-10-02: la auditoría de seguridad corrió en paralelo con otra sesión que mergeó los PRs #27/#28/#29 sin que ninguna se enterara de la otra, y PROJECT_STATE.md quedó desincronizado por eso). Hasta ahora la regla era "mover el trabajo a un worktree aislado si a mitad de camino se detecta otra sesión activa" — reactivo, depende de notarlo.
+
+**Decisión:** la regla pasa a ser proactiva — toda sesión nueva arranca en su propio `git worktree` (`.claude/worktrees/<nombre-de-la-tarea>`) antes de tocar cualquier archivo o crear una rama, sin excepción, no solo cuando se detecta el choque. Agregado a `CLAUDE.md`.
+
+**Por qué:** detectar el choque a mitad de camino depende de que alguien se dé cuenta (un archivo sin commitear ajeno, un dev server ocupado) — no es confiable. Arrancar siempre aislado elimina la clase entera de problema en vez de mitigarlo caso por caso, y deja el checkout principal libre para que Jose lo use directamente sin que una sesión se lo pise.
+
+---
+
 ## [2026-10-01] Turnos: ausencias cuentan solo "Ausente"; semáforo por patologia con el nivel más alto
 
 **Contexto:** Jose pidió en Configuraciones > Turnos (1) un máximo de ausencias por paciente que advierta al dar turno y (2) un semáforo de prioridades por patologia.
