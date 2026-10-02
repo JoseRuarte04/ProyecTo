@@ -774,8 +774,10 @@ export default function SessionForm() {
       if (activeEpisodeId && !diagnosesLoadFailed) {
         // Primero la tabla nueva, después el principal en las columnas legacy.
         // Si la carga inicial de diagnósticos falló, no los tocamos (ver diagnoses.ts).
-        await saveEpisodeDiagnoses(activeEpisodeId, patientId!, cli_diagnoses);
-        await supabase.from("treatment_episodes").update({ affected_side: affected_side ?? null, referral_date: referral_date || null, diagnosis: primaryLabel(cli_diagnoses) }).eq("id", activeEpisodeId);
+        const { error: dxErr } = await saveEpisodeDiagnoses(activeEpisodeId, patientId!, cli_diagnoses);
+        if (dxErr) { setSaving(false); toast.error("Error al guardar los diagnósticos: " + dxErr.message); return; }
+        const { error: epErr } = await supabase.from("treatment_episodes").update({ affected_side: affected_side ?? null, referral_date: referral_date || null, diagnosis: primaryLabel(cli_diagnoses) }).eq("id", activeEpisodeId);
+        if (epErr) { setSaving(false); toast.error("Error al guardar el episodio: " + epErr.message); return; }
       }
       if (editingClinicalId) {
         const { error: cliErr } = await supabase.from("patient_clinical_records").update(cliPayload).eq("id", editingClinicalId);
