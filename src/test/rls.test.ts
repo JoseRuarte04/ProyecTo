@@ -52,13 +52,14 @@ const clientB = makeClient();
 const clientAnon = makeClient();
 
 let userAId: string;
+let userBId: string;
 let patientId: string;
 let sessionId: string;
 let episodeId: string;
 
 beforeAll(async () => {
   userAId = await signInOrSignUp(clientA, USER_A);
-  await signInOrSignUp(clientB, USER_B);
+  userBId = await signInOrSignUp(clientB, USER_B);
 
   // Datos fijos del profesional A (crear solo si no existen)
   const { data: existing, error: findErr } = await clientA
@@ -225,6 +226,23 @@ describe("RLS: aislamiento entre profesionales", () => {
       .eq("episode_id", episodeId)
       .eq("label", "Forjado");
     expect(check).toHaveLength(0);
+  });
+
+  it("B no puede crear un token de QuickDASH para el paciente de A (regresión 2026-10-02)", async () => {
+    // Hasta la migración 20261002100000, la policy de INSERT de
+    // quickdash_tokens solo chequeaba `created_by = auth.uid()`, sin validar
+    // que el paciente fuera realmente de B — ver docs/AUDIT_2026-10-02.md.
+    const { data, error } = await clientB
+      .from("quickdash_tokens")
+      .insert({
+        patient_id: patientId,
+        session_id: sessionId,
+        created_by: userBId,
+        expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+      })
+      .select("id");
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
   });
 
   it("B no puede editar el perfil de A", async () => {
