@@ -223,6 +223,33 @@ export type Database = {
           },
         ]
       }
+      appointment_settings: {
+        Row: {
+          created_at: string
+          id: string
+          max_absences: number | null
+          owner_id: string
+          owner_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_absences?: number | null
+          owner_id: string
+          owner_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_absences?: number | null
+          owner_id?: string
+          owner_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -1512,6 +1539,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      priority_pathologies: {
+        Row: {
+          code: string | null
+          created_at: string
+          id: string
+          label: string
+          level: string
+          owner_id: string
+          owner_type: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          label: string
+          level: string
+          owner_id: string
+          owner_type: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          level?: string
+          owner_id?: string
+          owner_type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
