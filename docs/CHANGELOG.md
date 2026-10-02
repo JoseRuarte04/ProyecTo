@@ -9,9 +9,16 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-02] Sesiones: quitar "Nueva sesión" del Dashboard, renombrar a "Evolución"
+- Dashboard: se elimina el botón "Nueva sesión" (solo llevaba a elegir paciente).
+- Ficha del paciente y pestaña Sesiones: el botón "Nueva sesión" pasa a llamarse "Evolución" (alinea el nombre con el paso del wizard). Solo texto, sin cambios de lógica ni migraciones. PR [#29](https://github.com/JoseRuarte04/ProyecTo/pull/29).
+
+## [2026-10-01] Turnos: botón + para alta rápida de paciente desde "Nuevo turno"
+- En el diálogo "Nuevo turno", un botón "+" junto al buscador de paciente abre el alta (`/patients/new`) sin salir del flujo de turnos. Visible solo mientras no hay paciente seleccionado. PR [#27](https://github.com/JoseRuarte04/ProyecTo/pull/27).
+
 ## [2026-10-01] Turnos: estados, advertencia por ausencias y semáforo de prioridades
 - Estados nuevos de turno (sala de espera, ausente, ausente con aviso) con colores y selector de estado; los "No asistió" viejos pasan a "Ausente".
-- Configuraciones > Turnos: máximo de ausencias por paciente (advierte al agendar, no bloquea) y semáforo de prioridades por patologia (rojo/amarillo/verde), visible en la lista de Turnos y en "Nuevo turno". 2 migraciones nuevas (`appointment_settings`, `priority_pathologies`), personal o de equipo.
+- Configuraciones > Turnos: máximo de ausencias por paciente (advierte al agendar, no bloquea) y semáforo de prioridades por patologia (rojo/amarillo/verde), visible en la lista de Turnos y en "Nuevo turno". 2 migraciones nuevas (`appointment_settings`, `priority_pathologies`), personal o de equipo. PR [#28](https://github.com/JoseRuarte04/ProyecTo/pull/28).
 
 ## [2026-09-30] Ajustes de alta, perfil ocupacional y wizard de sesión (PR #25)
 - 6 cambios pedidos por Jose: nombre preferido en el alta, reorden de Perfil ocupacional, Dolor "EVA"→"END", título + Barthel/FIM/QuickDASH agrupados al final de Eval. funcional, renombrado Intervenciones→Evolución con campo Objetivo nuevo (se elimina el step Evolución viejo), y QuickDASH integrado al wizard pasando de ser por episodio a ser por sesión.
