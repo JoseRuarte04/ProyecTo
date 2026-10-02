@@ -43,7 +43,7 @@ export function SessionsTab({ sessions, analEvals, funcEvals, patientId, activeE
           title={isDischargedPatient ? "El paciente está de alta — no se pueden agregar más sesiones" : undefined}
         >
           <Plus className="h-4 w-4 mr-2" />
-          {sessions.length === 0 ? "Registrar admisión" : "Nueva sesión"}
+          {sessions.length === 0 ? "Registrar admisión" : "Evolución"}
         </Button>
       </div>
 

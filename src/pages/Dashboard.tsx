@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { ChevronLeft, ChevronRight, Search, Plus, CalendarCheck, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, CalendarCheck, Clock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, addDays, subDays, differenceInYears, differenceInMinutes } from "date-fns";
 import { es } from "date-fns/locale";
@@ -63,9 +63,6 @@ export default function Dashboard() {
 
       {/* Actions bar */}
       <div className="flex items-center gap-2.5">
-        <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shrink-0" onClick={() => navigate("/patients")}>
-          <Plus className="h-4 w-4" /> Nueva sesión
-        </Button>
         <Button
           variant="outline"
           size="sm"
