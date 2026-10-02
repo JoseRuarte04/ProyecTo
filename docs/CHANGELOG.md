@@ -9,6 +9,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-01] Turnos: estados, advertencia por ausencias y semáforo de prioridades
+- Estados nuevos de turno (sala de espera, ausente, ausente con aviso) con colores y selector de estado; los "No asistió" viejos pasan a "Ausente".
+- Configuraciones > Turnos: máximo de ausencias por paciente (advierte al agendar, no bloquea) y semáforo de prioridades por patologia (rojo/amarillo/verde), visible en la lista de Turnos y en "Nuevo turno". 2 migraciones nuevas (`appointment_settings`, `priority_pathologies`), personal o de equipo.
+
 ## [2026-09-30] Ajustes de alta, perfil ocupacional y wizard de sesión (PR #25)
 - 6 cambios pedidos por Jose: nombre preferido en el alta, reorden de Perfil ocupacional, Dolor "EVA"→"END", título + Barthel/FIM/QuickDASH agrupados al final de Eval. funcional, renombrado Intervenciones→Evolución con campo Objetivo nuevo (se elimina el step Evolución viejo), y QuickDASH integrado al wizard pasando de ser por episodio a ser por sesión.
 - 3 migraciones aplicadas contra Supabase real. Verificado de punta a punta en el navegador con el usuario de prueba, incluyendo el flujo completo del link de QuickDASH simulando al paciente.

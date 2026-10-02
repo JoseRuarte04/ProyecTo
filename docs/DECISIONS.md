@@ -9,6 +9,16 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-01] Turnos: ausencias cuentan solo "Ausente"; semáforo por patologia con el nivel más alto
+
+**Contexto:** Jose pidió en Configuraciones > Turnos (1) un máximo de ausencias por paciente que advierta al dar turno y (2) un semáforo de prioridades por patologia.
+
+**Decisión:** (1) Solo suman los turnos en estado `absent`; `absent_with_notice` no suma. La advertencia no bloquea el guardado. (2) Tres niveles (rojo/amarillo/verde) asignados a patologias (CIE-10 o texto libre); un paciente toma el nivel más alto entre los diagnósticos de sus episodios activos, con coincidencia por código o por nombre. Ambas configs son personales o de equipo (solo admins editan), mismo patrón que `evaluation_settings`.
+
+**Por qué:** una ausencia con aviso no es desinterés del paciente, y bloquear el turno le sacaría criterio a la terapista. El punto de color no se agregó al calendario semanal porque ya usa color por estado de turno.
+
+---
+
 ## [2026-09-30] QuickDASH: de "por episodio" a "por sesión", con "gana el último guardado"
 
 **Contexto:** QuickDASH vivía 100% fuera del wizard de sesión — un link público (`/q/:token`) que el paciente completaba, con el resultado atado a `quickdash_tokens.episode_id` (un solo QuickDASH vigente por todo el tratamiento). Jose pidió integrarlo al wizard para que el profesional también pudiera completarlo, igual que Barthel/FIM (que sí son por sesión).
