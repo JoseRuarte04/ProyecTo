@@ -17,7 +17,7 @@ Nada en curso ahora mismo. El catálogo HEP2go sigue pausado (falta que Jose cor
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Endurecer CI + sumar tests (negocio + e2e piloto) | #45 y #46 (fix del Typecheck) ya mergeados. #44 (CI audit+gitleaks) con un bug real encontrado y arreglado (fetch-depth), rebaseado, confirmando CI real antes de mergear | Nada | Confirmar CI verde en #44, mergearlo, mergear #42, dejar #43 sin mergear (lo revisa Jose con calma) |
+| Endurecer CI + sumar tests (negocio + e2e piloto) | #45, #46 (fix del Typecheck) y #44 (CI audit+gitleaks, con el bug de fetch-depth arreglado) ya mergeados. #42 (tests de negocio) rebaseado, confirmando CI real antes de mergear | Nada | Confirmar CI verde en #42 y mergearlo. #43 (e2e piloto) queda sin mergear a propósito — lo revisa Jose con calma |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
