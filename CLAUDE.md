@@ -9,6 +9,17 @@ preguntar si hay que pausar lo actual (con motivo) o cargar el pedido nuevo
 en `docs/TASKS.md` para después. No arrancar un frente nuevo sin esa
 confirmación.
 
+Regla de worktree: toda sesión nueva de Claude Code arranca en su propio
+`git worktree` (`.claude/worktrees/<nombre-de-la-tarea>`) ANTES de tocar
+cualquier archivo o crear una rama — no solo cuando a mitad de camino se
+detecta que hay otra sesión activa en el mismo checkout. Esto ya pasó varias
+veces (ver `DECISIONS.md` 2026-09-23, y la auditoría de seguridad del
+2026-10-02 corriendo en paralelo con otra sesión que mergeó 3 PRs sin que
+ninguna de las dos se enterara de la otra). El checkout principal del repo
+queda libre para que el usuario lo use directamente si quiere, sin que una
+sesión de Claude Code le pise el dev server, una rama a medio armar, o un
+archivo sin commitear.
+
 Regla de WIP: máximo 1 tarea en estado "En progreso" a la vez en
 `docs/PROJECT_STATE.md`.
 
