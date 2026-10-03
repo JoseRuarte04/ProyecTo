@@ -17,6 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # gitleaks-action necesita resolver el rango de commits del PR
+          # (base^..head) para diffear solo lo nuevo — con el shallow clone
+          # por defecto (fetch-depth: 1) esos commits no están disponibles
+          # localmente y el scan falla con "unknown revision". fetch-depth
+          # 0 (historial completo) es lo que arregla esto; gitleaks igual
+          # sigue escaneando solo el rango del PR, no reescanea todo el
+          # historial en cada corrida — eso lo controla el --log-opts que
+          # ya arma la action sola, no esto.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -26,13 +36,37 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      # Solo dependencias de producción (las que van al bundle) y solo
+      # alto/crítico: las de devDependencies (vite/vitest, herramientas de
+      # build/test que no se despliegan) quedan afuera a propósito — ver
+      # docs/AUDIT_2026-10-02.md y docs/TASKS.md para las ya triagueadas que
+      # necesitan un bump mayor. Si esto empieza a fallar, es una
+      # vulnerabilidad nueva en código que sí llega al navegador.
+      - name: Audit de dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Scan de secretos
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Techo de warnings: la deuda actual son 239 (200 son no-explicit-any).
       # Si bajás warnings, bajá el número acá para que no vuelvan a subir.
       - name: Lint
         run: npx eslint . --max-warnings 239
 
+      # `tsconfig.json` es "solution-style" (`files: []` + `references` a
+      # tsconfig.app.json/tsconfig.node.json, el default del template de
+      # Vite). `tsc --noEmit` sin `--build` IGNORA `references` y usa
+      # `files`/`include` del config raíz — acá eso es `files: []`, así que
+      # compilaba 0 archivos y pasaba siempre, sin chequear nada. Estuvo así
+      # desde que se agregó este workflow (2026-07-16) hasta que se encontró
+      # el 2026-10-03 (ver docs/PROJECT_STATE.md). `tsc --build` sí sigue
+      # las references — compila tsconfig.app.json (src/) y
+      # tsconfig.node.json (vite.config.ts) de verdad, cada uno con su
+      # propio `noEmit: true` ya seteado.
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npx tsc --build
 
       - name: Tests
         run: npm test
