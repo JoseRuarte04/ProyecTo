@@ -31,8 +31,18 @@ jobs:
       - name: Lint
         run: npx eslint . --max-warnings 239
 
+      # `tsconfig.json` es "solution-style" (`files: []` + `references` a
+      # tsconfig.app.json/tsconfig.node.json, el default del template de
+      # Vite). `tsc --noEmit` sin `--build` IGNORA `references` y usa
+      # `files`/`include` del config raíz — acá eso es `files: []`, así que
+      # compilaba 0 archivos y pasaba siempre, sin chequear nada. Estuvo así
+      # desde que se agregó este workflow (2026-07-16) hasta que se encontró
+      # el 2026-10-03 (ver docs/PROJECT_STATE.md). `tsc --build` sí sigue
+      # las references — compila tsconfig.app.json (src/) y
+      # tsconfig.node.json (vite.config.ts) de verdad, cada uno con su
+      # propio `noEmit: true` ya seteado.
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npx tsc --build
 
       - name: Tests
         run: npm test
