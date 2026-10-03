@@ -373,7 +373,9 @@ export default function SessionForm() {
         const fe = funcRes.data;
         if (fe) {
           setShowFunctional(true);
-          if (fe.occupations_items && typeof fe.occupations_items === "object") setOccupationsItems(fe.occupations_items);
+          if (fe.occupations_items && typeof fe.occupations_items === "object" && !Array.isArray(fe.occupations_items)) {
+            setOccupationsItems(fe.occupations_items as Record<string, IndependenceLevel>);
+          }
           setOccupationsNotes(fe.occupations_notes || "");
           setPerformanceContextState({
             context_environmental_factors: fe.context_environmental_factors || "",
