@@ -259,7 +259,10 @@ describe("RLS: aislamiento entre profesionales", () => {
 describe("RLS: sin sesión (anon)", () => {
   // Denegado puede ser "permission denied" (42501) o lista vacía — ambos
   // significan que anon no accede a nada; lo prohibido es recibir filas.
-  async function expectDenied(query: Promise<{ data: unknown[] | null; error: unknown }>) {
+  // PromiseLike, no Promise: los query builders de supabase-js son
+  // "thenables" (tienen .then, se pueden awaitear) pero no implementan la
+  // interfaz completa de Promise (.catch/.finally/Symbol.toStringTag).
+  async function expectDenied(query: PromiseLike<{ data: unknown[] | null; error: unknown }>) {
     const { data, error } = await query;
     if (error) {
       expect(error).not.toBeNull();

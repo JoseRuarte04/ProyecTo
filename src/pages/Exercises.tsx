@@ -30,6 +30,15 @@ type TypeFilter = ExerciseTypeValue | "all";
 type ExerciseSource = "propios" | "catalogo";
 const SIN_SUBCATEGORIA = "__sin_subcategoria__";
 
+// catalog_region/catalog_subcategory son del catálogo HEP2go
+// (docs/PLAN_catalogo_ejercicios_hep2go.md) — esas migraciones siguen
+// pausadas (ver PROJECT_STATE.md), así que exercise_library todavía NO
+// tiene estas columnas en Supabase real y no están en el Exercise
+// generado. El código de abajo ya las trata como opcionales (optional
+// chaining) esperando que lleguen vacías hasta que se corran esas
+// migraciones — este tipo solo hace explícito lo que el código ya asume.
+type CatalogExercise = Exercise & { catalog_region?: string | null; catalog_subcategory?: string | null };
+
 export default function Exercises() {
   const { user } = useAuth();
 
@@ -44,7 +53,7 @@ export default function Exercises() {
 
   // ── Catálogo global de ejercicios (HEP2go) ──
   const [source, setSource] = useState<ExerciseSource>("propios");
-  const [catalogExercises, setCatalogExercises] = useState<Exercise[]>([]);
+  const [catalogExercises, setCatalogExercises] = useState<CatalogExercise[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
