@@ -17,7 +17,7 @@ Nada en curso ahora mismo. El catálogo HEP2go sigue pausado (falta que Jose cor
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| _(nada en progreso)_ | — | — | — |
+| Endurecer CI + sumar tests (negocio + e2e piloto) | Frente A (CI) armado localmente, bloqueado por falta de scope `workflow` en el token de `gh` — pendiente que Jose corra `gh auth refresh -h github.com -s workflow`. Frente B (tests de negocio) listo. | Scope de `gh` para el Frente A | Frente C: limpiar `playwright.config.ts` de Lovable + e2e piloto (sin arrancar — sesión cortada por límite de uso) |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
