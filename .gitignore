@@ -32,3 +32,9 @@ _bmad-output/
 !.env.example
 .claude/settings.local.json
 supabase/.temp/
+
+# Playwright (e2e)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
