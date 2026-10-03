@@ -17,7 +17,7 @@ Nada en curso ahora mismo. El catálogo HEP2go sigue pausado (falta que Jose cor
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| _(nada en progreso)_ | — | — | — |
+| Endurecer CI + sumar tests (negocio + e2e piloto) | Frente A (CI) listo, pendiente de review | Nada | Frente B: tests de `diagnoses.ts`/prioridades. Frente C: limpiar `playwright.config.ts` de Lovable + e2e piloto |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
