@@ -313,12 +313,12 @@ export default function NewPatientForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel required>Apellido</FieldLabel>
-                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className={cn(inputClass, fieldCls("lastName"))} />
+                <Input data-testid="patient-last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} className={cn(inputClass, fieldCls("lastName"))} />
                 <ErrMsg field="lastName" />
               </div>
               <div>
                 <FieldLabel required>Nombre</FieldLabel>
-                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={cn(inputClass, fieldCls("firstName"))} />
+                <Input data-testid="patient-first-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={cn(inputClass, fieldCls("firstName"))} />
                 <ErrMsg field="firstName" />
               </div>
               <div>
@@ -338,12 +338,12 @@ export default function NewPatientForm() {
               </div>
               <div>
                 <FieldLabel required>N° de documento</FieldLabel>
-                <Input value={dni} onChange={(e) => setDni(e.target.value)} className={cn(inputClass, fieldCls("dni"))} />
+                <Input data-testid="patient-dni" value={dni} onChange={(e) => setDni(e.target.value)} className={cn(inputClass, fieldCls("dni"))} />
                 <ErrMsg field="dni" />
               </div>
               <div>
                 <FieldLabel required>Fecha de nacimiento</FieldLabel>
-                <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={cn(inputClass, fieldCls("birthDate"))} />
+                <Input data-testid="patient-birth-date" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={cn(inputClass, fieldCls("birthDate"))} />
                 <ErrMsg field="birthDate" />
               </div>
               <div>
@@ -359,7 +359,7 @@ export default function NewPatientForm() {
               </div>
               <div>
                 <FieldLabel required>Nacionalidad</FieldLabel>
-                <Input value={nationality} onChange={(e) => setNationality(e.target.value)} className={cn(inputClass, fieldCls("nationality"))} />
+                <Input data-testid="patient-nationality" value={nationality} onChange={(e) => setNationality(e.target.value)} className={cn(inputClass, fieldCls("nationality"))} />
                 <ErrMsg field="nationality" />
               </div>
               <div>

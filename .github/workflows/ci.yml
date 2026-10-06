@@ -11,6 +11,12 @@ env:
   VITE_SUPABASE_PROJECT_ID: pvuaqatdendcgumwktid
   VITE_SUPABASE_URL: https://pvuaqatdendcgumwktid.supabase.co
   VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dWFxYXRkZW5kY2d1bXdrdGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxODI1NDksImV4cCI6MjA5MDc1ODU0OX0.lXARzBHFr25LgypLiGivFC49FO4Yy6FdZiH4JMSl9lI
+  # Password del usuario de prueba de RLS que usa e2e/supabaseTestClient.ts
+  # — esta sí es secreta (ver docs/DECISIONS.md 2026-10-06, PR #51). Esta
+  # línea se duplica temporalmente acá porque el PR #51 todavía no mergeó a
+  # main — al rebasear este branch después de ese merge, la duplicación
+  # desaparece sola.
+  RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
 
 jobs:
   ci:
@@ -73,3 +79,38 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Piloto de e2e (docs/AUDIT_2026-10-02.md, "endurecer CI + sumar tests",
+  # PR #43). Corre contra Supabase real (mismo usuario de prueba que
+  # src/test/rls.test.ts) con el patrón "crear solo si no existe" + cleanup
+  # en afterAll — no debería acumular datos de prueba, pero por eso este job
+  # es NO bloqueante todavía: no está en required_status_checks de main (ver
+  # DECISIONS.md). Se promueve a bloqueante en una sesión futura una vez se
+  # vea estable en corridas reales.
+  e2e:
+    needs: ci
+    runs-on: ubuntu-latest
+    # El spec de paciente+sesión usa un DNI fijo (90000001) reusado entre
+    # corridas — dos corridas concurrentes (dos PRs activos a la vez)
+    # podrían pisarse al crear el paciente o al limpiar la sesión de prueba
+    # equivocada. Este group serializa solo las corridas de e2e entre sí,
+    # sin frenar el resto de los jobs/PRs.
+    concurrency:
+      group: e2e-supabase-pilot
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Playwright (solo Chromium, único browser del config)
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E
+        run: npm run test:e2e
