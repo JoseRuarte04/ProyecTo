@@ -17,7 +17,7 @@ Nada en curso ahora mismo. El catálogo HEP2go sigue pausado (falta que Jose cor
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| _(nada en progreso)_ | — | — | — |
+| Completar capas DevOps pendientes (plan en `docs/DECISIONS.md`, sin Docker) | Paso 1/6 hecho (branch protection), 2/6 en curso (regla de trazabilidad en `TASKS.md`) | — | Paso 3: `supabase config pull` para `supabase/config.toml` |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
