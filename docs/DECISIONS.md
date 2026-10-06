@@ -9,6 +9,31 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-06] Seguridad: passwords de usuarios de prueba fuera del repo
+
+**Contexto:** las passwords de `rls-test-a/b@example.com` estaban hardcodeadas en texto
+plano en `src/test/rls.test.ts` desde el 2026-07-16 (commit `bf4672b`) y se duplicaron en
+`e2e/supabaseTestClient.ts` al armar el piloto de e2e — en un repo **público** en
+GitHub. Son credenciales reales de dos cuentas activas en el Supabase de producción, no
+datos ficticios: cualquiera con el link al repo podía loguearse como esos usuarios.
+
+**Decisión:** las passwords salen del código y pasan a `RLS_TEST_USER_A_PASSWORD` /
+`RLS_TEST_USER_B_PASSWORD` — GitHub Secrets en CI, `.env` local (gitignorado) en
+desarrollo. Los emails se quedan hardcodeados (identifican la cuenta, no dan acceso).
+`vitest.config.ts` usa `loadEnv` de Vite (sin prefijo `VITE_`, sin dependencia nueva) para
+exponerlas vía `process.env` también en desarrollo local.
+
+**Por qué:** el email no es secreto, la password sí. Se evitó agregar `dotenv` u otra
+dependencia porque `vite` (ya instalado) expone exactamente lo que hacía falta. Las
+passwords **no llevan prefijo `VITE_`** a propósito — ese prefijo significa "seguro para
+el bundle del cliente" en este repo (ver `.env.example`) y estas nunca deberían sugerir
+esa idea, aunque de hecho nunca se bundlean (el archivo de test no se importa desde
+`main.tsx`/`App.tsx`). **Pendiente, fuera del alcance de este cambio:** rotar las
+passwords reales en el dashboard de Supabase — ya estuvieron expuestas 3 meses en
+público, moverlas a secrets no revierte esa exposición pasada.
+
+---
+
 ## [2026-10-06] DevOps pendientes: CD, e2e en CI y Supabase free
 
 **Contexto:** se analizaron las capas de DevOps que le faltaban a ProyecTo contra un

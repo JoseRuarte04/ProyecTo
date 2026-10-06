@@ -18,6 +18,7 @@ Nada en curso ahora mismo. El catálogo HEP2go sigue pausado (falta que Jose cor
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
 | Completar capas DevOps pendientes (plan en `docs/DECISIONS.md`) | Pasos 1, 2, 4 y 6 mergeados a `main`. Paso 3 (IaC) pausado con motivo (ver abajo). Paso 5 (e2e en CI) listo, CI real en verde, **esperando que Jose revise y mergee el PR #43** — el merge quedó bloqueado por el clasificador de permisos ("Merge Without Review"), no se intentó bypassear. | Revisión de Jose en el PR #43 | Mergear PR #43 (`gh pr merge 43 --squash --delete-branch`) cuando Jose lo revise |
+| Prep para beta de ~30 testers: sacar passwords de prueba del código (pedido directo de Jose, 2026-10-06, análisis completo en el chat — no hay doc dedicado todavía) | Fix en `main` (`src/test/rls.test.ts`) armado y verificado (17/17 tests RLS en verde contra Supabase real), pendiente abrir PR. Falta el mismo fix en `e2e/supabaseTestClient.ts`, que vive en el PR #43 todavía sin mergear. | — | Abrir PR del fix en `main`, después pushear el mismo fix a la rama del PR #43 |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
