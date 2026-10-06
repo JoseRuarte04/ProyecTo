@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { LayoutDashboard, Users, Calendar, Dumbbell, MoreHorizontal, User, Users2, Building2, LogOut, ChevronsUpDown } from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -172,6 +172,13 @@ export function AppBottomNav() {
               <LogOut className="h-4 w-4 shrink-0" />
               Cerrar sesión
             </button>
+            <Link
+              to="/privacidad"
+              target="_blank"
+              className="block px-3 pt-1 text-center text-[11px] text-muted-foreground/70"
+            >
+              Privacidad
+            </Link>
           </div>
         </SheetContent>
       </Sheet>

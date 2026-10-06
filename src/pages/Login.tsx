@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background relative">
       {/* Panel de marca — desktop */}
       <div className="hidden lg:flex flex-col justify-between w-[44%] max-w-[560px] bg-primary text-primary-foreground p-12">
         <div>
@@ -217,6 +217,13 @@ export default function Login() {
           )}
         </div>
       </div>
+      <Link
+        to="/privacidad"
+        target="_blank"
+        className="hidden lg:block absolute bottom-6 right-8 text-[11px] text-muted-foreground/50 hover:text-muted-foreground"
+      >
+        Privacidad
+      </Link>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { LayoutDashboard, Users, Calendar, Dumbbell, LogOut, Users2, User, Building2, ChevronsUpDown, Settings } from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import {
@@ -244,6 +244,15 @@ export function AppSidebar() {
           <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span className="ml-2">Cerrar sesión</span>}
         </Button>
+        {!collapsed && (
+          <Link
+            to="/privacidad"
+            target="_blank"
+            className="block text-center text-[11px] text-muted-foreground/70 hover:text-muted-foreground mt-1"
+          >
+            Privacidad
+          </Link>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

@@ -2,11 +2,13 @@ import { useRef } from "react";
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { usePrivacyConsent } from "@/hooks/usePrivacyConsent";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppBottomNav } from "@/components/AppBottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
+import { PrivacyConsentGate } from "@/components/PrivacyConsentGate";
 import { Loader2, Building2, X } from "lucide-react";
 
 const Spinner = () => (
@@ -18,14 +20,16 @@ const Spinner = () => (
 export function AppLayout() {
   const { session, loading: authLoading } = useAuth();
   const isAdmin = useIsAdmin();
+  const { hasAccepted: hasAcceptedPrivacy, refetch: refetchPrivacyConsent } = usePrivacyConsent();
   const { workspace, teams, loading: wsLoading, setWorkspace } = useWorkspace();
   const navigate = useNavigate();
   const hasLoadedOnce = useRef(false);
 
-  // isAdmin solo se resuelve (deja de ser null) si hay sesión — sin sesión
-  // se queda en null a propósito (ver useIsAdmin), así que no debe bloquear
-  // el spinner cuando de entrada no hay usuario logueado.
-  const stillLoading = authLoading || (!!session && isAdmin === null) || wsLoading;
+  // isAdmin/hasAcceptedPrivacy solo se resuelven (dejan de ser null) si hay sesión —
+  // sin sesión se quedan en null a propósito, así que no deben bloquear el spinner
+  // cuando de entrada no hay usuario logueado.
+  const stillLoading =
+    authLoading || (!!session && (isAdmin === null || hasAcceptedPrivacy === null)) || wsLoading;
 
   // El spinner de pantalla completa solo bloquea la carga INICIAL. Una vez
   // que la app ya montó, revalidaciones en background (p.ej. supabase-js
@@ -37,6 +41,10 @@ export function AppLayout() {
 
   if (!session) return <Navigate to="/login" replace />;
   if (isAdmin) return <Navigate to="/admin" replace />;
+
+  if (hasAcceptedPrivacy === false) {
+    return <PrivacyConsentGate userId={session.user.id} onAccepted={refetchPrivacyConsent} />;
+  }
 
   // Si tiene equipos y no eligió workspace esta sesión → picker
   if (teams.length > 0 && !sessionStorage.getItem("workspace_chosen")) {

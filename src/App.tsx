@@ -28,6 +28,7 @@ const AnalyticalEvaluationPage = lazy(() => import("./pages/AnalyticalEvaluation
 const FunctionalEvaluationPage = lazy(() => import("./pages/FunctionalEvaluationPage"));
 const QuickDashPublicPage = lazy(() => import("./pages/QuickDashPublicPage"));
 const PlanPublicPage = lazy(() => import("./pages/PlanPublicPage"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const WorkspacePicker = lazy(() => import("./pages/WorkspacePicker"));
 const MiEquipo = lazy(() => import("./pages/MiEquipo"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -88,6 +89,7 @@ const App = () => (
               <Route path="/accept-invite" element={<AcceptInvite />} />
               <Route path="/q/:token" element={<QuickDashPublicPage />} />
               <Route path="/plan/:token" element={<PlanPublicPage />} />
+              <Route path="/privacidad" element={<PrivacyPolicy />} />
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="dashboard"  element={<AdminDashboard />} />
