@@ -9,6 +9,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-06] Seguridad: passwords de usuarios de prueba fuera del código
+- Las passwords de `rls-test-a/b@example.com` estaban en texto plano desde julio en un repo público (`src/test/rls.test.ts` y `e2e/supabaseTestClient.ts`) — cualquiera podía loguearse como esas cuentas en producción.
+- Pasan a GitHub Secrets / `.env` local (PRs #51 y #43). Falta que Jose rote las passwords reales en el dashboard de Supabase — la exposición pasada no se revierte sacándolas del código.
+
 ## [2026-10-06] Capas de DevOps pendientes: CI gate, e2e en CI, Speed Insights
 - Branch protection de `main` ahora exige que `ci` pase antes de mergear; regla de trazabilidad PR↔tarea escrita en `TASKS.md`; PR #1 (Speed Insights) y PR #43 (piloto e2e, sumado a `ci.yml` como job no bloqueante) rebaseados y verificados en CI real.
 - IaC (`supabase config.toml`) pausada — el CLI no tiene `config pull`. Docker descartado (ver `DECISIONS.md`). PR #43 queda para que Jose lo revise y mergee (bloqueado por el clasificador de permisos, no por CI).
