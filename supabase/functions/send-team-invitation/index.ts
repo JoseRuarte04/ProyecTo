@@ -2,6 +2,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const APP_URL = Deno.env.get("APP_URL") ?? "https://rehabot.vercel.app";
+// Fallback = comportamiento actual (dominio de prueba de Resend, solo entrega al
+// dueño de la cuenta). Cuando haya dominio propio verificado en Resend, cargar
+// RESEND_FROM como secret de esta función (ver docs/TASKS.md / DECISIONS.md).
+const RESEND_FROM = Deno.env.get("RESEND_FROM") ?? "HisTO <onboarding@resend.dev>";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -91,7 +95,7 @@ Deno.serve(async (req: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "HisTO <onboarding@resend.dev>",
+        from: RESEND_FROM,
         to: [email],
         subject: `Te invitaron a unirse a ${teamName} en HisTO`,
         html,
