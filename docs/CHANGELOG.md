@@ -9,6 +9,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-06] Capas de DevOps pendientes: CI gate, e2e en CI, Speed Insights
+- Branch protection de `main` ahora exige que `ci` pase antes de mergear; regla de trazabilidad PR↔tarea escrita en `TASKS.md`; PR #1 (Speed Insights) y PR #43 (piloto e2e, sumado a `ci.yml` como job no bloqueante) rebaseados y verificados en CI real.
+- IaC (`supabase config.toml`) pausada — el CLI no tiene `config pull`. Docker descartado (ver `DECISIONS.md`). PR #43 queda para que Jose lo revise y mergee (bloqueado por el clasificador de permisos, no por CI).
+
 ## [2026-10-02] Sesiones: quitar "Nueva sesión" del Dashboard, renombrar a "Evolución"
 - Dashboard: se elimina el botón "Nueva sesión" (solo llevaba a elegir paciente).
 - Ficha del paciente y pestaña Sesiones: el botón "Nueva sesión" pasa a llamarse "Evolución" (alinea el nombre con el paso del wizard). Solo texto, sin cambios de lógica ni migraciones. PR [#29](https://github.com/JoseRuarte04/ProyecTo/pull/29).
