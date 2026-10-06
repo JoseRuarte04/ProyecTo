@@ -14,6 +14,10 @@
 pasarla primero a `[⏸]` con motivo o a `[x]`. Si te agarrás haciendo esto, es la
 señal de que estás cayendo en el patrón de siempre.
 
+**Regla de trazabilidad:** toda tarea que pasa a `[x]` lleva el link al PR que la
+resolvió (ya se viene haciendo así en la práctica — esto lo deja escrito para que
+no se pierda en una sesión apurada).
+
 ---
 
 ## 🏥 Módulo clínico
