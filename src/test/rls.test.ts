@@ -12,15 +12,28 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * invitación, así que si alguien los borra la suite NO puede recrearlos —
  * habría que invitarlos de nuevo desde el dashboard. Los datos de prueba
  * son fijos y se reutilizan entre corridas — la suite no acumula filas.
+ *
+ * Las passwords NO van hardcodeadas (estuvieron en texto plano en este
+ * archivo desde 2026-07-16, en un repo público — rotadas y movidas a env en
+ * 2026-10-06, ver DECISIONS.md). Local: agregarlas a .env (ver
+ * .env.example). CI: vienen de GitHub Secrets, inyectadas en ci.yml.
  */
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-// Credenciales de los usuarios de prueba. Solo contienen data ficticia;
-// la anon key con la que se crean es pública por diseño.
-const USER_A = { email: "rls-test-a@example.com", password: "rls-test-Aa-2026!x", name: "RLS Test A" };
-const USER_B = { email: "rls-test-b@example.com", password: "rls-test-Bb-2026!x", name: "RLS Test B" };
+const RLS_TEST_USER_A_PASSWORD = process.env.RLS_TEST_USER_A_PASSWORD;
+const RLS_TEST_USER_B_PASSWORD = process.env.RLS_TEST_USER_B_PASSWORD;
+if (!RLS_TEST_USER_A_PASSWORD || !RLS_TEST_USER_B_PASSWORD) {
+  throw new Error(
+    "Faltan RLS_TEST_USER_A_PASSWORD / RLS_TEST_USER_B_PASSWORD. " +
+      "Localmente: agregalas a .env (ver .env.example). En CI: GitHub Secrets.",
+  );
+}
+
+// El email no es secreto (identifica la cuenta, no da acceso); la password sí.
+const USER_A = { email: "rls-test-a@example.com", password: RLS_TEST_USER_A_PASSWORD, name: "RLS Test A" };
+const USER_B = { email: "rls-test-b@example.com", password: RLS_TEST_USER_B_PASSWORD, name: "RLS Test B" };
 const TEST_DNI = "RLS-TEST-00000001";
 
 function makeClient(): SupabaseClient {
