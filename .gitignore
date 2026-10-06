@@ -35,3 +35,9 @@ supabase/.temp/
 
 # tsc --build (cache incremental local, no sirve de un entorno a otro)
 *.tsbuildinfo
+
+# Playwright (e2e)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

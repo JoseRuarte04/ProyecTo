@@ -9,6 +9,57 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-06] DevOps pendientes: CD, e2e en CI y Supabase free
+
+**Contexto:** se analizaron las capas de DevOps que le faltaban a ProyecTo contra un
+checklist tipo facultad (contenedores, planificación, CD con ambientes, e2e en CI, IaC,
+observabilidad). Dos ya estaban resueltas sin que se supiera (Sentry desde el
+2026-07-16, trazabilidad PR↔tarea ya en la práctica). Quedaban por decidir: el gate de
+CD (hoy merge a `main` = deploy directo a producción real con pacientes reales, sin
+ambiente intermedio) y si wirear el piloto de e2e (#43) a `ci.yml` (corre contra
+Supabase real).
+
+**Decisión:**
+1. Branch protection de `main`: se agregó `required_status_checks` exigiendo que el
+   check `ci` pase antes de poder mergear (antes no estaba, en teoría se podía mergear
+   con CI en rojo).
+2. Supabase se queda en plan **free** — no se evalúa upgrade a Pro por ahora. Esto
+   implica que no hay branching real (bases de datos aisladas por PR); el check
+   `Supabase Preview` que aparece en cada PR siempre da "skipping" porque el plan free
+   no lo soporta.
+3. El piloto de e2e (#43) se suma a `ci.yml` (job `e2e`) corriendo contra Supabase real
+   de producción, con su propio `concurrency` group para evitar que dos PRs activos a
+   la vez se pisen sobre el paciente/sesión de prueba fijos. Arranca como check **no
+   bloqueante** (no se agregó a `required_status_checks`) — se promueve a bloqueante
+   más adelante si se ve estable en corridas reales.
+
+**Por qué:** sin plan Pro de Supabase, la única opción realista de gate es el check de
+CI + Preview Deployments de Vercel (que ya existían) — no vale la pena pagar un
+ambiente de preview con DB aislada para el volumen de PRs actual (solo Jose + Javito).
+Para el e2e, el riesgo de pegarle a producción se aceptó porque el piloto ya está
+diseñado para no ensuciar datos (paciente con DNI fijo reusado, sesión con soft-delete
+en `afterAll`) — pero como es nuevo y depende de un servicio real, arranca informativo
+en vez de bloqueante hasta probar que es estable.
+
+---
+
+## [2026-10-06] Descartado: Docker / docker-compose para desarrollo local
+
+**Contexto:** se evaluó contenerizar ProyecTo (Dockerfile para el front +
+docker-compose para levantar todo local con un comando) como parte de un checklist de
+DevOps "completo", aunque el deploy real es serverless (Vercel + Supabase) y no iba a
+usarse para eso.
+
+**Decisión:** no se hace. El Supabase CLI (`supabase start`) ya levanta
+Postgres+Auth+Storage local con un solo comando — es el mismo beneficio práctico que
+se buscaba con `docker-compose`, sin mantener Dockerfiles a mano.
+
+**Por qué:** escribir y mantener Dockerfiles para replicar algo que la herramienta
+oficial del stack ya da gratis es trabajo sin beneficio real. Solo tendría sentido si
+en algún momento se abandona Vercel/Supabase — no está en el radar.
+
+---
+
 ## [2026-10-02] Proceso: toda sesión de Claude Code arranca en su propio git worktree
 
 **Contexto:** el choque de sesiones concurrentes sobre el mismo checkout ya pasó varias veces (2026-09-23: dos sesiones arreglaron el mismo bug de overflow en paralelo sin saberlo; 2026-10-02: la auditoría de seguridad corrió en paralelo con otra sesión que mergeó los PRs #27/#28/#29 sin que ninguna se enterara de la otra, y PROJECT_STATE.md quedó desincronizado por eso). Hasta ahora la regla era "mover el trabajo a un worktree aislado si a mitad de camino se detecta otra sesión activa" — reactivo, depende de notarlo.
