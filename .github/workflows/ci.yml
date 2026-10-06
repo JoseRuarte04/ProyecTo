@@ -11,6 +11,12 @@ env:
   VITE_SUPABASE_PROJECT_ID: pvuaqatdendcgumwktid
   VITE_SUPABASE_URL: https://pvuaqatdendcgumwktid.supabase.co
   VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dWFxYXRkZW5kY2d1bXdrdGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxODI1NDksImV4cCI6MjA5MDc1ODU0OX0.lXARzBHFr25LgypLiGivFC49FO4Yy6FdZiH4JMSl9lI
+  # Password del usuario de prueba de RLS que usa e2e/supabaseTestClient.ts
+  # — esta sí es secreta (ver docs/DECISIONS.md 2026-10-06, PR #51). Esta
+  # línea se duplica temporalmente acá porque el PR #51 todavía no mergeó a
+  # main — al rebasear este branch después de ese merge, la duplicación
+  # desaparece sola.
+  RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
 
 jobs:
   ci:
