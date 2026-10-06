@@ -9,6 +9,80 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-06] Prep de beta: auditoría de `profile_role` — sin escalada de privilegios
+
+**Contexto:** antes de invitar a ~30 profesionales reales, Jose pidió auditar si
+`profile_role` (enum `professional`/`admin`/`patient`) se puede escalar desde el
+cliente — por ejemplo vía `raw_user_meta_data` en el signup.
+
+**Decisión:** no se encontró ninguna vulnerabilidad, así que no se abrió un PR de
+"prioridad antes que los demás" como estaba previsto si se encontraba algo. Se
+dejó un solo nice-to-have en `TASKS.md` (policy de INSERT de `profiles` sin el
+mismo candado que la de UPDATE, no explotable hoy).
+
+**Por qué:** revisado en vivo contra el proyecto real — `handle_new_user` inserta
+`role` hardcodeado a `'professional'` (nunca lee metadata del cliente); la policy
+de UPDATE de `profiles` fuerza `role = 'professional'` en el `WITH CHECK` de
+cualquier edición propia; `admin_users` no tiene ninguna policy de
+INSERT/UPDATE/DELETE (nadie puede escribir ahí vía API). Las tres capas
+independientes cierran el camino.
+
+---
+
+## [2026-10-06] Prep de beta: consentimiento con tabla propia + gate, no una columna
+
+**Contexto:** con pacientes reales en camino, hace falta consentimiento explícito
+de privacidad al registrarse — y una forma de no dejar afuera a usuarios ya
+existentes ni a futuros cambios de la política.
+
+**Decisión:** `privacy_consents` es una tabla aparte (append-only, nunca se
+edita/borra una fila), no una columna en `profiles`. Un gate en `AppLayout.tsx`
+(no en `AdminLayout`) bloquea a cualquier usuario sin fila para la versión
+vigente (`CURRENT_PRIVACY_POLICY_VERSION`), además del checkbox en los 2 flujos
+de registro. Ese constante vive en un archivo separado
+(`privacyPolicyVersion.ts`) sin imports de Vite, para que `e2e/globalSetup.ts`
+lo pueda leer sin romper (Playwright no pasa por `import.meta.env`).
+
+**Por qué:** una columna solo guarda la última aceptación — una tabla deja
+historial de qué versión aceptó cada uno y cuándo, útil si algún día hay que
+demostrarlo. El gate (no solo el checkbox al registrarse) es necesario porque en
+el flujo de invitación de equipo el `signUp()` no devuelve sesión activa hasta
+confirmar el email, así que el insert en ese momento no siempre es posible — el
+gate es el mecanismo que realmente garantiza que nadie entra sin haber
+aceptado, para usuarios nuevos y para los que ya tenían cuenta antes de esta
+feature.
+
+---
+
+## [2026-10-06] Prep de beta: backups con pg_dump plano, no `-Fc` ni `supabase db dump`
+
+**Contexto:** el plan free de Supabase no tiene backups automáticos. Hacía falta
+un mecanismo propio, con la base y los archivos de Storage, probado de verdad
+antes de confiar en él.
+
+**Decisión:** `pg_dump` en formato plano (no `-Fc`/custom) vía la imagen oficial
+`postgres:17` (no el `pg_dump` de apt de `ubuntu-latest`, para que la versión
+coincida con la real). Se probó el pipeline completo contra `supabase start`
+con un schema **sintético** (no el real).
+
+**Por qué:** formato plano se puede inspeccionar con `grep` (de hecho el workflow
+falla explícito si no encuentra `auth.users` en el dump) y restaurar con `psql`
+sin `pg_restore`. Se descartó usar el schema real para la prueba porque
+`supabase start` no levanta hoy con el historial de migraciones del repo —
+`20260406150452_...sql` referencia `exercise_library` antes de crearla (bug
+preexistente, no de este cambio, ver `TASKS.md`). Restaurar el dump plano sobre
+un `supabase start` ya inicializado tira errores de "must be owner"/"already
+exists" para tablas internas de Supabase (`auth.sso_domains`, etc.) —
+confirmado que son inofensivos, los datos reales (incluido `auth.users`) se
+restauran igual. `--no-privileges` no incluye los `GRANT` a
+`anon`/`authenticated`/`service_role`, pero en el proyecto real esos grants ya
+existen por las migraciones aplicadas, no dependen del dump — solo hizo falta
+re-otorgarlos a mano en la prueba porque la tabla sintética no pasó por una
+migración real. El criterio de éxito de la prueba fue login real + ver los
+datos vía RLS + archivo restaurado byte a byte, no solo "existen filas".
+
+---
+
 ## [2026-10-06] Seguridad: passwords de usuarios de prueba fuera del repo
 
 **Contexto:** las passwords de `rls-test-a/b@example.com` estaban hardcodeadas en texto
