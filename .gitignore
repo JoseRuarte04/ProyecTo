@@ -32,6 +32,7 @@ _bmad-output/
 !.env.example
 .claude/settings.local.json
 supabase/.temp/
+supabase/.branches/
 
 # tsc --build (cache incremental local, no sirve de un entorno a otro)
 *.tsbuildinfo
