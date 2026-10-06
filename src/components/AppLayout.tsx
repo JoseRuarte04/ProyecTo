@@ -9,6 +9,8 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { AppBottomNav } from "@/components/AppBottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
 import { PrivacyConsentGate } from "@/components/PrivacyConsentGate";
+import { FeedbackButton } from "@/components/FeedbackButton";
+import { BetaBanner } from "@/components/BetaBanner";
 import { Loader2, Building2, X } from "lucide-react";
 
 const Spinner = () => (
@@ -85,6 +87,7 @@ export function AppLayout() {
             )}
           </header>
           <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">
+            <BetaBanner />
             <Outlet />
             <div className="h-16 lg:hidden" aria-hidden style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }} />
           </main>
@@ -92,6 +95,7 @@ export function AppLayout() {
       </div>
       <AppBottomNav />
       <CommandPalette />
+      <FeedbackButton />
     </SidebarProvider>
   );
 }

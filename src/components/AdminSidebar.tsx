@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, Building2, LogOut, Activity, UsersRound } from "lucide-react";
+import { LayoutDashboard, Users, Building2, LogOut, Activity, UsersRound, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,7 @@ const adminNavItems = [
   { title: "Equipos",     url: "/admin/teams",        icon: Building2 },
   { title: "Pacientes",   url: "/admin/patients",     icon: UsersRound },
   { title: "Actividad",   url: "/admin/activity",     icon: Activity },
+  { title: "Feedback",    url: "/admin/feedback",     icon: MessageSquare },
 ];
 
 export function AdminSidebar() {
