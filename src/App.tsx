@@ -11,6 +11,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 // Code-splitting por ruta: cada página se descarga recién cuando se navega a ella.
 const Login = lazy(() => import("./pages/Login"));
@@ -41,6 +42,7 @@ const AdminTherapists = lazy(() => import("./pages/admin/AdminTherapists"));
 const AdminTeams = lazy(() => import("./pages/admin/AdminTeams"));
 const AdminTeamDetail = lazy(() => import("./pages/admin/AdminTeamDetail"));
 const AdminActivity = lazy(() => import("./pages/admin/AdminActivity"));
+const AdminFeedback = lazy(() => import("./pages/admin/AdminFeedback"));
 const AdminPatients = lazy(() => import("./pages/admin/AdminPatients"));
 
 const queryClient = new QueryClient();
@@ -57,6 +59,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <SpeedInsights />
+      <Analytics />
       <AuthProvider>
         <WorkspaceProvider>
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -98,6 +101,7 @@ const App = () => (
                 <Route path="teams/:id"  element={<AdminTeamDetail />} />
                 <Route path="patients"   element={<AdminPatients />} />
                 <Route path="activity"   element={<AdminActivity />} />
+                <Route path="feedback"   element={<AdminFeedback />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
