@@ -11,6 +11,10 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    # Los 3 secrets viven en este Environment (restringido a la rama main),
+    # no como repo secret — los carga Jose directo ahí, nunca pasan por
+    # Claude Code. Ver docs/BACKUP_RESTORE.md.
+    environment: production-backup
     steps:
       # Todas las actions de terceros (no las de GitHub mismo) fijadas por SHA
       # de commit, no por tag — pedido explícito de Jose (2026-10-06).

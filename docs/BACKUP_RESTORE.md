@@ -25,11 +25,37 @@ cifrar, un backup con datos de pacientes reales quedaría ahí accesible.
 
 ## Secrets que necesita (no los crea Claude Code — los crea Jose)
 
+**Viven en un GitHub Environment llamado `production-backup`** (restringido a la
+rama `main`, lo crea Jose en Settings → Environments), no como repo secret —
+así nunca pasan por Claude Code. El job referencia ese Environment
+(`environment: production-backup` en `backup.yml`); la sintaxis `${{ secrets.X }}`
+es la misma, GitHub la resuelve contra los secrets del Environment.
+
 | Secret | Qué es | Dónde conseguirlo |
 |---|---|---|
 | `SUPABASE_DB_URL` | Connection string **directo** a Postgres (no el pooler) | Dashboard → Project Settings → Database → Connection string → "URI" (modo "Direct connection") |
 | `SUPABASE_SERVICE_ROLE_KEY` | Key que salta **todo** el RLS — la más sensible del proyecto | Dashboard → Project Settings → API → `service_role` |
 | `BACKUP_ENCRYPTION_PASSPHRASE` | Passphrase nueva, no reusar ninguna otra | Generarla con `openssl rand -base64 32` y guardarla aparte (si se pierde, los backups viejos quedan inservibles) |
+
+**Flujo para correrlo contra producción:** Jose dispara el workflow a mano
+(`workflow_dispatch`), descarga el artifact cifrado, lo descifra en su propia
+máquina, y deja el `.tar` resultante (ya descifrado) en `backups.local/` en la
+raíz del repo — esa carpeta cae bajo el patrón `*.local` que ya está en
+`.gitignore`, no hace falta agregar nada. Claude Code nunca ve el connection
+string ni la service_role key, solo el `.tar` ya descifrado.
+
+## Probado dos veces: mecanismo con schema sintético, y pendiente el drill con el dump real
+
+**Mecanismo (ya hecho, con datos sintéticos):** ver detalle abajo.
+
+**Drill con el dump real de producción (pendiente, a correr cuando Jose pase el
+`.tar` descifrado):** no depende de arreglar el drift de migraciones — el
+escenario real de desastre es `supabase init` + `supabase start` en una carpeta
+temporal **fuera del repo**, sin nuestras migraciones (un proyecto Supabase
+nuevo nunca arranca replayando los archivos de migración de otro proyecto, así
+que esto es representativo de lo que pasaría en un desastre real, no un
+atajo). Mismo criterio de siempre: login real + ve sus pacientes + ve sus
+archivos — ahora con el schema real en vez de una tabla sintética.
 
 ## Probado contra `supabase start` (stack local), nunca contra producción
 
@@ -94,5 +120,7 @@ independiente de cuál sea el schema real.
 ## Pendiente post-lanzamiento
 
 Reconciliar el historial de migraciones (`TASKS.md`) para que `supabase
-start`/`db reset` funcionen de cero con el schema real — hoy este documento
-depende de ese arreglo para el paso 1 de la restauración real.
+start`/`db reset` funcionen de cero **dentro de este repo** con el schema
+real — no bloquea el drill de restauración (que usa un `supabase init`
+aparte, fuera del repo), pero sigue haciendo falta para desarrollo local
+normal dentro del proyecto.
