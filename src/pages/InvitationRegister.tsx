@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { acceptPrivacyPolicy } from "@/lib/privacyPolicy";
 
 interface InvitationData {
   valid: boolean;
@@ -24,6 +26,7 @@ export default function InvitationRegister() {
 
   const [fullName, setFullName]   = useState("");
   const [password, setPassword]   = useState("");
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone]           = useState(false);
   const [error, setError]         = useState<string | null>(null);
@@ -50,7 +53,7 @@ export default function InvitationRegister() {
     setSubmitting(true);
     setError(null);
 
-    const { error: signUpErr } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
       email: invitation.email,
       password,
       options: {
@@ -58,13 +61,20 @@ export default function InvitationRegister() {
       },
     });
 
-    setSubmitting(false);
-
     if (signUpErr) {
+      setSubmitting(false);
       setError(signUpErr.message);
       return;
     }
 
+    // Puede no haber sesión todavía si el proyecto exige confirmar el email antes
+    // de loguear — en ese caso el gate de AppLayout.tsx cubre el registro del
+    // consentimiento en el primer login real.
+    if (signUpData.session?.user?.id) {
+      await acceptPrivacyPolicy(signUpData.session.user.id);
+    }
+
+    setSubmitting(false);
     setDone(true);
   };
 
@@ -164,9 +174,23 @@ export default function InvitationRegister() {
             />
           </div>
 
+          <div className="flex items-start gap-2 pt-1">
+            <Checkbox
+              id="acceptedPrivacy"
+              checked={acceptedPrivacy}
+              onCheckedChange={(checked) => setAcceptedPrivacy(checked === true)}
+            />
+            <Label htmlFor="acceptedPrivacy" className="text-[13px] font-normal leading-snug text-muted-foreground">
+              Leí y acepto la{" "}
+              <Link to="/privacidad" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                política de privacidad
+              </Link>
+            </Label>
+          </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" className="w-full" disabled={submitting || !acceptedPrivacy}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Crear cuenta y aceptar invitación
           </Button>

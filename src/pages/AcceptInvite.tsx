@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import { acceptPrivacyPolicy } from "@/lib/privacyPolicy";
 
 export default function AcceptInvite() {
   const navigate = useNavigate();
@@ -15,6 +17,7 @@ export default function AcceptInvite() {
   const [loading, setLoading]               = useState(true);
   const [password, setPassword]             = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [submitting, setSubmitting]         = useState(false);
   const [done, setDone]                     = useState(false);
   const [error, setError]                   = useState<string | null>(null);
@@ -48,13 +51,18 @@ export default function AcceptInvite() {
     setError(null);
 
     const { error } = await supabase.auth.updateUser({ password });
-    setSubmitting(false);
 
     if (error) {
+      setSubmitting(false);
       setError(error.message);
       return;
     }
 
+    if (session?.user?.id) {
+      await acceptPrivacyPolicy(session.user.id);
+    }
+
+    setSubmitting(false);
     setDone(true);
     toast.success("Contraseña configurada correctamente");
     setTimeout(() => navigate("/dashboard"), 2000);
@@ -141,8 +149,21 @@ export default function AcceptInvite() {
                 className="h-12"
               />
             </div>
+            <div className="flex items-start gap-2 pt-1">
+              <Checkbox
+                id="acceptedPrivacy"
+                checked={acceptedPrivacy}
+                onCheckedChange={(checked) => setAcceptedPrivacy(checked === true)}
+              />
+              <Label htmlFor="acceptedPrivacy" className="text-[13px] font-normal leading-snug text-muted-foreground">
+                Leí y acepto la{" "}
+                <Link to="/privacidad" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+                  política de privacidad
+                </Link>
+              </Label>
+            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full h-12 text-[15px]" disabled={submitting}>
+            <Button type="submit" className="w-full h-12 text-[15px]" disabled={submitting || !acceptedPrivacy}>
               {submitting
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : "Confirmar y acceder"}
