@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-06] Prep de beta cerrada: privacidad, feedback, backups, seguridad
+- Passwords de `rls-test-a/b` rotadas (ya no son las que estuvieron expuestas). Auditoría de `profile_role`: sin escalada de privilegios posible.
+- 5 PRs listos con CI real en verde, esperando revisión de Jose: `RESEND_FROM` configurable (#52), política de privacidad + consentimiento obligatorio + gate (#53), feedback + Vercel Analytics + banner de beta (#54), backups semanales encriptados de base y Storage (#55), checklist manual de beta (#56).
+- Hallazgo en el camino: `supabase start` no levanta de cero con el historial de migraciones actual (ver `TASKS.md`) — bloquea la restauración real de un backup hasta que se arregle.
+
 ## [2026-10-06] Seguridad: passwords de usuarios de prueba fuera del código
 - Las passwords de `rls-test-a/b@example.com` estaban en texto plano desde julio en un repo público (`src/test/rls.test.ts` y `e2e/supabaseTestClient.ts`) — cualquiera podía loguearse como esas cuentas en producción.
 - Pasan a GitHub Secrets / `.env` local (PRs #51 y #43). Falta que Jose rote las passwords reales en el dashboard de Supabase — la exposición pasada no se revierte sacándolas del código.
