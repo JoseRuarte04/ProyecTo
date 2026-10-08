@@ -21,7 +21,6 @@ const Patients = lazy(() => import("./pages/Patients"));
 const PatientProfile = lazy(() => import("./pages/PatientProfile"));
 const Appointments = lazy(() => import("./pages/Appointments"));
 const Exercises = lazy(() => import("./pages/Exercises"));
-const Profile = lazy(() => import("./pages/Profile"));
 const SessionForm = lazy(() => import("./pages/SessionForm"));
 const NewPatientForm = lazy(() => import("./components/patients/NewPatientForm"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -33,6 +32,9 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const WorkspacePicker = lazy(() => import("./pages/WorkspacePicker"));
 const MiEquipo = lazy(() => import("./pages/MiEquipo"));
 const Settings = lazy(() => import("./pages/Settings"));
+const AccountGeneralSettings = lazy(() => import("./pages/AccountGeneralSettings"));
+const AccountEmailSettings = lazy(() => import("./pages/AccountEmailSettings"));
+const AccountPasswordSettings = lazy(() => import("./pages/AccountPasswordSettings"));
 const EvaluationSettings = lazy(() => import("./pages/EvaluationSettings"));
 const AppointmentSettings = lazy(() => import("./pages/AppointmentSettings"));
 const InvitationRegister = lazy(() => import("./pages/InvitationRegister"));
@@ -82,9 +84,13 @@ const App = () => (
                 <Route path="patients/:patientId/evaluations/functional/:evalId" element={<FunctionalEvaluationPage />} />
                 <Route path="appointments" element={<Appointments />} />
                 <Route path="exercises" element={<Exercises />} />
-                <Route path="profile" element={<Profile />} />
+                {/* Redirect: links de confirmación de cambio de email ya enviados apuntan a /profile */}
+                <Route path="profile" element={<Navigate to="/configuraciones/general" replace />} />
                 <Route path="mi-equipo" element={<MiEquipo />} />
                 <Route path="configuraciones" element={<Settings />} />
+                <Route path="configuraciones/general" element={<AccountGeneralSettings />} />
+                <Route path="configuraciones/email" element={<AccountEmailSettings />} />
+                <Route path="configuraciones/password" element={<AccountPasswordSettings />} />
                 <Route path="configuraciones/evaluaciones" element={<EvaluationSettings />} />
                 <Route path="configuraciones/turnos" element={<AppointmentSettings />} />
               </Route>
