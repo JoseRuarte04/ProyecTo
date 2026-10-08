@@ -79,12 +79,14 @@ export default function ObrasSocialesManager({ open, onClose }: { open: boolean;
       console.error("Error al editar obra social:", error);
       if (error.code === "23505") {
         toast.error("Ya existe otra obra social con ese nombre");
+      } else if (error.code === "23514") {
+        toast.error(error.message);
       } else {
         toast.error("No se pudo guardar el cambio", { description: error.message });
       }
       return;
     }
-    toast.success("Obra social actualizada");
+    toast.success("Obra social actualizada", { description: "Los pacientes que la tenían cargada se actualizaron al nombre nuevo." });
     setEditingId(null);
     fetch();
   };
@@ -97,7 +99,12 @@ export default function ObrasSocialesManager({ open, onClose }: { open: boolean;
     setDeleteTarget(null);
     if (error) {
       console.error("Error al eliminar obra social:", error);
-      toast.error("No se pudo eliminar la obra social", { description: error.message });
+      // 23503 = la base la frenó porque hay pacientes con esta obra social (trigger block_obra_social_delete_in_use).
+      if (error.code === "23503") {
+        toast.error(error.message);
+      } else {
+        toast.error("No se pudo eliminar la obra social", { description: error.message });
+      }
       return;
     }
     toast.success(`"${deleteTarget.name}" eliminada del catálogo`);
@@ -127,6 +134,8 @@ export default function ObrasSocialesManager({ open, onClose }: { open: boolean;
       console.error("Error al agregar obra social:", error);
       if (error.code === "23505") {
         toast.error("Ya existe una obra social con ese nombre");
+      } else if (error.code === "23514") {
+        toast.error(error.message);
       } else {
         toast.error("No se pudo agregar la obra social", { description: error.message });
       }
