@@ -4,8 +4,8 @@
 > Se actualiza al FINAL de cada sesión de trabajo (con Claude Code o sin él).
 > Si algo no está acá, no pasó — o no está confirmado.
 
-**Última actualización:** 2026-10-06
-**Sprint / objetivo actual:** Prep de beta cerrada (~30 profesionales, pacientes reales) — ver En progreso
+**Última actualización:** 2026-10-08
+**Sprint / objetivo actual:** Ninguno activo — ver Pausado
 
 ---
 
@@ -17,7 +17,7 @@ Nada en curso ahora mismo. El catálogo HEP2go sigue pausado (falta que Jose cor
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Prep de beta cerrada (~30 profesionales, pacientes reales) — plan completo en `docs/DECISIONS.md` [2026-10-06] | Passwords de prueba rotadas (operación directa, sin PR). 5 PRs listos con CI real en verde, cada uno independiente desde `main`: [#52](https://github.com/JoseRuarte04/ProyecTo/pull/52) (RESEND_FROM), [#53](https://github.com/JoseRuarte04/ProyecTo/pull/53) (privacidad + consentimiento + gate), [#54](https://github.com/JoseRuarte04/ProyecTo/pull/54) (feedback + analytics + banner), [#55](https://github.com/JoseRuarte04/ProyecTo/pull/55) (backups encriptados), [#56](https://github.com/JoseRuarte04/ProyecTo/pull/56) (`BETA_CHECKLIST.md`). Auditoría de seguridad de `profile_role` hecha (sin hallazgos explotables, ver Cerrado). **Ninguno mergeado todavía — esperando revisión de Jose.** | Revisión de Jose en los 5 PRs | Mergear en el orden sugerido (ver `BETA_CHECKLIST.md` o el resumen del chat) — esperar conflictos triviales de `App.tsx`/`AppLayout.tsx` entre PRs, mismo patrón de siempre, resolver a mano |
+| _(nada en progreso)_ | — | — | — |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
@@ -29,6 +29,7 @@ Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto 
 | IaC liviana: `supabase/config.toml` | El Supabase CLI instalado (v2.113.0) no tiene `config pull`, solo `config push` (local → remoto) — no se ejecutó nada contra el proyecto real para no pisar configuración de Auth en producción (2026-10-06) | Investigar la Management API de Supabase (lectura) para armar el `config.toml` a mano sin usar `push` directo |
 
 ## ✅ Cerrado esta semana
+- **[2026-10-08] Prep de beta cerrada: los 6 PRs mergeados + drill de restauración confirmado con datos reales.** Jose mergeó #52 (RESEND_FROM), #55 (backups), #56 (`BETA_CHECKLIST.md`), #53 (privacidad + consentimiento + gate), #54 (feedback + analytics + banner — pidió rebase por el conflicto esperado con #53 en `AppLayout.tsx`, resuelto y verificado en CI real) y #57 (docs). CI de `main` confirmado en verde en el estado final (un job `e2e` de una corrida intermedia se colgó por algo transitorio de infraestructura, se canceló solo por timeout, no era código — la corrida sobre el mismo estado final sí completó bien). Al preparar el backup real se encontró y corrigió un error de guía: el connection string de "Direct connection" no sirve desde GitHub Actions (IPv4 only, Direct connection de Supabase es IPv6-only sin el add-on pago) — el correcto es el **Session pooler**, con el usuario en formato `postgres.<ref>`, no `postgres` solo. **Drill de restauración completo contra el dump real** (no sintético): `supabase init` + `supabase start` fuera del repo, restauró 10 usuarios/36 pacientes/65 sesiones/9 archivos reales, y confirmó el criterio completo con un usuario real (password de prueba puesta solo en la copia local aislada, nunca se conoció ninguna password real): login → 18 pacientes vía RLS (no los 36 totales) → archivo descargado vía API con hash SHA-256 idéntico al original. 2 hallazgos nuevos ya incorporados a `docs/BACKUP_RESTORE.md`: hacen falta los `GRANT` a `anon`/`authenticated` después de restaurar, y hay que crear el bucket de Storage antes de subir archivos (`restore-storage.mjs` ya lo hace solo). Todo el material real (stack Docker, carpetas temporales, el `.tar` descifrado) se borró al terminar.
 - **[2026-10-06] PRs #43 y #51 mergeados por Jose** — piloto de e2e sumado a `ci.yml` y passwords de prueba sacadas de `src/test/rls.test.ts`, ambos ya en `main`. Quedaba pendiente el mismo fix en `e2e/supabaseTestClient.ts` dentro del propio PR #43, así que entró junto.
 - **[2026-10-06] Prep de beta cerrada (~30 profesionales, pacientes reales) — análisis + plan + ejecución.** Jose compartió un plan de 10 puntos armado con otro Claude; se verificó contra el código real antes de ejecutar y se corrigieron 3 cosas (rotar passwords sí se podía hacer sin service_role key gracias a `pgcrypto`; el rol `patient` no tiene ningún rastro en la UI, no había nada que ocultar; el deploy de la función de email va después del merge, no antes). Jose sumó 3 ítems: cubrir también Storage en los backups, auditar `profile_role` por escalada de privilegios, y juntar feedback+analytics+banner en un PR para evitar conflictos.
   - **Auditoría de `profile_role`:** revisado en vivo el trigger `handle_new_user` — el rol se inserta hardcodeado a `'professional'`, nunca se lee de `raw_user_meta_data`. La policy de UPDATE de `profiles` fuerza `role = 'professional'` en cualquier edición propia. `admin_users` no tiene ninguna policy de escritura. **No hay escalada de privilegios posible hoy.** Único hallazgo menor (no explotable): la policy de INSERT de `profiles` no repite el mismo candado que la de UPDATE — anotado como nice-to-have en `TASKS.md`.
