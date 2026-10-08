@@ -222,24 +222,36 @@ export default function NewPatientForm() {
       }).select("id").single();
       if (epErr) throw epErr;
 
+      // El paciente y el episodio ya existen: si fallan estas dos escrituras no se corta (reintentar
+      // chocaría con el DNI duplicado), pero tampoco se muestra éxito — se avisa y se lleva a la ficha.
+      const failed: string[] = [];
+
       if (diagnoses.length > 0) {
-        await supabase.from("episode_diagnoses").insert(
+        const { error: dxErr } = await supabase.from("episode_diagnoses").insert(
           diagnoses.map((d, i) => ({ episode_id: episode.id, patient_id: pid, code: d.code, label: d.label, position: i }))
         );
+        if (dxErr) failed.push("los diagnósticos");
       }
 
       // Save clinical record if any clinical fields filled
       if (diagnoses.length > 0 || doctorName || referralReason) {
-        await supabase.from("patient_clinical_records").insert({
+        const { error: recErr } = await supabase.from("patient_clinical_records").insert({
           patient_id: pid,
           episode_id: episode.id,
           diagnosis: primaryLabel(diagnoses),
           doctor_name: or(doctorName),
           referral_reason: or(referralReason),
         });
+        if (recErr) failed.push("los datos de la ficha clínica");
       }
 
-      toast.success("Paciente registrado correctamente");
+      if (failed.length > 0) {
+        toast.error("El paciente se registró, pero no se guardaron " + failed.join(" ni "), {
+          description: "Cargalos de nuevo desde \"Editar ficha\".",
+        });
+      } else {
+        toast.success("Paciente registrado correctamente");
+      }
       navigate(`/patients/${pid}`);
     } catch (err: any) {
       const isDuplicateDni = err?.code === "23505" && (
