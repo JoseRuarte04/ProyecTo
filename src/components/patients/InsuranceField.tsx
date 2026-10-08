@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Settings } from "lucide-react";
 import ObrasSocialesManager from "@/components/patients/ObrasSocialesManager";
+import { normalizeName } from "@/components/patients/insuranceCatalog";
 
 // Valor sentinela guardado en patients.insurance cuando el paciente no tiene
 // cobertura. Distinto de null (= dato no cargado) para estadísticas futuras.
@@ -68,7 +69,7 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
   const trimmedValue = value.trim();
   const showAddOption =
     trimmedValue.length >= 2 &&
-    !results.some((r) => r.name.trim().toLowerCase() === trimmedValue.toLowerCase());
+    !results.some((r) => normalizeName(r.name) === normalizeName(trimmedValue));
   const typeLabel = (type: string | null) => {
     if (!type) return "OTRAS";
     const n = type.toLowerCase();
@@ -136,11 +137,14 @@ export function ObrasSocialesAutocomplete({ value, onChange, placeholder, classN
     setAdding(false);
     if (error) {
       console.error("Error al agregar obra social:", error);
-      // 23505 = unique_violation (índice obras_sociales_name_lower_idx). Puede
-      // pasar si ya existe con otra capitalización y no apareció entre los
+      // 23505 = unique_violation (trigger validate_obra_social / índice obras_sociales_name_lower_idx).
+      // Puede pasar si ya existe con otra capitalización o tildes y no apareció entre los
       // primeros 10 resultados de la búsqueda que arma la sugerencia de "agregar".
+      // 23514 = nombre vacío o de más de 120 caracteres (mismo trigger).
       if (error.code === "23505") {
-        toast.error("Esa obra social ya existe en el catálogo", { description: "Probá buscarla con otro término — puede tener mayúsculas/minúsculas distintas." });
+        toast.error("Esa obra social ya existe en el catálogo", { description: "Probá buscarla con otro término — puede tener mayúsculas, tildes o espacios distintos." });
+      } else if (error.code === "23514") {
+        toast.error(error.message);
       } else {
         toast.error("No se pudo agregar la obra social", { description: error.message });
       }

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, Check, User, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
+import { resolveInsuranceName } from "@/components/patients/insuranceCatalog";
 import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
 import { primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
 import { SEX_OPTIONS, sexLabel } from "@/components/patients/sexOptions";
@@ -161,10 +162,26 @@ export default function NewPatientForm() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 1 && !validateStep1()) {
       toast.error("Completá los campos obligatorios");
       return;
+    }
+    // La obra social tiene que existir en el catálogo: texto libre dejaría pacientes con coberturas
+    // que no se pueden renombrar ni contar como "en uso". Si coincide, se guarda con la grafía del catálogo.
+    if (step === 2 && insurance.trim() && insurance !== NO_INSURANCE) {
+      const r = await resolveInsuranceName(insurance);
+      if (r.status === "error") {
+        toast.error("No se pudo verificar la obra social", { description: "Probá de nuevo." });
+        return;
+      }
+      if (r.status === "missing") {
+        toast.error("Esa obra social no está en el catálogo", {
+          description: "Elegila de la lista o agregala con \"Agregar … como nueva obra social\".",
+        });
+        return;
+      }
+      if (r.name !== insurance) setInsurance(r.name);
     }
     setErrors({});
     setStep(s => s + 1);

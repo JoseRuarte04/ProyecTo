@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InsuranceField, NO_INSURANCE } from "@/components/patients/InsuranceField";
+import { resolveInsuranceName } from "@/components/patients/insuranceCatalog";
 import { SEX_OPTIONS } from "@/components/patients/sexOptions";
 import { DOCUMENT_TYPE_OPTIONS, DEFAULT_DOCUMENT_TYPE } from "@/components/patients/documentTypes";
 import { DiagnosisListEditor } from "@/components/patients/DiagnosisListEditor";
@@ -86,6 +87,26 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
     if (!patient?.id || !user) return;
     setSaving(true);
 
+    // Solo se valida si la cobertura cambió: pacientes viejos con texto que no está en el catálogo
+    // (ej. "Swiss" frente a "Swiss Medical") tienen que poder editar el resto de la ficha sin trabas.
+    let insuranceValue: string | null = emptyToNull(form.insurance);
+    if (insuranceValue && insuranceValue !== NO_INSURANCE && insuranceValue !== (patient.insurance || "")) {
+      const r = await resolveInsuranceName(insuranceValue);
+      if (r.status === "error") {
+        setSaving(false);
+        toast.error("No se pudo verificar la obra social", { description: "Probá de nuevo." });
+        return;
+      }
+      if (r.status === "missing") {
+        setSaving(false);
+        toast.error("Esa obra social no está en el catálogo", {
+          description: "Elegila de la lista o agregala con \"Agregar … como nueva obra social\".",
+        });
+        return;
+      }
+      insuranceValue = r.name;
+    }
+
     const patientPayload = {
       first_name: form.first_name, last_name: form.last_name,
       preferred_name: emptyToNull(form.preferred_name),
@@ -93,7 +114,7 @@ export function EditFichaDialog({ open, onClose, patient, clinical, activeEpisod
       birth_date: emptyToNull(form.birth_date), gender: emptyToNull(form.gender),
       nationality: emptyToNull(form.nationality),
       phone: emptyToNull(form.phone), email: emptyToNull(form.email),
-      address: emptyToNull(form.address), insurance: emptyToNull(form.insurance),
+      address: emptyToNull(form.address), insurance: insuranceValue,
       insurance_number: emptyToNull(form.insurance_number),
       allergies: emptyToNull(form.allergies),
       admission_date: form.admission_date || patient.admission_date,
