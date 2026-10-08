@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-07] Seguridad: `create_quickdash_token` valida paciente y equipo + QA local previo al push
+- Hueco real encontrado: un profesional podía generar un link de QuickDASH con su sesión pero el paciente de otro, y al completarse se escribía una evaluación en la ficha ajena. Además, un compañero de equipo no podía generar el link en pacientes del equipo. Migración nueva + 2 tests de regresión (fallan sin la migración, pasan con ella: 34/35 → 35/35 en base local).
+- **La migración NO está aplicada en producción todavía** (el clasificador de permisos bloqueó el deploy) — el hueco sigue abierto allá hasta que Jose la aplique. Los tests nuevos fallan en el CI real hasta entonces.
+- Skill local `/qa-precision` + base Supabase en Docker (fuera del repo). Ver `DECISIONS.md`.
+
 ## [2026-10-06] Prep de beta cerrada: privacidad, feedback, backups, seguridad
 - Passwords de `rls-test-a/b` rotadas (ya no son las que estuvieron expuestas). Auditoría de `profile_role`: sin escalada de privilegios posible.
 - 5 PRs listos con CI real en verde, esperando revisión de Jose: `RESEND_FROM` configurable (#52), política de privacidad + consentimiento obligatorio + gate (#53), feedback + Vercel Analytics + banner de beta (#54), backups semanales encriptados de base y Storage (#55), checklist manual de beta (#56).

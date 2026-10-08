@@ -9,6 +9,36 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-07] Funciones `SECURITY DEFINER` validan pertenencia por dentro + QA previo al push contra una base local
+
+**Contexto:** al probar un pendiente de `TASKS.md` (compañeros de equipo no podían
+generar el link de QuickDASH) se encontró que `create_quickdash_token` no verificaba
+que `p_patient_id` fuera el paciente de la sesión. Con SU sesión un profesional podía
+generar el link para el paciente de OTRO, y `complete_quickdash_token` escribía una
+`functional_evaluations` en esa ficha ajena. El PR #31 (2026-10-02) había cerrado
+solo la puerta directa (la policy de INSERT de la tabla), no esta función, que se
+salta el RLS.
+
+**Decisión:** (1) `create_quickdash_token` exige `session.patient_id = p_patient_id`
+y `is_my_patient(...)` (cubre dueño directo y equipo) — migración
+`20261007100000_create_quickdash_token_team_and_patient_check.sql`. (2) Regla de
+revisión: al cerrar un hueco de RLS en una tabla, revisar también toda función
+`SECURITY DEFINER` que escriba en ella. (3) Se arma un QA previo al push contra una
+base Supabase local en Docker (skill local `/qa-precision`, NO versionada, vive en
+`~/.claude/`). Esto **no** contradice el descarte de Docker del 2026-10-06 (ese era
+para CI y deploy): acá es solo una herramienta local para validar cambios antes del push.
+
+**Por qué:** las funciones `SECURITY DEFINER` son una puerta alternativa a la tabla y
+los tests de RLS que solo ejercitan la tabla no la ven. La base local (baseline del
+schema real + seed ficticio) permite probar RLS por rol y la UI sin tocar producción.
+Las migraciones del repo no crean 22 de las 38 tablas (origen Lovable), por eso el
+baseline sale de un `supabase db dump` y no de `supabase start` con el historial.
+
+**Alternativas descartadas:** probar contra el proyecto real (riesgo para datos de
+pacientes en beta) y una branch de Supabase (costo no verificado, depende de red).
+
+---
+
 ## [2026-10-06] Prep de beta: auditoría de `profile_role` — sin escalada de privilegios
 
 **Contexto:** antes de invitar a ~30 profesionales reales, Jose pidió auditar si
