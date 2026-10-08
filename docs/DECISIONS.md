@@ -9,6 +9,43 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-08] Configuraciones siempre visible: el filtro de admin de equipo se mueve adentro del índice
+
+**Contexto:** al fusionar "Perfil" (cuenta personal: datos, email, contraseña)
+dentro de "Configuraciones", el gate que hoy decidía si el ítem
+"Configuraciones" aparecía en el sidebar (`!isTeamMode || isTeamAdmin`) dejaba
+de tener sentido — ese gate estaba pensado para Evaluaciones/Turnos (config
+compartida de equipo), pero ahora Configuraciones también contiene cuenta
+personal, que no depende del workspace y nunca debería estar oculta.
+
+**Opciones consideradas:**
+1. Mantener el gate en el sidebar y agregar un segundo punto de entrada a la
+   cuenta personal (ej: un ítem nuevo en el footer del sidebar).
+2. Hacer "Configuraciones" siempre visible en el sidebar/bottom nav, y mover el
+   filtro de admin adentro del propio índice (`Settings.tsx`), aplicado solo a
+   los ítems de equipo.
+
+**Decisión:** opción 2. "Configuraciones" es siempre visible; el índice separa
+"Mi cuenta" (siempre) de "Equipo" (Evaluaciones/Turnos, filtrado por
+`workspace.type === "team" ? workspace.isAdmin : true`, misma condición que
+antes tapaba la entrada completa).
+
+**Por qué:** mantiene un solo punto de entrada (más simple de navegar) y de paso
+corrige un gap real: un miembro de equipo no-admin no podía ni llegar a su
+propia cuenta (el sidebar ocultaba "Configuraciones" entera), y el bottom nav
+mobile no tenía ninguna entrada a Configuraciones para nadie.
+
+**Consecuencias / trade-offs aceptados:** un miembro de equipo no-admin ahora
+ve la entrada "Evaluaciones"/"Turnos" en el índice (antes no la veía porque no
+llegaba ni al índice) — entra en modo solo-lectura con el banner "Solo los
+admins pueden cambiar esto" que esas páginas ya tenían desde antes. No es una
+regresión de permisos (nunca podía editar), es más visibilidad de algo que
+antes no sabía que existía.
+
+**Quién lo decidió:** Jose (con Claude, durante el armado del plan)
+
+---
+
 ## [2026-10-06] Prep de beta: auditoría de `profile_role` — sin escalada de privilegios
 
 **Contexto:** antes de invitar a ~30 profesionales reales, Jose pidió auditar si
