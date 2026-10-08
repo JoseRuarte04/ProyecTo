@@ -9,10 +9,15 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-08] Prep de beta: los 6 PRs mergeados + drill de restauración real confirmado
+- Jose mergeó los 6 PRs de la prep de beta. CI de `main` en verde en el estado final.
+- Drill de restauración contra el dump real de producción (no sintético): `supabase init` + `supabase start` fuera del repo, restauró datos reales y confirmó el criterio completo — login real + pacientes vía RLS + archivo descargado con hash idéntico al original. Todo el material real se borró al terminar.
+- Corregido en el camino: el connection string para el backup tiene que ser el Session pooler (`postgres.<ref>`), no "Direct connection" — GitHub Actions es IPv4-only.
+
 ## [2026-10-06] Prep de beta cerrada: privacidad, feedback, backups, seguridad
 - Passwords de `rls-test-a/b` rotadas (ya no son las que estuvieron expuestas). Auditoría de `profile_role`: sin escalada de privilegios posible.
 - 5 PRs listos con CI real en verde, esperando revisión de Jose: `RESEND_FROM` configurable (#52), política de privacidad + consentimiento obligatorio + gate (#53), feedback + Vercel Analytics + banner de beta (#54), backups semanales encriptados de base y Storage (#55), checklist manual de beta (#56).
-- Hallazgo en el camino: `supabase start` no levanta de cero con el historial de migraciones actual (ver `TASKS.md`) — bloquea la restauración real de un backup hasta que se arregle.
+- Hallazgo en el camino: `supabase start` no levanta de cero **dentro del repo** con el historial de migraciones actual (ver `TASKS.md`) — no bloquea la restauración real de un backup (confirmado el 2026-10-08, el drill usa un `supabase init` aparte), pero sigue haciendo falta arreglarlo para desarrollo local normal.
 
 ## [2026-10-06] Seguridad: passwords de usuarios de prueba fuera del código
 - Las passwords de `rls-test-a/b@example.com` estaban en texto plano desde julio en un repo público (`src/test/rls.test.ts` y `e2e/supabaseTestClient.ts`) — cualquiera podía loguearse como esas cuentas en producción.

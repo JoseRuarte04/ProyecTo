@@ -44,18 +44,40 @@ raíz del repo — esa carpeta cae bajo el patrón `*.local` que ya está en
 `.gitignore`, no hace falta agregar nada. Claude Code nunca ve el connection
 string ni la service_role key, solo el `.tar` ya descifrado.
 
-## Probado dos veces: mecanismo con schema sintético, y pendiente el drill con el dump real
+## Probado dos veces: mecanismo con schema sintético, y drill completo con el dump real
 
-**Mecanismo (ya hecho, con datos sintéticos):** ver detalle abajo.
+**Mecanismo (schema sintético):** ver detalle abajo.
 
-**Drill con el dump real de producción (pendiente, a correr cuando Jose pase el
-`.tar` descifrado):** no depende de arreglar el drift de migraciones — el
-escenario real de desastre es `supabase init` + `supabase start` en una carpeta
-temporal **fuera del repo**, sin nuestras migraciones (un proyecto Supabase
-nuevo nunca arranca replayando los archivos de migración de otro proyecto, así
-que esto es representativo de lo que pasaría en un desastre real, no un
-atajo). Mismo criterio de siempre: login real + ve sus pacientes + ve sus
-archivos — ahora con el schema real en vez de una tabla sintética.
+**Drill con el dump real de producción — hecho el 2026-10-08.** `supabase init`
++ `supabase start` en una carpeta temporal **fuera del repo**, sin nuestras
+migraciones (un proyecto Supabase nuevo nunca arranca replayando los archivos
+de migración de otro proyecto, así que esto es representativo de lo que
+pasaría en un desastre real, no un atajo — y confirmado que **no depende de
+arreglar el drift de migraciones**). Jose corrió el workflow a mano, descifró
+el artifact en su máquina y dejó el `.tar` en `backups.local/`.
+
+Resultado: **login real + ve sus pacientes + ve sus archivos — los 3
+criterios, con datos reales** (10 usuarios, 36 pacientes, 65 sesiones, 9
+archivos en el bucket `clinical-files`). En un usuario restaurado (sin
+exponer cuál) se le puso una password de prueba **solo en la copia local
+aislada** — nunca se tocó ni se conoció la password real de nadie. Con esa
+password: login real → vio **18 pacientes vía RLS** (no los 36 totales del
+sistema, confirma que el aislamiento entre profesionales también sobrevive
+la restauración) → descargó uno de sus archivos reales vía API → **hash
+SHA-256 idéntico al original**. Todo el material real (stack de Docker,
+carpetas temporales, el `.tar` descifrado) se borró apenas terminó la
+verificación.
+
+**2 hallazgos nuevos sobre la prueba sintética anterior** (confirmados ahora
+con el schema real, ya incorporados al procedimiento de abajo):
+- Hacen falta los `GRANT` a `anon`/`authenticated`/`service_role` después de
+  restaurar — en un `supabase init` nuevo no existen todavía (ver el punto ya
+  conocido más abajo, antes solo confirmado con el schema sintético).
+- Hay que **crear el bucket `clinical-files`** antes de poder subir los
+  archivos — `pg_dump --no-privileges` no pudo insertar la fila en
+  `storage.buckets` (mismo error de "permission denied for schema storage"
+  que las demás tablas internas de Supabase). `scripts/restore-storage.mjs`
+  ya lo crea solo si no existe, no hace falta un paso manual aparte.
 
 ## Probado contra `supabase start` (stack local), nunca contra producción
 
@@ -106,21 +128,39 @@ independiente de cuál sea el schema real.
   existe; en la prueba local hubo que agregarla a mano por lo mismo del punto
   anterior (schema sintético, sin pasar por las migraciones reales).
 
-### Procedimiento de restauración real (producción → `supabase start` local)
+### Procedimiento de restauración real (confirmado con el drill del 2026-10-08)
 
-1. `supabase start` (asume que el historial de migraciones se arregló — ver
-   el pendiente de `TASKS.md`; si no, usar una rama/branch de Supabase con el
-   schema real ya aplicado en vez de un `supabase start` desde cero).
-2. Descifrar: `gpg --batch --yes --passphrase "$PASSPHRASE" --decrypt -o backup.tar backup.tar.gpg`
+1. `supabase init` + `supabase start` en una carpeta **fuera de este repo**
+   (ej. `/tmp/restore-<fecha>/`) — no hace falta que el drift de migraciones
+   esté arreglado, un proyecto nuevo no replaya los archivos de migración de
+   otro proyecto.
+2. Descifrar: `gpg -o backup.tar -d backup.tar.gpg` (prompt interactivo de
+   passphrase, no pasarla por `--passphrase` en la línea de comandos).
 3. Extraer: `tar -xf backup.tar` (da `db.sql` + `storage/`)
-4. Restaurar la base: `docker run --rm -v "$PWD:/backup" postgres:17 psql "$LOCAL_DB_URL" -f /backup/db.sql` — ignorar los errores de "must be owner"/"already exists" de tablas internas de Supabase, son esperados.
-5. Restaurar Storage: `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/restore-storage.mjs ./storage`
-6. Verificar con un usuario real: loguearse y confirmar que ve sus pacientes y sus archivos — no alcanza con que la tabla tenga filas.
+4. Restaurar la base: `docker run --rm -v "$PWD:/backup" postgres:17 psql "$LOCAL_DB_URL" -f /backup/db.sql` — ignorar los errores de "must be owner"/"already exists"/"permission denied for schema auth|storage|realtime" de tablas internas de Supabase, son esperados. Los datos reales (`auth.users`, todo `public`) se restauran igual.
+5. **Re-otorgar los `GRANT`** que `--no-privileges` no incluye (si no, la API
+   responde "permission denied" aunque los datos ya estén):
+   ```sql
+   grant usage on schema public to anon, authenticated, service_role;
+   grant all on all tables in schema public to anon, authenticated, service_role;
+   grant all on all sequences in schema public to anon, authenticated, service_role;
+   grant all on all routines in schema public to anon, authenticated, service_role;
+   alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+   NOTIFY pgrst, 'reload schema';
+   ```
+6. Restaurar Storage: `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/restore-storage.mjs ./storage` — crea el bucket solo si hace falta.
+7. Verificar con un usuario real: ponerle una password de prueba **en esa
+   copia local únicamente** (vía `crypt()`/`pgcrypto`, nunca se usa ni se
+   conoce la password real de nadie), loguearse, y confirmar que ve sus
+   pacientes **vía RLS** (no una consulta directa) y puede descargar sus
+   archivos — no alcanza con que la tabla tenga filas.
+8. Borrar todo el material real al terminar: `supabase stop --no-backup`, la
+   carpeta temporal, y el `.tar`/`.tar.gpg` descifrados.
 
 ## Pendiente post-lanzamiento
 
 Reconciliar el historial de migraciones (`TASKS.md`) para que `supabase
 start`/`db reset` funcionen de cero **dentro de este repo** con el schema
-real — no bloquea el drill de restauración (que usa un `supabase init`
-aparte, fuera del repo), pero sigue haciendo falta para desarrollo local
-normal dentro del proyecto.
+real — el drill de restauración ya no depende de esto (usa `supabase init`
+aparte, fuera del repo, confirmado el 2026-10-08), pero sigue haciendo falta
+para desarrollo local normal dentro del proyecto.
