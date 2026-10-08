@@ -9,6 +9,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-08] QA del alta de pacientes y de obras sociales + arreglos (PRs #62 y #63 abiertos)
+- Alta de pacientes: el guardado de diagnósticos y de la ficha clínica no chequeaba el error (mostraba éxito aunque fallara). Ahora avisa con un error claro y lleva igual a la ficha. PR [#62](https://github.com/JoseRuarte04/ProyecTo/pull/62).
+- Obras sociales: renombrar una en uso actualiza a los pacientes, borrar una en uso se frena en la base, "OSDE " y "Galenó" ya no entran como duplicados, y el alta/edición valida contra el catálogo. Requiere aplicar la migración `20261008120000` al mergear. PR [#63](https://github.com/JoseRuarte04/ProyecTo/pull/63).
+
 ## [2026-10-08] Perfil fusionado dentro de Configuraciones, en sub-apartados separados
 - "Perfil" deja de ser una página aparte: datos personales, cambio de email y cambio de contraseña ahora son 3 sub-apartados de `/configuraciones` ("Mi cuenta"), junto a Evaluaciones/Turnos ("Equipo"). `/profile` redirige a `/configuraciones/general`.
 - De paso corrige un gap: "Configuraciones" ahora es siempre visible en el sidebar y en el bottom nav mobile (antes un miembro de equipo no-admin no podía ni llegar a su propia cuenta).

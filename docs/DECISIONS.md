@@ -9,6 +9,47 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-08] Obras sociales: el catálogo sigue editable por todos, con los frenos en la base
+
+**Contexto:** el QA del 2026-10-08 mostró que las protecciones del catálogo de
+obras sociales vivían solo en el front. `patients.insurance` es texto copiado
+del catálogo (no una FK), y las políticas de `obras_sociales` dejan a cualquier
+profesional activo editar o borrar cualquier entrada. Resultado confirmado:
+renombrar una entrada en uso dejaba huérfanos a los pacientes, y un DELETE
+directo salteaba la guarda "no se borra si está en uso".
+
+**Opciones consideradas:**
+1. A — el catálogo sigue editable por todos los profesionales, pero las guardas
+   pasan a la base (triggers: renombrar actualiza a los pacientes, borrar en uso
+   se rechaza, duplicados y nombre se validan normalizados).
+2. B — solo admins editan o borran el catálogo.
+
+**Decisión:** opción A. Además, el alta y "Editar ficha" exigen que la obra
+social exista en el catálogo (si coincide ignorando mayúsculas, tildes y
+espacios se guarda con el nombre canónico); en "Editar ficha" solo se valida si
+la cobertura cambió, para que pacientes viejos con texto fuera del catálogo
+(ej. "Swiss" frente a "Swiss Medical") puedan editar el resto de la ficha.
+
+**Por qué:** "Administrar" (editar/borrar desde la pantalla) se construyó a
+propósito en septiembre (PRs #21/#22); restringirlo a admins cambiaba una función
+deliberada. Con los frenos en la base el daño de un error o una broma queda
+acotado: no se borra lo que está en uso y un renombrado corrige a los pacientes.
+
+**Consecuencias / trade-offs aceptados:** renombrar una obra social modifica los
+pacientes de otros profesionales (solo el texto de la cobertura), y puede quedar
+registrado en el historial de cada paciente. Un usuario sin consentimiento de
+privacidad todavía puede editar el catálogo a nivel base (el bloqueo es solo de
+pantalla) — anotado en `TASKS.md`. La unicidad se valida con un trigger y el
+CHECK de nombre se creó `NOT VALID` a propósito: no se pudo consultar el catálogo
+de producción para buscar filas viejas fuera de regla (la lectura fue bloqueada
+por el clasificador de permisos), así que la migración no depende de que no
+existan. `patients.insurance` sigue siendo texto: convertirlo en una referencia
+real al catálogo quedó como candidato.
+
+**Quién lo decidió:** Jose (opción A y validar el texto libre, 2026-10-08)
+
+---
+
 ## [2026-10-08] Configuraciones siempre visible: el filtro de admin de equipo se mueve adentro del índice
 
 **Contexto:** al fusionar "Perfil" (cuenta personal: datos, email, contraseña)
