@@ -158,7 +158,11 @@ export default function PatientProfile() {
     .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime())[0];
 
   return (
-    <div className="flex flex-col -m-4 md:-m-6 lg:-m-8 overflow-hidden h-[calc(100vh-56px)] lg:h-screen">
+    <div
+      className="flex flex-col -mx-4 -mb-4 md:-mx-6 md:-mb-6 lg:-mx-8 lg:-mb-8 overflow-hidden
+        h-[calc(100vh_-_56px_-_var(--beta-banner-height,0px))] lg:h-[calc(100vh_-_var(--beta-banner-height,0px))]
+        mt-[calc(var(--beta-banner-height,0px)_-_1rem)] md:mt-[calc(var(--beta-banner-height,0px)_-_1.5rem)] lg:mt-[calc(var(--beta-banner-height,0px)_-_2rem)]"
+    >
       <div className="flex flex-1 min-h-0">
         {/* Left sidebar */}
         <div className="patient-sidebar w-[280px] shrink-0 overflow-y-auto border-r border-border p-7 hidden lg:block">
