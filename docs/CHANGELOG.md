@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-08] Perfil fusionado dentro de Configuraciones, en sub-apartados separados
+- "Perfil" deja de ser una página aparte: datos personales, cambio de email y cambio de contraseña ahora son 3 sub-apartados de `/configuraciones` ("Mi cuenta"), junto a Evaluaciones/Turnos ("Equipo"). `/profile` redirige a `/configuraciones/general`.
+- De paso corrige un gap: "Configuraciones" ahora es siempre visible en el sidebar y en el bottom nav mobile (antes un miembro de equipo no-admin no podía ni llegar a su propia cuenta).
+- PR [#59](https://github.com/JoseRuarte04/ProyecTo/pull/59), abierto y pendiente de review.
+
 ## [2026-10-08] Prep de beta: los 6 PRs mergeados + drill de restauración real confirmado
 - Jose mergeó los 6 PRs de la prep de beta. CI de `main` en verde en el estado final.
 - Drill de restauración contra el dump real de producción (no sintético): `supabase init` + `supabase start` fuera del repo, restauró datos reales y confirmó el criterio completo — login real + pacientes vía RLS + archivo descargado con hash idéntico al original. Todo el material real se borró al terminar.
