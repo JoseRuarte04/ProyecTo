@@ -32,7 +32,6 @@ const baseNavItems = [
   { title: "Pacientes",  url: "/patients",     icon: Users },
   { title: "Turnos",     url: "/appointments", icon: Calendar },
   { title: "Ejercicios", url: "/exercises",    icon: Dumbbell },
-  { title: "Perfil",     url: "/profile",      icon: User },
 ];
 
 export function AppSidebar() {
@@ -46,13 +45,14 @@ export function AppSidebar() {
   const isTeamMode = workspace.type === "team";
   const isTeamAdmin = isTeamMode && (workspace as { type: "team"; isAdmin: boolean }).isAdmin;
 
-  // "Configuraciones" siempre visible en workspace personal (cada uno
-  // configura el propio); en workspace de equipo solo para el admin (hoy
-  // solo agrupa Evaluaciones, que es config compartida en modo equipo).
+  // "Configuraciones" siempre visible: incluye cuenta personal (datos,
+  // email, contraseña), que no depende del workspace. La config de equipo
+  // (Evaluaciones, Turnos) se filtra adentro de la propia página de
+  // Configuraciones, no acá.
   const navItems = [
     ...baseNavItems,
     ...(isTeamAdmin ? [{ title: "Mi equipo", url: "/mi-equipo", icon: Users2 }] : []),
-    ...(!isTeamMode || isTeamAdmin ? [{ title: "Configuraciones", url: "/configuraciones", icon: Settings }] : []),
+    { title: "Configuraciones", url: "/configuraciones", icon: Settings },
   ];
 
   const handleSetWorkspace = (ws: { type: "personal" } | { type: "team"; teamId: string }) => {

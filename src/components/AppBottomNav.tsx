@@ -29,7 +29,7 @@ export function AppBottomNav() {
     return pathname.startsWith(url);
   };
 
-  const moreActive = pathname.startsWith("/profile") || pathname.startsWith("/mi-equipo");
+  const moreActive = pathname.startsWith("/configuraciones") || pathname.startsWith("/mi-equipo");
 
   const workspaceLabel =
     workspace.type === "personal"
@@ -98,7 +98,7 @@ export function AppBottomNav() {
 
           {profile && (
             <button
-              onClick={() => goTo("/profile")}
+              onClick={() => goTo("/configuraciones")}
               className="flex w-full items-center gap-3 border-b border-border px-5 py-4 text-left"
             >
               <Avatar className="h-10 w-10 border border-border">
@@ -111,7 +111,7 @@ export function AppBottomNav() {
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground truncate">{profile.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">Ver perfil</p>
+                <p className="text-xs text-muted-foreground truncate">Configuración de la cuenta</p>
               </div>
             </button>
           )}

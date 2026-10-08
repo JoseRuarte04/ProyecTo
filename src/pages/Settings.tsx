@@ -1,8 +1,30 @@
-import { ClipboardList, CalendarClock, ChevronRight } from "lucide-react";
+import { User, Mail, KeyRound, ClipboardList, CalendarClock, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
-const SETTINGS_ITEMS = [
+const ACCOUNT_ITEMS = [
+  {
+    title: "Configuración general",
+    description: "Nombre, especialidad, matrícula y foto de perfil.",
+    url: "/configuraciones/general",
+    icon: User,
+  },
+  {
+    title: "Cambio de email",
+    description: "Actualizá el email con el que iniciás sesión.",
+    url: "/configuraciones/email",
+    icon: Mail,
+  },
+  {
+    title: "Cambio de contraseña",
+    description: "Actualizá la contraseña de tu cuenta.",
+    url: "/configuraciones/password",
+    icon: KeyRound,
+  },
+];
+
+const TEAM_ITEMS = [
   {
     title: "Evaluaciones",
     description: "Elegí qué escalas se muestran en el wizard de sesiones.",
@@ -17,13 +39,12 @@ const SETTINGS_ITEMS = [
   },
 ];
 
-export default function Settings() {
+function SettingsGroup({ label, items }: { label: string; items: typeof ACCOUNT_ITEMS }) {
   return (
-    <div className="space-y-6 max-w-2xl">
-      <PageHeader title="Configuraciones" subtitle="Personalizá cómo trabajás en HisTO." />
-
+    <div className="space-y-3">
+      <p className="px-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
       <div className="border border-border rounded-xl overflow-hidden bg-card divide-y divide-border">
-        {SETTINGS_ITEMS.map((item) => (
+        {items.map((item) => (
           <Link
             key={item.url}
             to={item.url}
@@ -40,6 +61,24 @@ export default function Settings() {
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+export default function Settings() {
+  const { workspace } = useWorkspace();
+  // "Equipo" agrupa config compartida (hoy editable solo por el admin del
+  // equipo) — mismo gate que antes decidía si "Configuraciones" aparecía
+  // en el sidebar. "Mi cuenta" es siempre del usuario, nunca se filtra.
+  const canSeeTeamSettings = workspace.type === "team" ? workspace.isAdmin : true;
+
+  return (
+    <div className="space-y-8 max-w-2xl">
+      <PageHeader title="Configuraciones" subtitle="Personalizá cómo trabajás en HisTO." />
+
+      <SettingsGroup label="Mi cuenta" items={ACCOUNT_ITEMS} />
+
+      {canSeeTeamSettings && <SettingsGroup label="Equipo" items={TEAM_ITEMS} />}
     </div>
   );
 }

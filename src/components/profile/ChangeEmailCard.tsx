@@ -32,7 +32,7 @@ export default function ChangeEmailCard({ email }: Props) {
     // proyecto Supabase; si no, el link del mail cae en el Site URL.
     const { error } = await supabase.auth.updateUser(
       { email: target },
-      { emailRedirectTo: `${window.location.origin}/profile` },
+      { emailRedirectTo: `${window.location.origin}/configuraciones/email` },
     );
     setSaving(false);
     if (error) {
