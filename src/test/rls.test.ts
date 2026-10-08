@@ -258,6 +258,51 @@ describe("RLS: aislamiento entre profesionales", () => {
     expect(data).toBeNull();
   });
 
+  it("B no puede generar un link de QuickDASH sobre la sesión de A vía RPC", async () => {
+    // create_quickdash_token es SECURITY DEFINER: se salta el RLS de la tabla, así que
+    // el chequeo de pertenencia tiene que vivir dentro de la función.
+    const { data, error } = await clientB.rpc("create_quickdash_token", {
+      p_session_id: sessionId,
+      p_patient_id: patientId,
+      p_expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it("A no puede generar un link de QuickDASH con SU sesión pero el paciente de B (regresión 2026-10-07)", async () => {
+    // Hasta la migración 20261007100000 la función confiaba en p_patient_id sin verificar que
+    // fuera el paciente de la sesión: se creaba el token y, al completarlo, complete_quickdash_token
+    // escribía una functional_evaluations en la ficha del paciente ajeno.
+    const TEST_DNI_B = "RLS-TEST-00000002";
+    const { data: existingB, error: findErr } = await clientB
+      .from("patients")
+      .select("id")
+      .eq("dni", TEST_DNI_B)
+      .limit(1);
+    if (findErr) throw findErr;
+    let patientBId: string;
+    if (existingB.length > 0) {
+      patientBId = existingB[0].id;
+    } else {
+      const { data: created, error: createErr } = await clientB
+        .from("patients")
+        .insert({ professional_id: userBId, first_name: "Paciente", last_name: "De Prueba RLS B", dni: TEST_DNI_B })
+        .select("id")
+        .single();
+      if (createErr) throw createErr;
+      patientBId = created.id;
+    }
+
+    const { data, error } = await clientA.rpc("create_quickdash_token", {
+      p_session_id: sessionId,
+      p_patient_id: patientBId,
+      p_expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
   it("B no puede editar el perfil de A", async () => {
     const { data, error } = await clientB
       .from("profiles")
