@@ -13,13 +13,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { EdemaCircometryTable, type CircometriaItem } from "@/components/clinical/EdemaCircometryTable";
-import { SectionCard, SubSection, inputClass, textareaClass, numFieldErr } from "../shared";
+import { SectionCard, SubSection, inputClass, textareaClass, numFieldErr, CarryOverChoice, CarryOverSummary, type CarryOverState } from "../shared";
 import { GonioGrid, GonioPartSelector } from "../GonioComponents";
 import { SPECIFIC_TESTS, SCAR_OPTIONS, VSS_OPTIONS, SCAR_PLACEHOLDER, DANIELS_FULL_GRADES } from "../constants";
 import type { PainEntry, PainTipo, GonioPartKey, GonioBySide, TestResult } from "../types";
 import type { EvaluationKey } from "@/lib/evaluationSettings";
 
 interface AnaliticaStepProps {
+  carryOver?: CarryOverState;
   // Pain
   pains: PainEntry[];
   setPains: React.Dispatch<React.SetStateAction<PainEntry[]>>;
@@ -90,6 +91,7 @@ interface AnaliticaStepProps {
 
 export function AnaliticaStep(props: AnaliticaStepProps) {
   const {
+    carryOver,
     pains, setPains, painsNextId,
     edema_obs, setEdemaObs, godet_test, setGodetTest, edema_circ_items, setEdemaCircItems,
     all_pre_gonio, setAllPreGonio, show_arom, setShowArom, show_arom_post, setShowAromPost, all_arom_post_gonio, setAllAromPostGonio,
@@ -138,6 +140,31 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       return { ...prev, [key]: next };
     });
   };
+
+  if (carryOver && carryOver.mode === "choice") {
+    return (
+      <SectionCard id="sec-analitica" icon={BarChart2} title="Evaluación analítica">
+        <CarryOverChoice
+          previousDateLabel={carryOver.previousDateLabel}
+          viewHref={carryOver.viewHref}
+          onChooseMaintain={carryOver.onChooseMaintain}
+          onChooseUpdate={carryOver.onChooseUpdate}
+        />
+      </SectionCard>
+    );
+  }
+
+  if (carryOver && carryOver.mode === "maintain") {
+    return (
+      <SectionCard id="sec-analitica" icon={BarChart2} title="Evaluación analítica">
+        <CarryOverSummary
+          previousDateLabel={carryOver.previousDateLabel}
+          viewHref={carryOver.viewHref}
+          onSwitchToUpdate={carryOver.onSwitchToUpdate}
+        />
+      </SectionCard>
+    );
+  }
 
   return (
     <SectionCard id="sec-analitica" icon={BarChart2} title="Evaluación analítica">
