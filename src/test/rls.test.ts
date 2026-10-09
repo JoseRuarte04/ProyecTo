@@ -258,6 +258,82 @@ describe("RLS: aislamiento entre profesionales", () => {
     expect(data).toBeNull();
   });
 
+  describe("turnos: reasignación por UPDATE (regresión 2026-10-08)", () => {
+    // Hasta la migración 20261008120000, el WITH CHECK de "appointments: editar"
+    // aceptaba `professional_id = auth.uid()` aunque el paciente no fuera suyo:
+    // A podía dejar su turno apuntando al paciente (o al profesional) de B.
+    // Los turnos no se pueden borrar (no hay policy de DELETE), así que se
+    // reutiliza uno fijo para no acumular filas entre corridas.
+    const APPT_DATE = "2030-01-01T12:00:00Z";
+    const TEST_DNI_B = "RLS-TEST-00000002";
+    let apptId: string;
+    let patientBId: string;
+
+    beforeAll(async () => {
+      const { data: found, error: findErr } = await clientA
+        .from("appointments")
+        .select("id")
+        .eq("patient_id", patientId)
+        .eq("appointment_date", APPT_DATE)
+        .limit(1);
+      if (findErr) throw findErr;
+      if (found.length > 0) {
+        apptId = found[0].id;
+      } else {
+        const { data, error } = await clientA
+          .from("appointments")
+          .insert({ patient_id: patientId, professional_id: userAId, appointment_date: APPT_DATE })
+          .select("id")
+          .single();
+        if (error) throw error;
+        apptId = data.id;
+      }
+
+      const { data: pb, error: pbErr } = await clientB.from("patients").select("id").eq("dni", TEST_DNI_B).limit(1);
+      if (pbErr) throw pbErr;
+      if (pb.length > 0) {
+        patientBId = pb[0].id;
+      } else {
+        const { data, error } = await clientB
+          .from("patients")
+          .insert({ professional_id: userBId, first_name: "Paciente", last_name: "De Prueba RLS B", dni: TEST_DNI_B })
+          .select("id")
+          .single();
+        if (error) throw error;
+        patientBId = data.id;
+      }
+    });
+
+    const apptOwnership = async () => {
+      const { data, error } = await clientA
+        .from("appointments")
+        .select("patient_id, professional_id")
+        .eq("id", apptId)
+        .single();
+      if (error) throw error;
+      return data;
+    };
+
+    it("A no puede reasignar su turno al paciente de B", async () => {
+      const { error } = await clientA.from("appointments").update({ patient_id: patientBId }).eq("id", apptId);
+      expect(error).not.toBeNull();
+      expect(await apptOwnership()).toEqual({ patient_id: patientId, professional_id: userAId });
+      const { data: seenByB } = await clientB.from("appointments").select("id").eq("id", apptId);
+      expect(seenByB).toHaveLength(0);
+    });
+
+    it("A no puede pasarle su turno a B cambiando professional_id", async () => {
+      const { error } = await clientA.from("appointments").update({ professional_id: userBId }).eq("id", apptId);
+      expect(error).not.toBeNull();
+      expect(await apptOwnership()).toEqual({ patient_id: patientId, professional_id: userAId });
+    });
+
+    it("A sigue pudiendo reprogramar su propio turno", async () => {
+      const { error } = await clientA.from("appointments").update({ notes: "reprogramado" }).eq("id", apptId);
+      expect(error).toBeNull();
+    });
+  });
+
   it("B no puede editar el perfil de A", async () => {
     const { data, error } = await clientB
       .from("profiles")
