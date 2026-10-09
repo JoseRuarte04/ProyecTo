@@ -106,11 +106,11 @@ export function CarryOverChoice({
     <div className="space-y-3 py-2">
       <p className="text-sm text-muted-foreground">
         Última vez registrada: <span className="font-medium text-foreground">{previousDateLabel}</span>.
-        ¿Actualizamos los datos o continuamos con los mismos?
+        ¿Actualizamos los datos o mantenemos los mismos?
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" onClick={onChooseUpdate}>Actualizar</Button>
-        <Button type="button" variant="secondary" onClick={onChooseMaintain}>Continuar</Button>
+        <Button type="button" variant="secondary" onClick={onChooseMaintain}>Mantener</Button>
       </div>
     </div>
   );
@@ -123,7 +123,7 @@ export function CarryOverSummary({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 py-2">
       <p className="text-sm text-muted-foreground">
-        Se continúa con los datos de la sesión del <span className="font-medium text-foreground">{previousDateLabel}</span>.
+        Se mantienen los datos de la sesión del <span className="font-medium text-foreground">{previousDateLabel}</span>.
       </p>
       <Button type="button" variant="ghost" size="sm" onClick={onSwitchToUpdate} className="gap-1.5 text-xs">
         <RotateCcw className="h-3 w-3" /> Actualizar
