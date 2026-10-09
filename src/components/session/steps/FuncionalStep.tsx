@@ -9,9 +9,10 @@ import { PerformanceContextSections } from "@/components/evaluations/Performance
 import type { PerformanceContextValues } from "@/components/evaluations/performanceContextTypes";
 import type { IndependenceLevel } from "@/components/evaluations/occupationsTaxonomy";
 import type { EvaluationKey } from "@/lib/evaluationSettings";
-import { SectionCard } from "../shared";
+import { SectionCard, CarryOverChoice, CarryOverSummary, type CarryOverState } from "../shared";
 
 interface FuncionalStepProps {
+  carryOver?: CarryOverState;
   occupations_items: Record<string, IndependenceLevel>;
   setOccupationsItems: (items: Record<string, IndependenceLevel>) => void;
   occupations_notes: string;
@@ -30,6 +31,7 @@ interface FuncionalStepProps {
 }
 
 export function FuncionalStep({
+  carryOver,
   occupations_items, setOccupationsItems,
   occupations_notes, setOccupationsNotes,
   performance_context, setPerformanceContext,
@@ -43,6 +45,31 @@ export function FuncionalStep({
   const barthelScore = calcBarthelTotal(barthel_items);
   const quickdashScore = calcQuickDashPartial(quickdash_items);
   const nothingEnabled = !showEval("barthel") && !showEval("fim") && !showEval("quickdash") && !showEval("occupations") && !showEval("performance_context");
+
+  if (carryOver && carryOver.mode === "choice") {
+    return (
+      <SectionCard id="sec-funcional" icon={ClipboardList} title="Evaluación funcional">
+        <CarryOverChoice
+          previousDateLabel={carryOver.previousDateLabel}
+          viewHref={carryOver.viewHref}
+          onChooseMaintain={carryOver.onChooseMaintain}
+          onChooseUpdate={carryOver.onChooseUpdate}
+        />
+      </SectionCard>
+    );
+  }
+
+  if (carryOver && carryOver.mode === "maintain") {
+    return (
+      <SectionCard id="sec-funcional" icon={ClipboardList} title="Evaluación funcional">
+        <CarryOverSummary
+          previousDateLabel={carryOver.previousDateLabel}
+          viewHref={carryOver.viewHref}
+          onSwitchToUpdate={carryOver.onSwitchToUpdate}
+        />
+      </SectionCard>
+    );
+  }
 
   return (
     <SectionCard

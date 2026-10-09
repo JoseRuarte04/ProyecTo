@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { differenceInYears, differenceInCalendarDays } from "date-fns";
+import { differenceInYears, differenceInCalendarDays, format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +12,7 @@ import { emptyPerformanceContext, type PerformanceContextValues } from "@/compon
 import type { IndependenceLevel } from "@/components/evaluations/occupationsTaxonomy";
 import { buildCircometriaPayload, normalizeCircometriaValue, isCircometriaFormat, type CircometriaItem } from "@/components/clinical/EdemaCircometryTable";
 import { STEPS_ADMISSION, STEPS_SESSION, GONIO_PARTS, emptyPain, parseDyn } from "@/components/session/constants";
-import { numFieldErr } from "@/components/session/shared";
+import { numFieldErr, type CarryOverState } from "@/components/session/shared";
 import type { GonioPartKey, GonioBySide, PainEntry, PainTipo, TestResult } from "@/components/session/types";
 import { SPECIFIC_TESTS } from "@/components/session/constants";
 import { fetchEpisodeDiagnoses, saveEpisodeDiagnoses, primaryLabel, type DiagnosisItem } from "@/components/patients/diagnoses";
@@ -53,6 +54,14 @@ export default function SessionForm() {
   const [editingAnalEval, setEditingAnalEval] = useState<any>(null);
   const [currentStep, setCurrentStep] = useState(0);
 
+  // Mantener/Actualizar en sesiones de seguimiento: evaluación del mismo
+  // episodio más reciente con datos reales, para ofrecer copiarla o partir
+  // de ella como base editable en vez de un formulario vacío.
+  const [previousFuncEval, setPreviousFuncEval] = useState<any>(null);
+  const [previousAnalEval, setPreviousAnalEval] = useState<any>(null);
+  const [funcionalMode, setFuncionalMode] = useState<"choice" | "maintain" | "update">("update");
+  const [analiticaMode, setAnaliticaMode] = useState<"choice" | "maintain" | "update">("update");
+
   // Session basics
   const [session_date, setSessionDate] = useState(new Date().toISOString().split("T")[0]);
   const [session_type, setSessionType] = useState(
@@ -74,6 +83,155 @@ export default function SessionForm() {
   const [quickdash_items, setQuickdashItems] = useState<(number | null)[]>(emptyQuickDash());
 
   const isAdmission = session_type === "admission";
+
+  // ── Aplicar una fila de functional_evaluations / analytical_evaluations al
+  // estado en vivo del formulario. Se usa tanto para cargar una sesión ya
+  // guardada en modo edición, como para "Mantener"/"Actualizar" en una sesión
+  // de seguimiento nueva (copiar hacia adelante la última evaluación del
+  // episodio). Misma lógica de mapeo en los 3 casos — tolera varios formatos
+  // legacy (goniometría, dolor, cicatriz/VSS).
+  const applyFunctionalEvalToForm = (fe: any) => {
+    if (!fe) return;
+    setShowFunctional(true);
+    if (fe.occupations_items && typeof fe.occupations_items === "object" && !Array.isArray(fe.occupations_items)) {
+      setOccupationsItems(fe.occupations_items as Record<string, IndependenceLevel>);
+    }
+    setOccupationsNotes(fe.occupations_notes || "");
+    setPerformanceContextState({
+      context_environmental_factors: fe.context_environmental_factors || "",
+      context_personal_factors: fe.context_personal_factors || "",
+      performance_pattern_habits: fe.performance_pattern_habits || "",
+      performance_pattern_routines: fe.performance_pattern_routines || "",
+      performance_pattern_roles: fe.performance_pattern_roles || "",
+      performance_pattern_rituals: fe.performance_pattern_rituals || "",
+      performance_skill_motor: fe.performance_skill_motor || "",
+      performance_skill_processing: fe.performance_skill_processing || "",
+      performance_skill_social_interaction: fe.performance_skill_social_interaction || "",
+      client_factor_values_beliefs_spirituality: fe.client_factor_values_beliefs_spirituality || "",
+      client_factor_body_functions: fe.client_factor_body_functions || "",
+      client_factor_body_structures: fe.client_factor_body_structures || "",
+    });
+    if (fe.fim_items && typeof fe.fim_items === "object") setFimItems(fe.fim_items as any);
+    if (fe.barthel_items && typeof fe.barthel_items === "object") setBarthelItems(fe.barthel_items as any);
+    if (fe.quickdash_items && Array.isArray(fe.quickdash_items)) setQuickdashItems(fe.quickdash_items as any);
+  };
+
+  const applyAnalyticalEvalToForm = (ae: any) => {
+    if (!ae) return;
+    setShowMeasurements(true);
+    const hasPainsData = !!(ae.pain_score != null || ae.pain_appearance || ae.pain_location || ae.pain_characteristics || ae.pain_aggravating_factors || (ae as any).pain || ae.pain_radiation || (Array.isArray((ae as any).pains) && (ae as any).pains.length > 0));
+
+    const rawPains = (ae as any).pains;
+    if (Array.isArray(rawPains) && rawPains.length > 0) {
+      const loaded = rawPains.map((p: any, i: number) => ({
+        id: i + 1, localizacion: p.localizacion || "", eva: p.eva ?? 0, evaTouched: p.eva != null,
+        tipo: p.tipo || "" as PainTipo, aparicion: p.aparicion || "",
+        irradia: p.irradia || "" as "no" | "si" | "", irradia_hacia: p.irradia_hacia || "",
+        caracteristicas: p.caracteristicas || "", agravantes: p.agravantes || "", observaciones: p.observaciones || "",
+      }));
+      setPains(loaded);
+      painsNextId.current = loaded.length + 1;
+    } else if (hasPainsData) {
+      const legacyIrradia = ae.pain_radiation === "No irradia" ? "no" : ae.pain_radiation ? "si" : "" as "no" | "si" | "";
+      setPains([{
+        id: 1, localizacion: (ae.pain_location || "").replace(/ — Irradia a:.*/, ""), eva: ae.pain_score || 0, evaTouched: ae.pain_score != null,
+        tipo: "" as PainTipo, aparicion: ae.pain_appearance || "", irradia: legacyIrradia,
+        irradia_hacia: ae.pain_radiation && ae.pain_radiation !== "No irradia" ? ae.pain_radiation : "",
+        caracteristicas: ae.pain_characteristics || "", agravantes: ae.pain_aggravating_factors || "", observaciones: "",
+      }]);
+      painsNextId.current = 2;
+    }
+
+    setMobilityObservations((ae as any).mobility_observations || "");
+    setEdemaObs(ae.edema || "");
+    setGodetTest(ae.godet_test || "");
+    const circ: any = ae.edema_circummetry;
+    if (isCircometriaFormat(circ)) setEdemaCircItems(normalizeCircometriaValue(circ));
+
+    if (ae.goniometry && typeof ae.goniometry === "object") {
+      const toGonio = (arr: any) => {
+        const base = emptySide();
+        if (Array.isArray(arr)) arr.forEach((g: any) => { if (g?.body_part && base[g.body_part as GonioPartKey]) base[g.body_part as GonioPartKey] = Object.fromEntries(Object.entries(g.values || {}).map(([k,v]) => [k, String(v)])); });
+        return base;
+      };
+      const g: any = ae.goniometry;
+      if (g.arom !== undefined || g.prom !== undefined) {
+        const aromData = g.arom || {};
+        const promData = g.prom || {};
+        if (aromData.MSD?.pre !== undefined || aromData.MSD?.post !== undefined || aromData.MSI?.pre !== undefined) {
+          setAllPreGonio({ MSD: toGonio(aromData.MSD?.pre), MSI: toGonio(aromData.MSI?.pre) });
+          setAllAromPostGonio({ MSD: toGonio(aromData.MSD?.post), MSI: toGonio(aromData.MSI?.post) });
+          setShowAromPost(!!(aromData.MSD?.post || aromData.MSI?.post));
+        } else {
+          setAllPreGonio({ MSD: toGonio(aromData.MSD), MSI: toGonio(aromData.MSI) });
+        }
+        setShowArom(!!(aromData.MSD || aromData.MSI));
+        if (promData.MSD?.pre !== undefined || promData.MSD?.post !== undefined || promData.MSI?.pre !== undefined) {
+          setAllPromPreGonio({ MSD: toGonio(promData.MSD?.pre), MSI: toGonio(promData.MSI?.pre) });
+          setAllPostGonio({ MSD: toGonio(promData.MSD?.post), MSI: toGonio(promData.MSI?.post) });
+          setShowPromPost(!!(promData.MSD?.post || promData.MSI?.post));
+        } else {
+          setAllPostGonio({ MSD: toGonio(promData.MSD), MSI: toGonio(promData.MSI) });
+        }
+        setShowProm(!!(promData.MSD || promData.MSI));
+      } else {
+        const hasNew = g.MSD || g.MSI;
+        if (hasNew) {
+          setAllPreGonio({ MSD: toGonio(g.MSD?.pre), MSI: toGonio(g.MSI?.pre) });
+          setAllPostGonio({ MSD: toGonio(g.MSD?.post), MSI: toGonio(g.MSI?.post) });
+          setShowArom(true);
+          setShowProm(!!(Array.isArray(g.MSD?.post) && g.MSD.post.length) || !!(Array.isArray(g.MSI?.post) && g.MSI.post.length));
+        } else {
+          setAllPreGonio({ MSD: toGonio(g.pre), MSI: emptySide() });
+          setAllPostGonio({ MSD: toGonio(g.post), MSI: emptySide() });
+          setShowArom(true);
+          setShowProm(Array.isArray(g.post) && g.post.length > 0);
+        }
+      }
+    }
+    const kap = ae.kapandji || "";
+    setKapandjiVal(kap.match(/^(\d+)/)?.[1] || "");
+    setKapandjiPain(kap.includes("dolor"));
+    setDynMsdVals(parseDyn(ae.dynamometer_msd));
+    setDynMsiVals(parseDyn(ae.dynamometer_msi));
+    setFistClosure((ae.muscle_strength || "").match(/Cierre de puño: ([^—]+)/)?.[1]?.trim() || "");
+    if (Array.isArray(ae.muscle_strength_daniels) && ae.muscle_strength_daniels.length) {
+      const rows = ae.muscle_strength_daniels.map((r: any, i: number) => ({ id: i + 1, muscle: r.muscle || "", grade: r.grade || "" }));
+      setDanielsRows(rows);
+      danielsNextId.current = rows.length + 1;
+    }
+    const dppd = (ae.dppd_fingers && typeof ae.dppd_fingers === "object" && !Array.isArray(ae.dppd_fingers) ? ae.dppd_fingers : {}) as Record<string, any>;
+    setDppdPulgar(dppd.pulgar != null ? String(dppd.pulgar) : "");
+    setDppdIndice(dppd.indice != null ? String(dppd.indice) : "");
+    setDppdMedio(dppd.medio != null ? String(dppd.medio) : "");
+    setDppdAnular(dppd.anular != null ? String(dppd.anular) : "");
+    setDppdMenique(dppd.menique != null ? String(dppd.menique) : "");
+    setSensitivity(ae.sensitivity || "");
+    setSensitivityTactoLigero(ae.sensitivity_tacto_ligero || "");
+    setSensitivityDosPuntos(ae.sensitivity_dos_puntos || "");
+    setSensitivityPickingUp(ae.sensitivity_picking_up || "");
+    setSensitivitySemmesWeinstein(ae.sensitivity_semmes_weinstein || "");
+    setSensitivityTocoPincho(ae.sensitivity_toco_pincho || "");
+    setSensitivityTemperatura(ae.sensitivity_temperatura || "");
+    if (ae.specific_tests && typeof ae.specific_tests === "object") setSpecificTests(ae.specific_tests as any);
+    const scar = (ae.scar_evaluation && typeof ae.scar_evaluation === "object" && !Array.isArray(ae.scar_evaluation) ? ae.scar_evaluation : {}) as Record<string, any>;
+    setScarLocalizacion(scar.localizacion || "");
+    setScarLongitud(scar.longitud_cm != null ? String(scar.longitud_cm) : "");
+    setScarVascularizacion(scar.vascularizacion || "");
+    setScarPigmentacion(scar.pigmentacion || "");
+    setScarFlexibilidad(scar.flexibilidad || "");
+    setScarSensibilidad(scar.sensibilidad || "");
+    setScarRelieve(scar.relieve || "");
+    setScarTemperatura(scar.temperatura || "");
+    setScarObservaciones(ae.scar || "");
+    setVssPigmentacion(scar.vss?.pigmentacion != null ? String(scar.vss.pigmentacion) : "");
+    setVssVascularizacion(scar.vss?.vascularizacion != null ? String(scar.vss.vascularizacion) : "");
+    setVssFlexibilidad(scar.vss?.flexibilidad != null ? String(scar.vss.flexibilidad) : "");
+    setVssAltura(scar.vss?.altura != null ? String(scar.vss.altura) : "");
+    setTrophicState(ae.trophic_state || "");
+    setPosture(ae.posture || "");
+    setEmotionalState(ae.emotional_state || "");
+  };
 
   // Ficha clínica
   const [cli_diagnoses, setCliDiagnoses] = useState<DiagnosisItem[]>([]);
@@ -235,10 +393,12 @@ export default function SessionForm() {
   });
 
   const clearDraft = () => sessionStorage.removeItem(draftKey);
+  const hadDraftRef = useRef(false);
 
   useEffect(() => {
     if (loading || !secondaryLoaded || draftRestored) return;
     const raw = sessionStorage.getItem(draftKey);
+    hadDraftRef.current = !!raw;
     if (raw) {
       try {
         const d = JSON.parse(raw);
@@ -336,6 +496,19 @@ export default function SessionForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, secondaryLoaded, draftRestored]);
 
+  // Mantener/Actualizar: recién se activa una vez que el borrador (si había
+  // uno) ya se restauró, y se re-evalúa si la evaluación previa del episodio
+  // llega más tarde (p.ej. cuando la sesión se crea sin "?episode=" en la URL
+  // y el episodio activo se resuelve después). Si había un borrador en curso
+  // para esta sesión, nunca se activa — se respeta tal cual, sin pisarlo con
+  // la evaluación previa.
+  useEffect(() => {
+    if (!draftRestored || hadDraftRef.current || isEditMode || session_type !== "follow_up") return;
+    if (previousFuncEval && funcionalMode === "update") setFuncionalMode("choice");
+    if (previousAnalEval && analiticaMode === "update") setAnaliticaMode("choice");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftRestored, previousFuncEval, previousAnalEval]);
+
   // ── Load session + patient data ──
   useEffect(() => {
     if (!patientId) return;
@@ -370,148 +543,8 @@ export default function SessionForm() {
         setHomeInstructionsSent(s.home_instructions_sent || "");
         setNotes(s.notes || "");
 
-        const fe = funcRes.data;
-        if (fe) {
-          setShowFunctional(true);
-          if (fe.occupations_items && typeof fe.occupations_items === "object" && !Array.isArray(fe.occupations_items)) {
-            setOccupationsItems(fe.occupations_items as Record<string, IndependenceLevel>);
-          }
-          setOccupationsNotes(fe.occupations_notes || "");
-          setPerformanceContextState({
-            context_environmental_factors: fe.context_environmental_factors || "",
-            context_personal_factors: fe.context_personal_factors || "",
-            performance_pattern_habits: fe.performance_pattern_habits || "",
-            performance_pattern_routines: fe.performance_pattern_routines || "",
-            performance_pattern_roles: fe.performance_pattern_roles || "",
-            performance_pattern_rituals: fe.performance_pattern_rituals || "",
-            performance_skill_motor: fe.performance_skill_motor || "",
-            performance_skill_processing: fe.performance_skill_processing || "",
-            performance_skill_social_interaction: fe.performance_skill_social_interaction || "",
-            client_factor_values_beliefs_spirituality: fe.client_factor_values_beliefs_spirituality || "",
-            client_factor_body_functions: fe.client_factor_body_functions || "",
-            client_factor_body_structures: fe.client_factor_body_structures || "",
-          });
-          if (fe.fim_items && typeof fe.fim_items === "object") setFimItems(fe.fim_items as any);
-          if (fe.barthel_items && typeof fe.barthel_items === "object") setBarthelItems(fe.barthel_items as any);
-          if (fe.quickdash_items && Array.isArray(fe.quickdash_items)) setQuickdashItems(fe.quickdash_items as any);
-        }
-
-        const ae = analRes.data;
-        if (ae) {
-          setShowMeasurements(true);
-          const hasPainsData = !!(ae.pain_score != null || ae.pain_appearance || ae.pain_location || ae.pain_characteristics || ae.pain_aggravating_factors || (ae as any).pain || ae.pain_radiation || (Array.isArray((ae as any).pains) && (ae as any).pains.length > 0));
-
-          const rawPains = (ae as any).pains;
-          if (Array.isArray(rawPains) && rawPains.length > 0) {
-            const loaded = rawPains.map((p: any, i: number) => ({
-              id: i + 1, localizacion: p.localizacion || "", eva: p.eva ?? 0, evaTouched: p.eva != null,
-              tipo: p.tipo || "" as PainTipo, aparicion: p.aparicion || "",
-              irradia: p.irradia || "" as "no" | "si" | "", irradia_hacia: p.irradia_hacia || "",
-              caracteristicas: p.caracteristicas || "", agravantes: p.agravantes || "", observaciones: p.observaciones || "",
-            }));
-            setPains(loaded);
-            painsNextId.current = loaded.length + 1;
-          } else if (hasPainsData) {
-            const legacyIrradia = ae.pain_radiation === "No irradia" ? "no" : ae.pain_radiation ? "si" : "" as "no" | "si" | "";
-            setPains([{
-              id: 1, localizacion: (ae.pain_location || "").replace(/ — Irradia a:.*/, ""), eva: ae.pain_score || 0, evaTouched: ae.pain_score != null,
-              tipo: "" as PainTipo, aparicion: ae.pain_appearance || "", irradia: legacyIrradia,
-              irradia_hacia: ae.pain_radiation && ae.pain_radiation !== "No irradia" ? ae.pain_radiation : "",
-              caracteristicas: ae.pain_characteristics || "", agravantes: ae.pain_aggravating_factors || "", observaciones: "",
-            }]);
-            painsNextId.current = 2;
-          }
-
-          setMobilityObservations((ae as any).mobility_observations || "");
-          setEdemaObs(ae.edema || "");
-          setGodetTest(ae.godet_test || "");
-          const circ: any = ae.edema_circummetry;
-          if (isCircometriaFormat(circ)) setEdemaCircItems(normalizeCircometriaValue(circ));
-
-          if (ae.goniometry && typeof ae.goniometry === "object") {
-            const toGonio = (arr: any) => {
-              const base = emptySide();
-              if (Array.isArray(arr)) arr.forEach((g: any) => { if (g?.body_part && base[g.body_part as GonioPartKey]) base[g.body_part as GonioPartKey] = Object.fromEntries(Object.entries(g.values || {}).map(([k,v]) => [k, String(v)])); });
-              return base;
-            };
-            const g: any = ae.goniometry;
-            if (g.arom !== undefined || g.prom !== undefined) {
-              const aromData = g.arom || {};
-              const promData = g.prom || {};
-              if (aromData.MSD?.pre !== undefined || aromData.MSD?.post !== undefined || aromData.MSI?.pre !== undefined) {
-                setAllPreGonio({ MSD: toGonio(aromData.MSD?.pre), MSI: toGonio(aromData.MSI?.pre) });
-                setAllAromPostGonio({ MSD: toGonio(aromData.MSD?.post), MSI: toGonio(aromData.MSI?.post) });
-                setShowAromPost(!!(aromData.MSD?.post || aromData.MSI?.post));
-              } else {
-                setAllPreGonio({ MSD: toGonio(aromData.MSD), MSI: toGonio(aromData.MSI) });
-              }
-              setShowArom(!!(aromData.MSD || aromData.MSI));
-              if (promData.MSD?.pre !== undefined || promData.MSD?.post !== undefined || promData.MSI?.pre !== undefined) {
-                setAllPromPreGonio({ MSD: toGonio(promData.MSD?.pre), MSI: toGonio(promData.MSI?.pre) });
-                setAllPostGonio({ MSD: toGonio(promData.MSD?.post), MSI: toGonio(promData.MSI?.post) });
-                setShowPromPost(!!(promData.MSD?.post || promData.MSI?.post));
-              } else {
-                setAllPostGonio({ MSD: toGonio(promData.MSD), MSI: toGonio(promData.MSI) });
-              }
-              setShowProm(!!(promData.MSD || promData.MSI));
-            } else {
-              const hasNew = g.MSD || g.MSI;
-              if (hasNew) {
-                setAllPreGonio({ MSD: toGonio(g.MSD?.pre), MSI: toGonio(g.MSI?.pre) });
-                setAllPostGonio({ MSD: toGonio(g.MSD?.post), MSI: toGonio(g.MSI?.post) });
-                setShowArom(true);
-                setShowProm(!!(Array.isArray(g.MSD?.post) && g.MSD.post.length) || !!(Array.isArray(g.MSI?.post) && g.MSI.post.length));
-              } else {
-                setAllPreGonio({ MSD: toGonio(g.pre), MSI: emptySide() });
-                setAllPostGonio({ MSD: toGonio(g.post), MSI: emptySide() });
-                setShowArom(true);
-                setShowProm(Array.isArray(g.post) && g.post.length > 0);
-              }
-            }
-          }
-          const kap = ae.kapandji || "";
-          setKapandjiVal(kap.match(/^(\d+)/)?.[1] || "");
-          setKapandjiPain(kap.includes("dolor"));
-          setDynMsdVals(parseDyn(ae.dynamometer_msd));
-          setDynMsiVals(parseDyn(ae.dynamometer_msi));
-          setFistClosure((ae.muscle_strength || "").match(/Cierre de puño: ([^—]+)/)?.[1]?.trim() || "");
-          if (Array.isArray(ae.muscle_strength_daniels) && ae.muscle_strength_daniels.length) {
-            const rows = ae.muscle_strength_daniels.map((r: any, i: number) => ({ id: i + 1, muscle: r.muscle || "", grade: r.grade || "" }));
-            setDanielsRows(rows);
-            danielsNextId.current = rows.length + 1;
-          }
-          const dppd = (ae.dppd_fingers && typeof ae.dppd_fingers === "object" && !Array.isArray(ae.dppd_fingers) ? ae.dppd_fingers : {}) as Record<string, any>;
-          setDppdPulgar(dppd.pulgar != null ? String(dppd.pulgar) : "");
-          setDppdIndice(dppd.indice != null ? String(dppd.indice) : "");
-          setDppdMedio(dppd.medio != null ? String(dppd.medio) : "");
-          setDppdAnular(dppd.anular != null ? String(dppd.anular) : "");
-          setDppdMenique(dppd.menique != null ? String(dppd.menique) : "");
-          setSensitivity(ae.sensitivity || "");
-          setSensitivityTactoLigero(ae.sensitivity_tacto_ligero || "");
-          setSensitivityDosPuntos(ae.sensitivity_dos_puntos || "");
-          setSensitivityPickingUp(ae.sensitivity_picking_up || "");
-          setSensitivitySemmesWeinstein(ae.sensitivity_semmes_weinstein || "");
-          setSensitivityTocoPincho(ae.sensitivity_toco_pincho || "");
-          setSensitivityTemperatura(ae.sensitivity_temperatura || "");
-          if (ae.specific_tests && typeof ae.specific_tests === "object") setSpecificTests(ae.specific_tests as any);
-          const scar = (ae.scar_evaluation && typeof ae.scar_evaluation === "object" && !Array.isArray(ae.scar_evaluation) ? ae.scar_evaluation : {}) as Record<string, any>;
-          setScarLocalizacion(scar.localizacion || "");
-          setScarLongitud(scar.longitud_cm != null ? String(scar.longitud_cm) : "");
-          setScarVascularizacion(scar.vascularizacion || "");
-          setScarPigmentacion(scar.pigmentacion || "");
-          setScarFlexibilidad(scar.flexibilidad || "");
-          setScarSensibilidad(scar.sensibilidad || "");
-          setScarRelieve(scar.relieve || "");
-          setScarTemperatura(scar.temperatura || "");
-          setScarObservaciones(ae.scar || "");
-          setVssPigmentacion(scar.vss?.pigmentacion != null ? String(scar.vss.pigmentacion) : "");
-          setVssVascularizacion(scar.vss?.vascularizacion != null ? String(scar.vss.vascularizacion) : "");
-          setVssFlexibilidad(scar.vss?.flexibilidad != null ? String(scar.vss.flexibilidad) : "");
-          setVssAltura(scar.vss?.altura != null ? String(scar.vss.altura) : "");
-          setTrophicState(ae.trophic_state || "");
-          setPosture(ae.posture || "");
-          setEmotionalState(ae.emotional_state || "");
-        }
+        applyFunctionalEvalToForm(funcRes.data);
+        applyAnalyticalEvalToForm(analRes.data);
         setLoading(false);
         return;
       }
@@ -589,6 +622,21 @@ export default function SessionForm() {
           }
         }
       }
+
+      // Seguimiento, sesión nueva: buscar la última evaluación del episodio
+      // (de cualquier sesión) con datos reales, para ofrecer Mantener/Actualizar
+      // en vez de arrancar directo con el formulario vacío.
+      if (!sessionId && session_type === "follow_up" && activeEpisodeId) {
+        const [prevFuncRes, prevAnalRes] = await Promise.all([
+          supabase.from("functional_evaluations").select("*").eq("episode_id", activeEpisodeId).order("evaluation_date", { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("analytical_evaluations").select("*").eq("episode_id", activeEpisodeId).order("evaluation_date", { ascending: false }).limit(1).maybeSingle(),
+        ]);
+        if (prevFuncRes.error) console.error("Error cargando evaluación funcional previa:", prevFuncRes.error);
+        if (prevAnalRes.error) console.error("Error cargando evaluación analítica previa:", prevAnalRes.error);
+        if (prevFuncRes.data) setPreviousFuncEval(prevFuncRes.data);
+        if (prevAnalRes.data) setPreviousAnalEval(prevAnalRes.data);
+      }
+
       setSecondaryLoaded(true);
     })();
   }, [patientId, activeEpisodeId]);
@@ -952,8 +1000,30 @@ export default function SessionForm() {
   const currentSections = steps[currentStep].sections;
   const stepDone = (step: typeof steps[0]) => step.sections.every(sid => sectionDone[sid] ?? false);
 
+  // Mantener/Actualizar: evaluación previa del episodio encontrada (ver
+  // efecto "Load clinical record + occupational profile") → armar el estado
+  // que consumen FuncionalStep/AnaliticaStep para mostrar el gate.
+  const funcionalCarryOver: CarryOverState | undefined = previousFuncEval ? {
+    mode: funcionalMode,
+    previousDateLabel: previousFuncEval.evaluation_date ? format(new Date(previousFuncEval.evaluation_date), "dd/MM/yyyy", { locale: es }) : "—",
+    viewHref: `/patients/${patientId}/evaluations/functional/${previousFuncEval.id}`,
+    onChooseMaintain: () => { applyFunctionalEvalToForm(previousFuncEval); setFuncionalMode("maintain"); },
+    onChooseUpdate: () => { applyFunctionalEvalToForm(previousFuncEval); setFuncionalMode("update"); },
+    onSwitchToUpdate: () => setFuncionalMode("update"),
+  } : undefined;
+
+  const analiticaCarryOver: CarryOverState | undefined = previousAnalEval ? {
+    mode: analiticaMode,
+    previousDateLabel: previousAnalEval.evaluation_date ? format(new Date(previousAnalEval.evaluation_date), "dd/MM/yyyy", { locale: es }) : "—",
+    viewHref: `/patients/${patientId}/evaluations/analytical/${previousAnalEval.id}`,
+    onChooseMaintain: () => { applyAnalyticalEvalToForm(previousAnalEval); setAnaliticaMode("maintain"); },
+    onChooseUpdate: () => { applyAnalyticalEvalToForm(previousAnalEval); setAnaliticaMode("update"); },
+    onSwitchToUpdate: () => setAnaliticaMode("update"),
+  } : undefined;
+
   // Shared analytical props
   const analiticaProps = {
+    carryOver: analiticaCarryOver,
     pains, setPains, painsNextId,
     edema_obs, setEdemaObs, godet_test, setGodetTest, edema_circ_items, setEdemaCircItems,
     all_pre_gonio, setAllPreGonio, show_arom, setShowArom, show_arom_post, setShowAromPost, all_arom_post_gonio, setAllAromPostGonio,
@@ -1077,6 +1147,7 @@ export default function SessionForm() {
 
             {currentSections.includes("sec-funcional") && (
               <FuncionalStep
+                carryOver={funcionalCarryOver}
                 occupations_items={occupations_items} setOccupationsItems={setOccupationsItems}
                 occupations_notes={occupations_notes} setOccupationsNotes={setOccupationsNotes}
                 performance_context={performance_context} setPerformanceContext={setPerformanceContext}
