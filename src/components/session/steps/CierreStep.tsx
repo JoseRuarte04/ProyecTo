@@ -25,6 +25,7 @@ export function CierreStep({
             <Textarea rows={3} value={session_goals} onChange={(e) => setSessionGoals(e.target.value)} className={textareaClass} />
           </div>
           <div>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Intervenciones</p>
             <FieldLabel>En el día de hoy se abordó</FieldLabel>
             <Textarea rows={5} value={interventions} onChange={(e) => setInterventions(e.target.value)} className={textareaClass} />
           </div>

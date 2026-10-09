@@ -164,7 +164,7 @@ export default function FunctionalEvaluationPage() {
 
   const hasScores = nn(e.quickdash_score) || nn(e.fim_score) || nn(e.barthel_score);
   const occupationsItems: Record<string, IndependenceLevel> = (e.occupations_items && typeof e.occupations_items === "object") ? e.occupations_items : {};
-  const hasOccupations = Object.keys(occupationsItems).length > 0 || nn(e.occupations_notes);
+  const hasOccupations = Object.keys(occupationsItems).length > 0;
   const hasPerformanceContext = PERFORMANCE_CONTEXT_GROUPS.some((g) => g.fields.some((f) => nn(e[f.key])));
 
   return (
@@ -255,12 +255,6 @@ export default function FunctionalEvaluationPage() {
                 </div>
               );
             })}
-            {nn(e.occupations_notes) && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Otras observaciones</p>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{e.occupations_notes}</p>
-              </div>
-            )}
           </div>
         </Section>
       )}
@@ -283,6 +277,13 @@ export default function FunctionalEvaluationPage() {
         );
       })}
 
+      {/* Otras observaciones (al final del formulario de evaluación funcional) */}
+      {nn(e.occupations_notes) && (
+        <Section title="Otras observaciones">
+          <p className="text-sm text-foreground whitespace-pre-wrap">{e.occupations_notes}</p>
+        </Section>
+      )}
+
       {/* Notas */}
       {nn(e.notes) && (
         <Section title="Notas">
@@ -290,7 +291,7 @@ export default function FunctionalEvaluationPage() {
         </Section>
       )}
 
-      {!hasScores && !hasOccupations && !hasPerformanceContext && !nn(e.notes) && (
+      {!hasScores && !hasOccupations && !hasPerformanceContext && !nn(e.occupations_notes) && !nn(e.notes) && (
         <div className="text-center py-8 text-muted-foreground text-sm">
           No hay datos registrados en esta evaluación.
         </div>
