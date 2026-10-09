@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,11 +50,21 @@ interface SessionTimelineProps {
   funcEvals: any[];
   patientId: string;
   onDeleted: () => void;
+  focusSessionId?: string | null;
+  onFocusSessionHandled?: () => void;
 }
 
-export function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onDeleted }: SessionTimelineProps) {
+export function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onDeleted, focusSessionId, onFocusSessionHandled }: SessionTimelineProps) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (!focusSessionId) return;
+    setExpanded(focusSessionId);
+    cardRefs.current[focusSessionId]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    onFocusSessionHandled?.();
+  }, [focusSessionId]);
   const [deleteSession, setDeleteSession] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
   const [quickdashFor, setQuickdashFor] = useState<string | null>(null);
@@ -130,7 +140,7 @@ export function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onD
           const linkedFuncEval = funcEvals.find(e => matchesSessionEval(s, e));
 
           return (
-            <div key={s.id} className="bg-card rounded-[10px] border border-border overflow-hidden">
+            <div key={s.id} ref={(el) => { cardRefs.current[s.id] = el; }} className="bg-card rounded-[10px] border border-border overflow-hidden">
               <div className="flex items-center justify-between gap-3 px-5 py-3.5 cursor-pointer" onClick={() => setExpanded(isOpen ? null : s.id)}>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground text-[13px]">{format(new Date(s.session_date), "dd/MM/yyyy")}</p>
@@ -188,6 +198,9 @@ export function SessionTimeline({ sessions, analEvals, funcEvals, patientId, onD
                     {s.week_at_session == null && s.session_type === "discharge" && " de alta"}.
                   </p>
 
+                  {nn(s.session_goals) && (
+                    <div><SectionHeading>Objetivo</SectionHeading><Line>{s.session_goals}</Line></div>
+                  )}
                   {(nn(s.general_observations) || nn(s.evolution) || nn(s.symptom_changes) || nn(s.clinical_changes) || nn(s.treatment_adjustments)) && (
                     <div className="space-y-2">
                       <SectionHeading>Evolución</SectionHeading>
