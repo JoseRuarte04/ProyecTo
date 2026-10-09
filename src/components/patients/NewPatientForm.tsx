@@ -126,40 +126,71 @@ export default function NewPatientForm() {
   const isValidPhone  = (v: string) => !v.trim() || /^[+\d][\d\s\-()+]*$/.test(v.trim());
   const isValidEmail  = (v: string) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
-  const validateStep1 = () => {
+  const REQUIRED_MSG = "Este campo es obligatorio";
+  const PHONE_MSG = "El teléfono solo puede contener números y el signo + (ej: +54 11 1234-5678)";
+  const EMAIL_MSG = "Ingresá un email válido (ej: nombre@dominio.com)";
+
+  // Mensaje de error de un campo para un valor dado ("" = válido). Lo usan la validación al salir del
+  // campo y "Siguiente"/"Confirmar y guardar", así los mensajes son siempre los mismos.
+  const fieldError = (field: string, v: string): string => {
+    switch (field) {
+      case "lastName":
+        if (!v.trim()) return REQUIRED_MSG;
+        return isValidName(v) ? "" : "El apellido solo puede contener letras";
+      case "firstName":
+        if (!v.trim()) return REQUIRED_MSG;
+        return isValidName(v) ? "" : "El nombre solo puede contener letras";
+      case "dni":
+        if (!v.trim()) return REQUIRED_MSG;
+        return documentType === "dni" && !isValidDni(v) ? "El DNI debe tener 7 u 8 números, sin letras ni símbolos" : "";
+      case "birthDate":
+      case "admissionDate":
+        return v ? "" : REQUIRED_MSG;
+      case "nationality":
+        return v.trim() ? "" : REQUIRED_MSG;
+      case "phone":
+      case "emergencyPhone":
+        return !v || isValidPhone(v) ? "" : PHONE_MSG;
+      case "email":
+        return !v || isValidEmail(v) ? "" : EMAIL_MSG;
+      default:
+        return "";
+    }
+  };
+
+  const STEP1_FIELDS = ["lastName", "firstName", "dni", "birthDate", "nationality", "admissionDate"];
+  const STEP3_FIELDS = ["phone", "email", "emergencyPhone"];
+  const fieldValues: Record<string, string> = {
+    lastName, firstName, dni, birthDate, nationality, admissionDate, phone, email, emergencyPhone,
+  };
+
+  const validateFields = (fields: string[]) => {
     const errs: Record<string, string> = {};
-    if (!lastName.trim()) {
-      errs.lastName = "Este campo es obligatorio";
-    } else if (!isValidName(lastName)) {
-      errs.lastName = "El apellido solo puede contener letras";
+    for (const f of fields) {
+      const msg = fieldError(f, fieldValues[f]);
+      if (msg) errs[f] = msg;
     }
-    if (!firstName.trim()) {
-      errs.firstName = "Este campo es obligatorio";
-    } else if (!isValidName(firstName)) {
-      errs.firstName = "El nombre solo puede contener letras";
-    }
-    if (!dni.trim()) {
-      errs.dni = "Este campo es obligatorio";
-    } else if (documentType === "dni" && !isValidDni(dni)) {
-      errs.dni = "El DNI debe tener 7 u 8 números, sin letras ni símbolos";
-    }
-    if (!birthDate)    errs.birthDate    = "Este campo es obligatorio";
-    if (!nationality.trim()) errs.nationality = "Este campo es obligatorio";
-    if (!admissionDate) errs.admissionDate = "Este campo es obligatorio";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const validateStep3 = () => {
-    const errs: Record<string, string> = {};
-    if (phone && !isValidPhone(phone))
-      errs.phone = "El teléfono solo puede contener números y el signo + (ej: +54 11 1234-5678)";
-    if (email && !isValidEmail(email))
-      errs.email = "Ingresá un email válido (ej: nombre@dominio.com)";
-    if (emergencyPhone && !isValidPhone(emergencyPhone))
-      errs.emergencyPhone = "El teléfono solo puede contener números y el signo + (ej: +54 11 1234-5678)";
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+  const validateStep1 = () => validateFields(STEP1_FIELDS);
+  const validateStep3 = () => validateFields(STEP3_FIELDS);
+
+  // Al salir del campo: muestra (o limpia) el error de ese campo en el momento, sin esperar a "Siguiente".
+  const checkField = (field: string, v: string = fieldValues[field]) =>
+    setErrors((prev) => {
+      const msg = fieldError(field, v);
+      if (msg) return { ...prev, [field]: msg };
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+  // Mientras escribe: solo actualiza si el campo ya tenía error, para que desaparezca apenas queda bien.
+  const liveCheck = (field: string, v: string) => {
+    if (errors[field]) checkField(field, v);
   };
 
   const handleNext = async () => {
@@ -342,12 +373,12 @@ export default function NewPatientForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel required>Apellido</FieldLabel>
-                <Input data-testid="patient-last-name" value={lastName} onChange={(e) => setLastName(e.target.value)} className={cn(inputClass, fieldCls("lastName"))} />
+                <Input data-testid="patient-last-name" value={lastName} onChange={(e) => { setLastName(e.target.value); liveCheck("lastName", e.target.value); }} onBlur={() => checkField("lastName")} className={cn(inputClass, fieldCls("lastName"))} />
                 <ErrMsg field="lastName" />
               </div>
               <div>
                 <FieldLabel required>Nombre</FieldLabel>
-                <Input data-testid="patient-first-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} className={cn(inputClass, fieldCls("firstName"))} />
+                <Input data-testid="patient-first-name" value={firstName} onChange={(e) => { setFirstName(e.target.value); liveCheck("firstName", e.target.value); }} onBlur={() => checkField("firstName")} className={cn(inputClass, fieldCls("firstName"))} />
                 <ErrMsg field="firstName" />
               </div>
               <div>
@@ -356,7 +387,11 @@ export default function NewPatientForm() {
               </div>
               <div>
                 <FieldLabel required>Tipo de documento</FieldLabel>
-                <Select value={documentType} onValueChange={setDocumentType}>
+                <Select value={documentType} onValueChange={(v) => {
+                  setDocumentType(v);
+                  // El formato válido depende del tipo de documento: se revalida al salir del campo o en "Siguiente".
+                  setErrors((prev) => { const next = { ...prev }; delete next.dni; return next; });
+                }}>
                   <SelectTrigger className={inputClass}>
                     <SelectValue placeholder="Seleccionar…" />
                   </SelectTrigger>
@@ -367,12 +402,12 @@ export default function NewPatientForm() {
               </div>
               <div>
                 <FieldLabel required>N° de documento</FieldLabel>
-                <Input data-testid="patient-dni" value={dni} onChange={(e) => setDni(e.target.value)} className={cn(inputClass, fieldCls("dni"))} />
+                <Input data-testid="patient-dni" value={dni} onChange={(e) => { setDni(e.target.value); liveCheck("dni", e.target.value); }} onBlur={() => checkField("dni")} className={cn(inputClass, fieldCls("dni"))} />
                 <ErrMsg field="dni" />
               </div>
               <div>
                 <FieldLabel required>Fecha de nacimiento</FieldLabel>
-                <Input data-testid="patient-birth-date" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={cn(inputClass, fieldCls("birthDate"))} />
+                <Input data-testid="patient-birth-date" type="date" value={birthDate} onChange={(e) => { setBirthDate(e.target.value); liveCheck("birthDate", e.target.value); }} onBlur={() => checkField("birthDate")} className={cn(inputClass, fieldCls("birthDate"))} />
                 <ErrMsg field="birthDate" />
               </div>
               <div>
@@ -388,12 +423,12 @@ export default function NewPatientForm() {
               </div>
               <div>
                 <FieldLabel required>Nacionalidad</FieldLabel>
-                <Input data-testid="patient-nationality" value={nationality} onChange={(e) => setNationality(e.target.value)} className={cn(inputClass, fieldCls("nationality"))} />
+                <Input data-testid="patient-nationality" value={nationality} onChange={(e) => { setNationality(e.target.value); liveCheck("nationality", e.target.value); }} onBlur={() => checkField("nationality")} className={cn(inputClass, fieldCls("nationality"))} />
                 <ErrMsg field="nationality" />
               </div>
               <div>
                 <FieldLabel required>Fecha de ingreso</FieldLabel>
-                <Input type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} className={cn(inputClass, fieldCls("admissionDate"))} />
+                <Input type="date" value={admissionDate} onChange={(e) => { setAdmissionDate(e.target.value); liveCheck("admissionDate", e.target.value); }} onBlur={() => checkField("admissionDate")} className={cn(inputClass, fieldCls("admissionDate"))} />
                 <ErrMsg field="admissionDate" />
               </div>
             </div>
@@ -451,12 +486,12 @@ export default function NewPatientForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <FieldLabel>Teléfono</FieldLabel>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} className={cn(inputClass, fieldCls("phone"))} placeholder="+54 11 1234-5678" />
+                <Input value={phone} onChange={(e) => { setPhone(e.target.value); liveCheck("phone", e.target.value); }} onBlur={() => checkField("phone")} className={cn(inputClass, fieldCls("phone"))} placeholder="+54 11 1234-5678" />
                 <ErrMsg field="phone" />
               </div>
               <div>
                 <FieldLabel>Email</FieldLabel>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={cn(inputClass, fieldCls("email"))} />
+                <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); liveCheck("email", e.target.value); }} onBlur={() => checkField("email")} className={cn(inputClass, fieldCls("email"))} />
                 <ErrMsg field="email" />
               </div>
               <div className="sm:col-span-2">
@@ -479,7 +514,7 @@ export default function NewPatientForm() {
                 </div>
                 <div>
                   <FieldLabel>Teléfono</FieldLabel>
-                  <Input value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} className={cn(inputClass, fieldCls("emergencyPhone"))} />
+                  <Input value={emergencyPhone} onChange={(e) => { setEmergencyPhone(e.target.value); liveCheck("emergencyPhone", e.target.value); }} onBlur={() => checkField("emergencyPhone")} className={cn(inputClass, fieldCls("emergencyPhone"))} />
                   <ErrMsg field="emergencyPhone" />
                 </div>
                 <div>
