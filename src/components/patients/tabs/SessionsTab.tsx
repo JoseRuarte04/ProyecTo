@@ -12,9 +12,11 @@ interface Props {
   activeEpisodeId: string | null;
   isDischargedPatient: boolean;
   onDeleted: () => void;
+  focusSessionId?: string | null;
+  onFocusSessionHandled?: () => void;
 }
 
-export function SessionsTab({ sessions, analEvals, funcEvals, patientId, activeEpisodeId, isDischargedPatient, onDeleted }: Props) {
+export function SessionsTab({ sessions, analEvals, funcEvals, patientId, activeEpisodeId, isDischargedPatient, onDeleted, focusSessionId, onFocusSessionHandled }: Props) {
   const navigate = useNavigate();
 
   const handleNewSession = () => {
@@ -57,7 +59,7 @@ export function SessionsTab({ sessions, analEvals, funcEvals, patientId, activeE
         </div>
       ) : (
         <>
-          <SessionTimeline sessions={sessions} analEvals={analEvals} funcEvals={funcEvals} patientId={patientId} onDeleted={onDeleted} />
+          <SessionTimeline sessions={sessions} analEvals={analEvals} funcEvals={funcEvals} patientId={patientId} onDeleted={onDeleted} focusSessionId={focusSessionId} onFocusSessionHandled={onFocusSessionHandled} />
           {dischargeSession && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800 font-medium">
               ✓ Alta otorgada el {format(new Date(dischargeSession.session_date + "T12:00:00"), "dd/MM/yyyy")} — Objetivos de tratamiento cumplidos

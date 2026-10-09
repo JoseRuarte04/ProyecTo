@@ -9,6 +9,7 @@ import { Loader2, Plus, ArrowLeft, Calendar, CheckCircle2, UserX, RotateCcw, Edi
 import { format, differenceInYears } from "date-fns";
 import { es } from "date-fns/locale";
 
+import { ResumenTab } from "@/components/patients/tabs/ResumenTab";
 import { FichaTab } from "@/components/patients/tabs/FichaTab";
 import { SessionsTab } from "@/components/patients/tabs/SessionsTab";
 import { EvaluacionesTab } from "@/components/patients/tabs/EvaluacionesTab";
@@ -44,6 +45,13 @@ export default function PatientProfile() {
   const [loading, setLoading] = useState(true);
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [activeEpisodeId, setActiveEpisodeId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("resumen");
+  const [focusSessionId, setFocusSessionId] = useState<string | null>(null);
+
+  const handleViewSession = (sessionId: string) => {
+    setFocusSessionId(sessionId);
+    setActiveTab("sessions");
+  };
 
   // Dialog states
   const [showNewEpisode, setShowNewEpisode] = useState(false);
@@ -368,10 +376,11 @@ export default function PatientProfile() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-7">
-            <Tabs defaultValue="clinica" className="space-y-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
               <div className="overflow-x-auto -mx-7 px-7">
                 <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 gap-0 w-max min-w-full">
                   {[
+                    { value: "resumen", label: "Resumen" },
                     { value: "clinica", label: "Ficha Clínica" },
                     { value: "sessions", label: "Sesiones" },
                     { value: "evolucion", label: "Evolución" },
@@ -386,12 +395,16 @@ export default function PatientProfile() {
                 </TabsList>
               </div>
 
+              <TabsContent value="resumen">
+                <ResumenTab patient={patient} clinical={clinical} diagnoses={diagnoses} sessions={sessions} onViewSession={handleViewSession} />
+              </TabsContent>
+
               <TabsContent value="clinica">
                 <FichaTab patient={patient} clinical={clinical} occupational={occupational} diagnoses={diagnoses} activeEpisode={activeEpisode ?? null} />
               </TabsContent>
 
               <TabsContent value="sessions">
-                <SessionsTab sessions={sessions} analEvals={analEvals} funcEvals={funcEvals} patientId={id!} activeEpisodeId={activeEpisodeId} isDischargedPatient={patient?.status === "discharged" || patient?.status === "abandoned"} onDeleted={fetchAll} />
+                <SessionsTab sessions={sessions} analEvals={analEvals} funcEvals={funcEvals} patientId={id!} activeEpisodeId={activeEpisodeId} isDischargedPatient={patient?.status === "discharged" || patient?.status === "abandoned"} onDeleted={fetchAll} focusSessionId={focusSessionId} onFocusSessionHandled={() => setFocusSessionId(null)} />
               </TabsContent>
 
               <TabsContent value="evolucion">
