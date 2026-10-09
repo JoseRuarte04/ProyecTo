@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ExternalLink, RotateCcw } from "lucide-react";
+import { ChevronDown, RotateCcw } from "lucide-react";
 
 export const inputClass = "rounded-md h-10 text-sm";
 export const textareaClass = "rounded-lg";
@@ -92,46 +92,25 @@ export type CarryOverMode = "choice" | "maintain" | "update";
 export interface CarryOverState {
   mode: CarryOverMode;
   previousDateLabel: string;
-  viewHref: string;
   onChooseMaintain: () => void;
   onChooseUpdate: () => void;
   onSwitchToUpdate: () => void;
 }
 
-function CarryOverDetailLink({ href }: { href: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      // Sin noopener/noreferrer a propósito: el link es a nuestro propio
-      // dominio, y la pestaña nueva necesita mantener la relación con el
-      // opener para heredar el sessionStorage (AppLayout usa
-      // sessionStorage.workspace_chosen para no repetir el selector de
-      // workspace) — con noopener, la pestaña nueva arrancaba sin esa
-      // bandera y caía en el selector en vez de la evaluación.
-      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-    >
-      Ver detalle completo <ExternalLink className="h-3 w-3" />
-    </a>
-  );
-}
-
 export function CarryOverChoice({
   previousDateLabel,
-  viewHref,
   onChooseMaintain,
   onChooseUpdate,
-}: Pick<CarryOverState, "previousDateLabel" | "viewHref" | "onChooseMaintain" | "onChooseUpdate">) {
+}: Pick<CarryOverState, "previousDateLabel" | "onChooseMaintain" | "onChooseUpdate">) {
   return (
     <div className="space-y-3 py-2">
       <p className="text-sm text-muted-foreground">
         Última vez registrada: <span className="font-medium text-foreground">{previousDateLabel}</span>.
-        ¿Mantenemos esos datos o cargamos datos nuevos?
+        ¿Actualizamos los datos o mantenemos los mismos?
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="secondary" onClick={onChooseMaintain}>Mantener</Button>
         <Button type="button" variant="outline" onClick={onChooseUpdate}>Actualizar</Button>
-        <CarryOverDetailLink href={viewHref} />
+        <Button type="button" variant="secondary" onClick={onChooseMaintain}>Mantener</Button>
       </div>
     </div>
   );
@@ -139,20 +118,16 @@ export function CarryOverChoice({
 
 export function CarryOverSummary({
   previousDateLabel,
-  viewHref,
   onSwitchToUpdate,
-}: Pick<CarryOverState, "previousDateLabel" | "viewHref" | "onSwitchToUpdate">) {
+}: Pick<CarryOverState, "previousDateLabel" | "onSwitchToUpdate">) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 py-2">
       <p className="text-sm text-muted-foreground">
         Se mantienen los datos de la sesión del <span className="font-medium text-foreground">{previousDateLabel}</span>.
       </p>
-      <div className="flex items-center gap-3">
-        <CarryOverDetailLink href={viewHref} />
-        <Button type="button" variant="ghost" size="sm" onClick={onSwitchToUpdate} className="gap-1.5 text-xs">
-          <RotateCcw className="h-3 w-3" /> Actualizar en su lugar
-        </Button>
-      </div>
+      <Button type="button" variant="ghost" size="sm" onClick={onSwitchToUpdate} className="gap-1.5 text-xs">
+        <RotateCcw className="h-3 w-3" /> Actualizar
+      </Button>
     </div>
   );
 }
