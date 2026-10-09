@@ -1006,7 +1006,6 @@ export default function SessionForm() {
   const funcionalCarryOver: CarryOverState | undefined = previousFuncEval ? {
     mode: funcionalMode,
     previousDateLabel: previousFuncEval.evaluation_date ? format(new Date(previousFuncEval.evaluation_date), "dd/MM/yyyy", { locale: es }) : "—",
-    viewHref: `/patients/${patientId}/evaluations/functional/${previousFuncEval.id}`,
     onChooseMaintain: () => { applyFunctionalEvalToForm(previousFuncEval); setFuncionalMode("maintain"); },
     onChooseUpdate: () => { applyFunctionalEvalToForm(previousFuncEval); setFuncionalMode("update"); },
     onSwitchToUpdate: () => setFuncionalMode("update"),
@@ -1015,7 +1014,6 @@ export default function SessionForm() {
   const analiticaCarryOver: CarryOverState | undefined = previousAnalEval ? {
     mode: analiticaMode,
     previousDateLabel: previousAnalEval.evaluation_date ? format(new Date(previousAnalEval.evaluation_date), "dd/MM/yyyy", { locale: es }) : "—",
-    viewHref: `/patients/${patientId}/evaluations/analytical/${previousAnalEval.id}`,
     onChooseMaintain: () => { applyAnalyticalEvalToForm(previousAnalEval); setAnaliticaMode("maintain"); },
     onChooseUpdate: () => { applyAnalyticalEvalToForm(previousAnalEval); setAnaliticaMode("update"); },
     onSwitchToUpdate: () => setAnaliticaMode("update"),

@@ -146,7 +146,6 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       <SectionCard id="sec-analitica" icon={BarChart2} title="Evaluación analítica">
         <CarryOverChoice
           previousDateLabel={carryOver.previousDateLabel}
-          viewHref={carryOver.viewHref}
           onChooseMaintain={carryOver.onChooseMaintain}
           onChooseUpdate={carryOver.onChooseUpdate}
         />
@@ -159,7 +158,6 @@ export function AnaliticaStep(props: AnaliticaStepProps) {
       <SectionCard id="sec-analitica" icon={BarChart2} title="Evaluación analítica">
         <CarryOverSummary
           previousDateLabel={carryOver.previousDateLabel}
-          viewHref={carryOver.viewHref}
           onSwitchToUpdate={carryOver.onSwitchToUpdate}
         />
       </SectionCard>

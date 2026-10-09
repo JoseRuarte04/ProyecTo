@@ -51,7 +51,6 @@ export function FuncionalStep({
       <SectionCard id="sec-funcional" icon={ClipboardList} title="Evaluación funcional">
         <CarryOverChoice
           previousDateLabel={carryOver.previousDateLabel}
-          viewHref={carryOver.viewHref}
           onChooseMaintain={carryOver.onChooseMaintain}
           onChooseUpdate={carryOver.onChooseUpdate}
         />
@@ -64,7 +63,6 @@ export function FuncionalStep({
       <SectionCard id="sec-funcional" icon={ClipboardList} title="Evaluación funcional">
         <CarryOverSummary
           previousDateLabel={carryOver.previousDateLabel}
-          viewHref={carryOver.viewHref}
           onSwitchToUpdate={carryOver.onSwitchToUpdate}
         />
       </SectionCard>
