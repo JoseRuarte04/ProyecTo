@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-09] Tab "Resumen" como pantalla principal del paciente (PR #72 abierto)
+- Al abrir un paciente ahora se ve primero "Resumen": diagnóstico, datos clínicos relevantes (mecanismo de lesión, tratamiento, antecedentes, alergias) y la última sesión con Objetivo/Intervenciones/Indicaciones/Notas internas. "Ficha Clínica" (datos administrativos) pasa a 2da tab, sin cambios.
+- "Ver sesión completa" ya no manda a edición — abre la sesión en modo lectura en la tab "Sesiones".
+- De paso se cerraron #62-#65 (QA de alta/obras sociales) y se sumaron al registro #67 (RLS de turnos), #68 (orden de Evaluación Funcional), #70 (Mantener/Actualizar en evaluaciones de seguimiento) y #71 (fix del link "Ver detalle completo"), todos de sesiones externas.
+
 ## [2026-10-08] QA del alta de pacientes y de obras sociales + arreglos (PRs #62 y #63 abiertos)
 - Alta de pacientes: el guardado de diagnósticos y de la ficha clínica no chequeaba el error (mostraba éxito aunque fallara). Ahora avisa con un error claro y lleva igual a la ficha. PR [#62](https://github.com/JoseRuarte04/ProyecTo/pull/62).
 - Obras sociales: renombrar una en uso actualiza a los pacientes, borrar una en uso se frena en la base, "OSDE " y "Galenó" ya no entran como duplicados, y el alta/edición valida contra el catálogo. Requiere aplicar la migración `20261008120000` al mergear. PR [#63](https://github.com/JoseRuarte04/ProyecTo/pull/63).

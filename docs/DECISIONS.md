@@ -9,6 +9,55 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-09] Ficha del paciente: nueva tab "Resumen" reemplaza a "Ficha Clínica" como pantalla principal
+
+**Contexto:** pedido directo de Jose — al abrir un paciente, lo primero que se
+veía era "Ficha Clínica" (datos demográficos y administrativos: contacto de
+emergencia, domicilio, motivo de consulta, etc.). La info que realmente sirve
+para encarar una sesión con pacientes de memoria (qué se hizo la última vez,
+qué sigue) quedaba recién en la 3ra o 4ta tab ("Sesiones"/"Evolución").
+
+**Opciones consideradas:**
+1. Ampliar la tab "Evolución" existente (que ya tenía un resumen de la última
+   sesión con valores de EVA/dinamometría) con los campos de texto faltantes.
+2. Sacar el resumen de última sesión y las alertas clínicas de "Evolución" y
+   armar con eso una tab nueva al frente.
+3. Tab "Resumen" completamente nueva y autónoma (sin tocar "Evolución" ni su
+   contenido), que agrupa diagnóstico + datos clínicos relevantes + última
+   sesión.
+
+**Decisión:** opción 3. Tab "Resumen" nueva, primera/default; "Ficha Clínica"
+pasa a 2da posición sin cambios de contenido. Incluye: diagnóstico (principal
++ secundarios); datos clínicos relevantes para la sesión (mecanismo de
+lesión, tipo de tratamiento/inmovilización, fechas/semanas post-lesión o
+cirugía, antecedentes personales, tratamiento farmacológico, alergias); y la
+última sesión con Objetivo, Intervenciones, Indicaciones al paciente y Notas
+internas (campos ya existentes en `therapy_sessions`). Se excluye a propósito
+lo puramente administrativo (motivo de consulta, contacto de emergencia,
+domicilio, teléfono, email, nacionalidad, estudios), que sigue solo en "Ficha
+Clínica". "Ver sesión completa" no lleva a edición: navega a la tab
+"Sesiones" con esa sesión ya desplegada en modo lectura (vía un
+`focusSessionId` controlado desde `PatientProfile.tsx`).
+
+**Por qué:** Jose pidió explícitamente no tocar "Evolución" (gráficos y
+tendencia histórica, uso distinto al de un resumen rápido pre-sesión) — la
+opción 2 hubiera significado reestructurar un tab que funciona bien hoy. La
+opción 1 hubiera mezclado "tendencia a lo largo del tiempo" con "qué hacer
+hoy" en la misma tab. Separarlo en una tab autónoma deja cada una con un
+propósito claro, a costa de algo de duplicación menor (fecha/tipo de la
+última sesión aparece en ambas tabs, con información distinta en cada una).
+
+**Consecuencias / trade-offs aceptados:** "Alergias" en el bloque de datos
+clínicos fue una sugerencia de la sesión, no un pedido explícito de Jose —
+aceptada porque es justo el tipo de dato que no se recuerda de memoria y es
+clínicamente crítico (ej. alergia al látex). Quedan afuera de esta versión
+(candidatos en `TASKS.md`): plan de ejercicios asignado y enlace a
+evaluaciones recientes en el resumen.
+
+**Quién lo decidió:** Jose (con Claude, durante la implementación)
+
+---
+
 ## [2026-10-08] Obras sociales: el catálogo sigue editable por todos, con los frenos en la base
 
 **Contexto:** el QA del 2026-10-08 mostró que las protecciones del catálogo de
