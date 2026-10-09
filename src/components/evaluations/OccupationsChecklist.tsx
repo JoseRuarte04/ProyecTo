@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown } from "lucide-react";
 import { IndependenceToggle } from "./IndependenceToggle";
 import { OCCUPATIONS_TAXONOMY, itemPath, type IndependenceLevel, type OccupationCategory } from "./occupationsTaxonomy";
@@ -55,13 +53,9 @@ function CategorySection({
 export function OccupationsChecklist({
   items,
   onChange,
-  notes,
-  onNotesChange,
 }: {
   items: OccupationsItems;
   onChange: (items: OccupationsItems) => void;
-  notes: string;
-  onNotesChange: (v: string) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -71,10 +65,6 @@ export function OccupationsChecklist({
       {OCCUPATIONS_TAXONOMY.map((category) => (
         <CategorySection key={category.key} category={category} items={items} onChange={onChange} />
       ))}
-      <div className="space-y-2 pt-1">
-        <Label>Otras observaciones</Label>
-        <Textarea rows={3} value={notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Observaciones adicionales sobre las ocupaciones del paciente…" />
-      </div>
     </div>
   );
 }

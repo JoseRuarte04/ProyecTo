@@ -1,5 +1,7 @@
 import { ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { FimSection, BarthelSection, QuickDashSection, calcFimTotal, calcBarthelTotal, calcQuickDashPartial } from "@/components/evaluations/FunctionalScales";
 import { QuickDashPatientLink } from "@/components/evaluations/QuickDashPatientLink";
 import { OccupationsChecklist } from "@/components/evaluations/OccupationsChecklist";
@@ -67,8 +69,6 @@ export function FuncionalStep({
             <OccupationsChecklist
               items={occupations_items}
               onChange={setOccupationsItems}
-              notes={occupations_notes}
-              onNotesChange={setOccupationsNotes}
             />
           </div>
         )}
@@ -92,6 +92,18 @@ export function FuncionalStep({
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {!nothingEnabled && (
+          <div className="space-y-2 pt-1">
+            <Label>Otras observaciones</Label>
+            <Textarea
+              rows={3}
+              value={occupations_notes}
+              onChange={(e) => setOccupationsNotes(e.target.value)}
+              placeholder="Observaciones adicionales sobre la evaluación funcional…"
+            />
           </div>
         )}
       </div>
