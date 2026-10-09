@@ -103,7 +103,12 @@ function CarryOverDetailLink({ href }: { href: string }) {
     <a
       href={href}
       target="_blank"
-      rel="noopener noreferrer"
+      // Sin noopener/noreferrer a propósito: el link es a nuestro propio
+      // dominio, y la pestaña nueva necesita mantener la relación con el
+      // opener para heredar el sessionStorage (AppLayout usa
+      // sessionStorage.workspace_chosen para no repetir el selector de
+      // workspace) — con noopener, la pestaña nueva arrancaba sin esa
+      // bandera y caía en el selector en vez de la evaluación.
       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
     >
       Ver detalle completo <ExternalLink className="h-3 w-3" />
