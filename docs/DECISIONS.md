@@ -9,6 +9,42 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-11] Invitación de equipo: link copiable a mano en vez de esperar el dominio propio
+
+**Contexto:** Jose quiere empezar a invitar gente real a probar la app, pero
+todavía no tiene el dominio propio verificado en Resend. Sin él, el mail de
+invitación de *equipo* sale por el sandbox de Resend (`onboarding@resend.dev`),
+que solo entrega al dueño de la cuenta — ningún externo real lo recibe, y
+hasta ahora sin ningún aviso en la UI de que había fallado.
+
+**Opciones consideradas:**
+1. Esperar a tener el dominio propio antes de invitar a ningún equipo real.
+2. Configurar un proveedor SMTP alternativo sin verificación de dominio para
+   esta etapa (la mayoría de los proveedores tienen la misma restricción de
+   sandbox por anti-spam, no es específico de Resend).
+3. Exponer el link de invitación en la UI para que el admin lo mande a mano
+   (WhatsApp, mail personal, lo que sea) mientras no haya dominio.
+
+**Decisión:** opción 3. El token ya se generaba y ya llegaba al navegador del
+admin (se usa para armar el pedido a la función de email) — solo faltaba
+mostrarlo. Se agrega "Copiar link" a cada invitación pendiente en
+`/mi-equipo`.
+
+**Por qué:** no bloquea la beta esperando un trámite (verificar dominio, DNS)
+que no depende del código, y no suma otro proveedor/configuración temporal
+que haya que después deshacer. El link es el mismo que ya manda el mail
+(`/registro?invitation=<token>`), así que no hay una ruta nueva que mantener.
+
+**Consecuencias / trade-offs aceptados:** el admin tiene que acordarse de
+copiar y mandar el link a mano mientras no haya dominio — es más fricción
+que un mail automático, pero desbloquea invitar equipos reales ya mismo. Una
+vez que el dominio esté andando, el botón de copiar queda igual (sirve como
+respaldo general, no solo para esta etapa).
+
+**Quién lo decidió:** Jose (con Claude, durante el análisis de readiness)
+
+---
+
 ## [2026-10-11] `useUnsavedChangesGuard`: atrapar el "atrás" del navegador con un truco de historial, no con `useBlocker`
 
 **Contexto:** el hook ya interceptaba la navegación interna (botón propio) y
