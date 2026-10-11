@@ -42,6 +42,43 @@ antes. Ver PR [#79](https://github.com/JoseRuarte04/ProyecTo/pull/79).
 
 ---
 
+## [2026-10-11] Ficha Clínica: reagrupar secciones con el mismo criterio que "Editar ficha"
+
+**Contexto:** pedido directo de Jose — la tab "Ficha Clínica" se armó al
+principio del proyecto y los campos se agregaron con el tiempo (nombre
+preferido, alergias y contacto de emergencia separado del 2026-09-15, tipo
+de documento del 2026-09-16) sin reacomodar las secciones existentes. Al
+auditarla aparecieron 3 problemas reales, no solo estéticos: "Tipo de
+tratamiento" duplicado en 2 secciones; "Obra social" (se captura en "Editar
+ficha") sin mostrarse en ningún lado, dejando el Nº de afiliado huérfano; y
+"lado afectado"/"fecha de derivación" de `treatment_episodes` (se cargan en
+el wizard de admisión) tampoco se mostraban nunca.
+
+**Opciones consideradas:**
+1. Solo reordenar los campos existentes, sin agregar los que faltaban.
+2. Reagrupar todo con el mismo criterio que ya usa `EditFichaDialog.tsx`
+   (Datos personales / Información clínica / Contacto / Contacto de
+   emergencia) y sumar los 3 campos faltantes.
+
+**Decisión:** opción 2. Secciones: Datos personales, Obra social (nueva),
+Datos clínicos (con Alergias destacada con ícono — mismo tratamiento que ya
+tiene en la tab "Resumen" del PR #72), Contacto, Contacto de emergencia
+(ahora como 4 campos separados en vez de un string concatenado), Perfil
+ocupacional sin cambios. Cada sección se oculta por completo si no tiene
+ningún dato cargado.
+
+**Por qué:** usar el mismo agrupamiento que la pantalla de edición evita que
+"dónde se edita" y "dónde se lee" cuenten historias distintas sobre cómo se
+organiza la info del paciente — alguien que edita en una sección después
+encuentra ese mismo dato en la sección equivalente al leer.
+
+**Consecuencias / trade-offs aceptados:** ninguno nuevo — mismo patrón de
+"ocultar sección vacía" que ya usaba el archivo antes de este cambio.
+
+**Quién lo decidió:** Jose (con Claude, durante la implementación)
+
+---
+
 ## [2026-10-09] Ficha del paciente: nueva tab "Resumen" reemplaza a "Ficha Clínica" como pantalla principal
 
 **Contexto:** pedido directo de Jose — al abrir un paciente, lo primero que se
