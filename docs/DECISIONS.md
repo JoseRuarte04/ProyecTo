@@ -63,6 +63,59 @@ review de Jose en vez de "listo y funcionando" de punta a punta hoy mismo.
 ser una decisión de alcance/orden de trabajo, no de producto — se avisa acá
 y en el cierre de sesión).
 
+**Actualización del mismo día:** Jose pidió retomar esto después de todo
+— ver PR [#88](https://github.com/JoseRuarte04/ProyecTo/pull/88). El
+alcance real resultó mayor al de este drift puntual de equipos/RLS: 21 de
+las 38 tablas de producción (no solo las de equipos) nunca tuvieron
+migración en el repo. Se resolvió con un baseline completo
+(`supabase db dump --linked`) en vez de reconstruir tabla por tabla a
+mano — ver detalle en `TASKS.md` y el propio PR #88.
+
+---
+
+## [2026-10-11] Eliminar asignación de ejercicios al paciente: alcance acotado + DROP real en vez de ocultar
+
+**Contexto:** Jose armó una vez la posibilidad de asignarle una rutina de
+ejercicios a un paciente puntual (tab "Ejercicios" en la ficha, wizard de
+aplicación, link público `/plan/:token`). Nunca la usó, y hoy solo confunde
+en la ficha del paciente — sabe que la va a retomar en el futuro, pero
+probablemente de otra forma, así que prefiere no dejar código/datos muertos
+dando vueltas mientras tanto.
+
+**Opciones consideradas:**
+1. Sacar todo el módulo de ejercicios (nav, biblioteca `/exercises`, planes,
+   programas, asignación a pacientes) de una vez.
+2. Sacar solo la asignación a pacientes (tab + wizard + link público),
+   dejando la biblioteca standalone (`/exercises`: ejercicios propios,
+   categorías, "Planes"/"Programas" reutilizables) funcionando igual.
+3. Para la base de datos: ocultar la UI nomás (dejar las tablas) vs. DROP
+   real de las tablas/funciones exclusivas de la asignación a pacientes.
+
+**Decisión:** Opción 2 (alcance acotado) + DROP real de
+`exercise_plans`/`exercise_plan_items`/`exercise_plan_tokens` y sus 4 RPCs,
+vía migración nueva — PR [#84](https://github.com/JoseRuarte04/ProyecTo/pull/84).
+
+**Por qué:** La biblioteca standalone (ejercicios, categorías, planes,
+programas) **no tiene `patient_id`** — son plantillas del profesional sin
+relación a un paciente puntual, así que no había motivo para tocarlas.
+Jose prefirió un DROP real (no solo ocultar) porque confirmó que no hay
+datos reales de pacientes cargados ahí (lo armó una vez, nunca lo usó) —
+dejar tablas/funciones muertas en el esquema solo suma ruido para cuando
+retome el catálogo HEP2go más adelante.
+
+**Consecuencias:** Si en el futuro se retoma la asignación a pacientes, hay
+que rearmar el esquema (`exercise_plans` y afines) desde cero — se perdió
+la trazabilidad de cómo estaba hecho la vez anterior, pero no había datos
+reales que recuperar. La migración de DROP no se aplicó a producción en
+esta sesión (queda para que Jose la corra cuando esté conforme con el PR).
+De paso se encontró (no se tocó) `treatment_plan_exercises`/`treatment_plans`,
+otra tabla de asignación a pacientes más vieja, sin migración en el repo
+(drift) y sin ninguna UI que la use — anotada en `TASKS.md` para decidir
+aparte.
+
+**Quién lo decidió:** Jose (con Claude, durante el planeamiento previo a
+este PR)
+
 ---
 
 ## [2026-10-11] Invitación de equipo: link copiable a mano en vez de esperar el dominio propio

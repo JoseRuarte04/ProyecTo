@@ -19,10 +19,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { AlertTriangle, Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
+import { AlertTriangle, Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, Calendar, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
 import { whatsappUrl } from "@/lib/whatsapp";
 import { createVideoRoom } from "@/lib/videoRoom";
-import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, subWeeks, addMonths, subMonths, isSameDay, isSameMonth, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useDirtyDeps } from "@/hooks/useDirtyDeps";
@@ -35,7 +35,7 @@ import { useAppointmentSettings } from "@/hooks/useAppointmentSettings";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { documentTypeShortLabel } from "@/components/patients/documentTypes";
 
-type ViewMode = "list" | "week";
+type ViewMode = "list" | "week" | "month";
 
 const TYPE_MAP: Record<string, string> = {
   consultation: "Consulta",
@@ -79,6 +79,53 @@ type StatusValue = Database["public"]["Enums"]["appointment_status"];
 // Los turnos que todavía se pueden operar (confirmar llegada, atender, cancelar, reprogramar).
 const isOpen = (status: string) => (OCCUPYING_STATUSES as string[]).includes(status);
 
+type LaidOutAppointment = { appt: AppointmentWithPatient; lane: number; lanes: number };
+
+// Asigna a cada turno del día una "lane" (columna) y el total de lanes de su
+// grupo de solapamiento, para que los sobreturnos se dibujen lado a lado en
+// la grilla en vez de tapar al turno con el que chocan.
+function layoutDayAppointments(dayAppts: AppointmentWithPatient[]): LaidOutAppointment[] {
+  const toMin = (iso: string) => {
+    const d = parseISO(iso);
+    return d.getHours() * 60 + d.getMinutes();
+  };
+  const items = dayAppts
+    .map(appt => {
+      const startMin = toMin(appt.appointment_date);
+      const endMin = appt.appointment_end ? toMin(appt.appointment_end) : startMin + 30;
+      return { appt, startMin, endMin, lane: 0, lanes: 1 };
+    })
+    .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
+  let active: { endMin: number; lane: number }[] = [];
+  let cluster: typeof items = [];
+  let clusterMaxActive = 0;
+
+  const flushCluster = () => {
+    const lanes = Math.max(clusterMaxActive, 1);
+    for (const item of cluster) item.lanes = lanes;
+    cluster = [];
+    clusterMaxActive = 0;
+  };
+
+  for (const item of items) {
+    active = active.filter(a => a.endMin > item.startMin);
+    if (active.length === 0 && cluster.length > 0) flushCluster();
+
+    const usedLanes = new Set(active.map(a => a.lane));
+    let lane = 0;
+    while (usedLanes.has(lane)) lane++;
+
+    item.lane = lane;
+    active.push({ endMin: item.endMin, lane });
+    cluster.push(item);
+    clusterMaxActive = Math.max(clusterMaxActive, active.length);
+  }
+  flushCluster();
+
+  return items.map(({ appt, lane, lanes }) => ({ appt, lane, lanes }));
+}
+
 /* ═══════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
 ═══════════════════════════════════════════════════════════ */
@@ -92,6 +139,7 @@ export default function Appointments() {
   // usuario si el viewport cambia después (ej. rotar el celular).
   const [view, setView] = useState<ViewMode>(() => (window.innerWidth < 768 ? "list" : "week"));
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()));
   const [showNew, setShowNew] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState("");
   const [prefilledTime, setPrefilledTime] = useState("");
@@ -106,7 +154,10 @@ export default function Appointments() {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNotes, setCancelNotes] = useState("");
 
-  const { data: appointments = [], isLoading: loading } = useAppointments(filter);
+  // Buscador de paciente — filtra los turnos ya cargados (Lista y Semana), no dispara ninguna query nueva.
+  const [patientQuery, setPatientQuery] = useState("");
+
+  const { data: appointments = [], isLoading: loading, isError: appointmentsError } = useAppointments(filter);
   const priorities = usePatientPriorities(appointments.map(a => a.patient_id));
   const { mutate: updateStatus, isPending: updatingStatus } = useUpdateAppointmentStatus();
   const changeStatus = (appt: AppointmentWithPatient, status: string) => {
@@ -147,9 +198,29 @@ export default function Appointments() {
     { label: "Cancelados", value: "cancelled" },
   ];
 
+  const normalize = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const matchesPatientQuery = (a: AppointmentWithPatient) => {
+    const q = normalize(patientQuery.trim());
+    if (!q) return true;
+    const name = normalize(`${a.patients?.first_name ?? ""} ${a.patients?.last_name ?? ""}`);
+    return name.includes(q);
+  };
+  const visibleAppointments = appointments.filter(matchesPatientQuery);
+
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const apptsByDay = (day: Date) =>
-    appointments.filter(a => isSameDay(parseISO(a.appointment_date), day));
+    visibleAppointments.filter(a => isSameDay(parseISO(a.appointment_date), day));
+
+  // Grilla de mes: siempre empieza un lunes y termina un domingo, aunque eso
+  // traiga días del mes anterior/siguiente (se dibujan atenuados).
+  const monthGridStart = startOfWeek(startOfMonth(monthStart), { weekStartsOn: 1 });
+  const monthGridEnd = endOfWeek(endOfMonth(monthStart), { weekStartsOn: 1 });
+  const monthDaysCount = Math.round((monthGridEnd.getTime() - monthGridStart.getTime()) / 86400000) + 1;
+  const monthDays = Array.from({ length: monthDaysCount }, (_, i) => addDays(monthGridStart, i));
+  const goToWeekOf = (day: Date) => {
+    setWeekStart(startOfWeek(day, { weekStartsOn: 1 }));
+    setView("week");
+  };
 
   const topForTime = (timeStr: string) => {
     const [h, m] = timeStr.split(":").map(Number);
@@ -205,6 +276,12 @@ export default function Appointments() {
               >
                 <CalendarDays className="h-3.5 w-3.5" /> Semana
               </button>
+              <button
+                onClick={() => setView("month")}
+                className={cn("px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors border-l border-border", view === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+              >
+                <Calendar className="h-3.5 w-3.5" /> Mes
+              </button>
             </div>
             <Button onClick={() => { setPrefilledDate(""); setPrefilledTime(""); setShowNew(true); }} size="sm" className="gap-1.5">
               <Plus className="h-4 w-4" /> Nuevo turno
@@ -213,40 +290,55 @@ export default function Appointments() {
         }
       />
 
-      {/* Filter tabs */}
-      <div className="flex border-b border-border shrink-0">
-        {filterTabs.map(f => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={cn(
-              "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-              filter === f.value ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* Filter tabs + buscador de paciente */}
+      <div className="flex items-center justify-between border-b border-border shrink-0">
+        <div className="flex">
+          {filterTabs.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={cn(
+                "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                filter === f.value ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative pr-2 w-44 sm:w-56 shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={patientQuery}
+            onChange={e => setPatientQuery(e.target.value)}
+            placeholder="Buscar paciente…"
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
       </div>
 
       {loading ? (
         <div className="pt-4">
           <ListSkeleton rows={7} withHeader={false} />
         </div>
+      ) : appointmentsError ? (
+        <p className="text-destructive text-center py-12">No se pudieron cargar los turnos. Recargá la página.</p>
       ) : view === "list" ? (
         /* ── VISTA LISTA ── */
         <div className="flex-1 overflow-y-auto pt-4">
-          {appointments.length === 0 ? (
-            <p className="text-muted-foreground text-center py-12">No hay turnos.</p>
+          {visibleAppointments.length === 0 ? (
+            <p className="text-muted-foreground text-center py-12">
+              {patientQuery.trim() ? "Ningún turno coincide con esa búsqueda." : "No hay turnos."}
+            </p>
           ) : (
             <TooltipProvider>
               <div className="dashboard-card overflow-hidden">
-                {appointments.map((a, idx) => (
+                {visibleAppointments.map((a, idx) => (
                   <div
                     key={a.id}
                     className={cn(
                       "grid grid-cols-[4px_1fr_auto] items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors group cursor-pointer",
-                      idx !== appointments.length - 1 && "border-b border-border/60"
+                      idx !== visibleAppointments.length - 1 && "border-b border-border/60"
                     )}
                     onClick={() => openDetail(a)}
                   >
@@ -317,6 +409,75 @@ export default function Appointments() {
             </TooltipProvider>
           )}
         </div>
+      ) : view === "month" ? (
+        /* ── VISTA MES ── */
+        <div className="flex-1 flex flex-col overflow-hidden pt-3 min-h-0">
+          {/* Navegación de mes */}
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <button onClick={() => setMonthStart(m => subMonths(m, 1))}
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-semibold text-foreground capitalize">
+              {format(monthStart, "MMMM yyyy", { locale: es })}
+            </span>
+            <button onClick={() => setMonthStart(m => addMonths(m, 1))}
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Encabezado de días de la semana */}
+          <div className="grid grid-cols-7 shrink-0 border-b border-border">
+            {monthDays.slice(0, 7).map(d => (
+              <div key={d.toISOString()} className="text-center text-[10px] font-medium text-muted-foreground uppercase tracking-widest py-1.5">
+                {format(d, "EEE", { locale: es })}
+              </div>
+            ))}
+          </div>
+
+          {/* Grilla de días */}
+          <div className="grid grid-cols-7 flex-1 overflow-y-auto" style={{ gridAutoRows: "minmax(5.5rem, 1fr)" }}>
+            {monthDays.map(day => {
+              const dayAppts = apptsByDay(day);
+              const inMonth = isSameMonth(day, monthStart);
+              const isToday = isSameDay(day, new Date());
+              const visible = dayAppts.slice(0, 3);
+              const extra = dayAppts.length - visible.length;
+
+              return (
+                <button
+                  key={day.toISOString()}
+                  onClick={() => goToWeekOf(day)}
+                  className={cn(
+                    "border-b border-r border-border p-1.5 text-left flex flex-col gap-1 hover:bg-muted/40 transition-colors",
+                    !inMonth && "bg-muted/20"
+                  )}
+                >
+                  <span className={cn(
+                    "text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full shrink-0",
+                    isToday ? "bg-sky-500 text-white" : inMonth ? "text-foreground" : "text-muted-foreground/60"
+                  )}>
+                    {format(day, "d")}
+                  </span>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    {visible.map(a => (
+                      <div key={a.id} className={cn(
+                        "flex items-center gap-1 text-[10px] rounded px-1 py-0.5 truncate",
+                        appointmentStatusStyle(a.status).block
+                      )}>
+                        <span className="truncate">{a.patients?.last_name}</span>
+                      </div>
+                    ))}
+                    {extra > 0 && (
+                      <span className="text-[10px] text-muted-foreground px-1">+{extra} más</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       ) : (
         /* ── VISTA SEMANA (Google Calendar style) ── */
         <div className="flex-1 flex flex-col overflow-hidden pt-3 min-h-0">
@@ -356,7 +517,7 @@ export default function Appointments() {
             {/* Columnas de días */}
             <div className="flex flex-1 overflow-x-auto overflow-y-auto">
               {weekDays.map(day => {
-                const dayAppts = apptsByDay(day);
+                const dayAppts = layoutDayAppointments(apptsByDay(day));
                 const isToday = isSameDay(day, new Date());
 
                 return (
@@ -405,8 +566,8 @@ export default function Appointments() {
                         </div>
                       )}
 
-                      {/* Bloques de turnos */}
-                      {dayAppts.map(a => {
+                      {/* Bloques de turnos — lado a lado cuando hay sobreturno (se solapan en el tiempo) */}
+                      {dayAppts.map(({ appt: a, lane, lanes }) => {
                         const startStr = format(parseISO(a.appointment_date), "HH:mm");
                         const endStr = a.appointment_end ? format(parseISO(a.appointment_end), "HH:mm") : null;
                         const top = topForTime(startStr);
@@ -419,12 +580,18 @@ export default function Appointments() {
                             data-appointment-block="true"
                             onClick={e => { e.stopPropagation(); openDetail(a); }}
                             className={cn(
-                              "absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-1 overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-sm",
+                              "absolute rounded-md border-l-[3px] px-1.5 py-1 overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-sm",
                               appointmentStatusStyle(a.status).block,
                               a.is_overtime && "border border-dashed border-orange-400",
                               isSelected && "ring-2 ring-sky-400 ring-offset-1 z-10"
                             )}
-                            style={{ top, height, zIndex: isSelected ? 15 : 5 }}
+                            style={{
+                              top,
+                              height,
+                              zIndex: isSelected ? 15 : 5,
+                              left: `calc(${(lane / lanes) * 100}% + 2px)`,
+                              width: `calc(${100 / lanes}% - 4px)`,
+                            }}
                           >
                             <div className="flex items-center gap-0.5 min-w-0">
                               {a.is_overtime && <Zap className="h-2.5 w-2.5 shrink-0 text-orange-500" />}
@@ -473,7 +640,6 @@ export default function Appointments() {
         onClose={() => setShowNew(false)}
         userId={user!.id}
         onSaved={refreshAppointments}
-        existingAppointments={appointments.filter(a => isOpen(a.status))}
         prefilledDate={prefilledDate}
         prefilledTime={prefilledTime}
       />
@@ -537,6 +703,25 @@ function AppointmentDetailPanel({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
+  const { maxAbsences } = useAppointmentSettings();
+  const [absenceCount, setAbsenceCount] = useState<number | null>(null);
+
+  // Ausencias del paciente contra el máximo configurado en Ajustes — antes solo se avisaba al agendar un turno nuevo.
+  useEffect(() => {
+    if (!open || !appt?.patient_id || maxAbsences === null) { setAbsenceCount(null); return; }
+    let cancelled = false;
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("patient_id", appt.patient_id)
+      .eq("status", "absent")
+      .then(({ count, error }) => {
+        if (cancelled) return;
+        if (error) { console.error("Error contando ausencias:", error); setAbsenceCount(null); return; }
+        setAbsenceCount(count ?? 0);
+      });
+    return () => { cancelled = true; };
+  }, [open, appt?.patient_id, maxAbsences]);
 
   const handleGenerateLink = async () => {
     setGeneratingLink(true);
@@ -591,6 +776,14 @@ function AppointmentDetailPanel({
             <h2 className="text-base font-bold text-foreground leading-snug mt-0.5 truncate">
               {appt.patients?.last_name}, {appt.patients?.first_name}
             </h2>
+            {maxAbsences !== null && absenceCount !== null && (
+              <span className={cn(
+                "inline-block mt-1 text-[10px] font-medium rounded px-1.5 py-0.5",
+                absenceCount >= maxAbsences ? "bg-red-100 text-red-600" : "bg-muted text-muted-foreground"
+              )}>
+                {absenceCount}/{maxAbsences} ausencias
+              </span>
+            )}
           </div>
           <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 -mt-0.5" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -807,13 +1000,12 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
 ═══════════════════════════════════════════════════════════ */
 
 function NewAppointmentDialog({
-  open, onClose, userId, onSaved, existingAppointments, prefilledDate, prefilledTime,
+  open, onClose, userId, onSaved, prefilledDate, prefilledTime,
 }: {
   open: boolean;
   onClose: () => void;
   userId: string;
   onSaved: () => void;
-  existingAppointments: AppointmentWithPatient[];
   prefilledDate?: string;
   prefilledTime?: string;
 }) {
@@ -858,6 +1050,7 @@ function NewAppointmentDialog({
 
   useEffect(() => {
     if (!selectedDate) { setDayAppts([]); return; }
+    let cancelled = false;
     setLoadingSlots(true);
     supabase
       .from("appointments")
@@ -866,12 +1059,14 @@ function NewAppointmentDialog({
       .gte("appointment_date", `${selectedDate}T00:00:00`)
       .lt("appointment_date", `${selectedDate}T23:59:59`)
       .then(({ data, error }) => {
+        if (cancelled) return;
         if (error) {
           console.error("Error cargando turnos del día:", error);
           toast.error("No se pudieron cargar los turnos ya agendados", { description: "Los horarios que se muestran libres pueden no serlo — recargá antes de confirmar." });
         }
         setDayAppts(data || []); setLoadingSlots(false);
       });
+    return () => { cancelled = true; };
   }, [selectedDate]);
 
   // Ausencias previas del paciente elegido, para advertir si alcanzó el máximo configurado.
@@ -915,6 +1110,17 @@ function NewAppointmentDialog({
     return `${String(Math.floor(totalMin / 60)).padStart(2, "0")}:${String(totalMin % 60).padStart(2, "0")}`;
   });
 
+  // Nombre del paciente cuyo turno se superpone con [rangeStart, rangeEnd) en minutos desde medianoche, o null si no hay choque.
+  const overlap = (rangeStart: number, rangeEnd: number): string | null => {
+    for (const a of dayAppts) {
+      const aStart = timeToMin(format(parseISO(a.appointment_date), "HH:mm"));
+      const aEnd = a.appointment_end ? timeToMin(format(parseISO(a.appointment_end), "HH:mm")) : aStart + 30;
+      if (rangeStart < aEnd && rangeEnd > aStart)
+        return `${a.patients?.last_name}, ${a.patients?.first_name}`;
+    }
+    return null;
+  };
+
   const isOccupied = (slot: string): string | null => {
     const slotMin = timeToMin(slot);
     for (const a of dayAppts) {
@@ -928,28 +1134,12 @@ function NewAppointmentDialog({
 
   const wouldEndConflict = (endSlot: string): string | null => {
     if (!startTime) return null;
-    const newStart = timeToMin(startTime);
-    const newEnd = timeToMin(endSlot);
-    for (const a of dayAppts) {
-      const aStart = timeToMin(format(parseISO(a.appointment_date), "HH:mm"));
-      const aEnd = a.appointment_end ? timeToMin(format(parseISO(a.appointment_end), "HH:mm")) : aStart + 30;
-      if (newStart < aEnd && newEnd > aStart)
-        return `${a.patients?.last_name}, ${a.patients?.first_name}`;
-    }
-    return null;
+    return overlap(timeToMin(startTime), timeToMin(endSlot));
   };
 
   const hasOverlap = (): string | null => {
     if (!startTime || !endTime) return null;
-    const newStart = timeToMin(startTime);
-    const newEnd = timeToMin(endTime);
-    for (const a of dayAppts) {
-      const aStart = timeToMin(format(parseISO(a.appointment_date), "HH:mm"));
-      const aEnd = a.appointment_end ? timeToMin(format(parseISO(a.appointment_end), "HH:mm")) : aStart + 30;
-      if (newStart < aEnd && newEnd > aStart)
-        return `${a.patients?.last_name}, ${a.patients?.first_name}`;
-    }
-    return null;
+    return overlap(timeToMin(startTime), timeToMin(endTime));
   };
 
   const doSave = async (isOvertime: boolean) => {
