@@ -19,10 +19,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { AlertTriangle, Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
+import { AlertTriangle, Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, Calendar, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
 import { whatsappUrl } from "@/lib/whatsapp";
 import { createVideoRoom } from "@/lib/videoRoom";
-import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, subWeeks, addMonths, subMonths, isSameDay, isSameMonth, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useDirtyDeps } from "@/hooks/useDirtyDeps";
@@ -35,7 +35,7 @@ import { useAppointmentSettings } from "@/hooks/useAppointmentSettings";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { documentTypeShortLabel } from "@/components/patients/documentTypes";
 
-type ViewMode = "list" | "week";
+type ViewMode = "list" | "week" | "month";
 
 const TYPE_MAP: Record<string, string> = {
   consultation: "Consulta",
@@ -139,6 +139,7 @@ export default function Appointments() {
   // usuario si el viewport cambia después (ej. rotar el celular).
   const [view, setView] = useState<ViewMode>(() => (window.innerWidth < 768 ? "list" : "week"));
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()));
   const [showNew, setShowNew] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState("");
   const [prefilledTime, setPrefilledTime] = useState("");
@@ -210,6 +211,17 @@ export default function Appointments() {
   const apptsByDay = (day: Date) =>
     visibleAppointments.filter(a => isSameDay(parseISO(a.appointment_date), day));
 
+  // Grilla de mes: siempre empieza un lunes y termina un domingo, aunque eso
+  // traiga días del mes anterior/siguiente (se dibujan atenuados).
+  const monthGridStart = startOfWeek(startOfMonth(monthStart), { weekStartsOn: 1 });
+  const monthGridEnd = endOfWeek(endOfMonth(monthStart), { weekStartsOn: 1 });
+  const monthDaysCount = Math.round((monthGridEnd.getTime() - monthGridStart.getTime()) / 86400000) + 1;
+  const monthDays = Array.from({ length: monthDaysCount }, (_, i) => addDays(monthGridStart, i));
+  const goToWeekOf = (day: Date) => {
+    setWeekStart(startOfWeek(day, { weekStartsOn: 1 }));
+    setView("week");
+  };
+
   const topForTime = (timeStr: string) => {
     const [h, m] = timeStr.split(":").map(Number);
     return ((h - HOUR_START) + m / 60) * SLOT_H;
@@ -263,6 +275,12 @@ export default function Appointments() {
                 className={cn("px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors border-l border-border", view === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
               >
                 <CalendarDays className="h-3.5 w-3.5" /> Semana
+              </button>
+              <button
+                onClick={() => setView("month")}
+                className={cn("px-3 py-1.5 text-sm flex items-center gap-1.5 transition-colors border-l border-border", view === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+              >
+                <Calendar className="h-3.5 w-3.5" /> Mes
               </button>
             </div>
             <Button onClick={() => { setPrefilledDate(""); setPrefilledTime(""); setShowNew(true); }} size="sm" className="gap-1.5">
@@ -390,6 +408,75 @@ export default function Appointments() {
               </div>
             </TooltipProvider>
           )}
+        </div>
+      ) : view === "month" ? (
+        /* ── VISTA MES ── */
+        <div className="flex-1 flex flex-col overflow-hidden pt-3 min-h-0">
+          {/* Navegación de mes */}
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <button onClick={() => setMonthStart(m => subMonths(m, 1))}
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-semibold text-foreground capitalize">
+              {format(monthStart, "MMMM yyyy", { locale: es })}
+            </span>
+            <button onClick={() => setMonthStart(m => addMonths(m, 1))}
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Encabezado de días de la semana */}
+          <div className="grid grid-cols-7 shrink-0 border-b border-border">
+            {monthDays.slice(0, 7).map(d => (
+              <div key={d.toISOString()} className="text-center text-[10px] font-medium text-muted-foreground uppercase tracking-widest py-1.5">
+                {format(d, "EEE", { locale: es })}
+              </div>
+            ))}
+          </div>
+
+          {/* Grilla de días */}
+          <div className="grid grid-cols-7 flex-1 overflow-y-auto" style={{ gridAutoRows: "minmax(5.5rem, 1fr)" }}>
+            {monthDays.map(day => {
+              const dayAppts = apptsByDay(day);
+              const inMonth = isSameMonth(day, monthStart);
+              const isToday = isSameDay(day, new Date());
+              const visible = dayAppts.slice(0, 3);
+              const extra = dayAppts.length - visible.length;
+
+              return (
+                <button
+                  key={day.toISOString()}
+                  onClick={() => goToWeekOf(day)}
+                  className={cn(
+                    "border-b border-r border-border p-1.5 text-left flex flex-col gap-1 hover:bg-muted/40 transition-colors",
+                    !inMonth && "bg-muted/20"
+                  )}
+                >
+                  <span className={cn(
+                    "text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full shrink-0",
+                    isToday ? "bg-sky-500 text-white" : inMonth ? "text-foreground" : "text-muted-foreground/60"
+                  )}>
+                    {format(day, "d")}
+                  </span>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    {visible.map(a => (
+                      <div key={a.id} className={cn(
+                        "flex items-center gap-1 text-[10px] rounded px-1 py-0.5 truncate",
+                        appointmentStatusStyle(a.status).block
+                      )}>
+                        <span className="truncate">{a.patients?.last_name}</span>
+                      </div>
+                    ))}
+                    {extra > 0 && (
+                      <span className="text-[10px] text-muted-foreground px-1">+{extra} más</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
         /* ── VISTA SEMANA (Google Calendar style) ── */
