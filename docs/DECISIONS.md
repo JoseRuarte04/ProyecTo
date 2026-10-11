@@ -9,6 +9,151 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-11] Panel admin: reconstruir el drift de admin_users/is_super_admin ahí mismo, pero no mergear ni ampliar el alcance al drift de teams/RLS
+
+**Contexto:** Jose pidió analizar a fondo el panel admin y arreglar todo lo
+que hiciera falta. El análisis encontró que `admin_users`, `is_super_admin()`
+y 9 RPCs `admin_*` corrían en producción sin ninguna migración en el repo
+(ver PR #82 y la entrada de Cerrado del mismo día en `PROJECT_STATE.md`). Al
+investigar el porqué, se confirmó que esa falta de migración es apenas una
+porción de un drift mucho más grande: toda la tanda de 2026-05-19/20 que
+creó `teams`/`team_members`/`team_invitations` y reescribió la RLS de
+`patients`/`therapy_sessions`/`treatment_episodes`/evaluaciones/
+`treatment_plans`/`exercise_plans`/tokens para el modelo de equipos tampoco
+tiene archivo en el repo.
+
+**Opciones consideradas:**
+1. Reconstruir también esa tanda completa en la misma sesión, ya que estaba
+   ahí investigando.
+2. Reconstruir solo lo específico de `admin_users`/`is_super_admin()`/los 9
+   RPCs `admin_*` (lo que motivó el análisis), y anotar el resto como
+   hallazgo separado para una sesión dedicada.
+
+**Decisión:** Opción 2. Además, mergear el PR #82 quedó para que Jose lo
+revise, en vez de mergearlo directo aunque CI estuviera en verde.
+
+**Por qué:** Reconstruir ~9 tablas de RLS a partir de introspección (sin el
+archivo original, solo el estado actual de producción) para una base de
+datos clínica real es trabajo delicado que merece su propia revisión
+dedicada, no colgarse de una tarea que arrancó siendo sobre el panel admin.
+Mezclar los dos aumenta el radio de qué hay que revisar para confiar en un
+solo PR, sin necesidad real (lo específico de admin ya resuelve el riesgo
+concreto que motivó la tarea). Separadamente, el PR #82 modifica
+`auth.users`/`auth.identities` directo (para que `admin_upsert_therapist`
+sincronice el email de login, no solo `profiles.email`) y reconstruye la
+función que decide quién tiene superpoderes sobre todo el sistema — tocar
+eso sin que Jose lo mire primero no pasa el mismo filtro que un fix de UI.
+
+**Nota técnica aparte, confirmada al revisar el fix de `admin_upsert_therapist`:**
+el bug era peor de lo que parecía al principio. `AuthContext.fetchProfile`
+ya tiene una reconciliación que sobrescribe `profiles.email` con
+`session.user.email` en cada carga de perfil (ver la decisión de
+`profiles.email`/offline más abajo en este archivo) — como la versión vieja
+de `admin_upsert_therapist` solo tocaba `profiles.email` sin tocar
+`auth.users.email`, el cambio del admin se pisaba solo en el próximo login
+del terapista. Sincronizar ambas columnas en la misma transacción no solo
+arregla el login, también deja de pelear contra esa reconciliación existente.
+
+**Consecuencias / trade-offs aceptados:** El drift de `teams`/RLS queda sin
+resolver por ahora (ya estaba así, no es una regresión) — anotado en
+`TASKS.md` para una sesión dedicada. El PR #82 queda abierto esperando
+review de Jose en vez de "listo y funcionando" de punta a punta hoy mismo.
+
+**Quién lo decidió:** Claude, durante la sesión (sin consultarlo antes por
+ser una decisión de alcance/orden de trabajo, no de producto — se avisa acá
+y en el cierre de sesión).
+
+**Actualización del mismo día:** Jose pidió retomar esto después de todo
+— ver PR [#88](https://github.com/JoseRuarte04/ProyecTo/pull/88). El
+alcance real resultó mayor al de este drift puntual de equipos/RLS: 21 de
+las 38 tablas de producción (no solo las de equipos) nunca tuvieron
+migración en el repo. Se resolvió con un baseline completo
+(`supabase db dump --linked`) en vez de reconstruir tabla por tabla a
+mano — ver detalle en `TASKS.md` y el propio PR #88.
+
+---
+
+## [2026-10-11] Eliminar asignación de ejercicios al paciente: alcance acotado + DROP real en vez de ocultar
+
+**Contexto:** Jose armó una vez la posibilidad de asignarle una rutina de
+ejercicios a un paciente puntual (tab "Ejercicios" en la ficha, wizard de
+aplicación, link público `/plan/:token`). Nunca la usó, y hoy solo confunde
+en la ficha del paciente — sabe que la va a retomar en el futuro, pero
+probablemente de otra forma, así que prefiere no dejar código/datos muertos
+dando vueltas mientras tanto.
+
+**Opciones consideradas:**
+1. Sacar todo el módulo de ejercicios (nav, biblioteca `/exercises`, planes,
+   programas, asignación a pacientes) de una vez.
+2. Sacar solo la asignación a pacientes (tab + wizard + link público),
+   dejando la biblioteca standalone (`/exercises`: ejercicios propios,
+   categorías, "Planes"/"Programas" reutilizables) funcionando igual.
+3. Para la base de datos: ocultar la UI nomás (dejar las tablas) vs. DROP
+   real de las tablas/funciones exclusivas de la asignación a pacientes.
+
+**Decisión:** Opción 2 (alcance acotado) + DROP real de
+`exercise_plans`/`exercise_plan_items`/`exercise_plan_tokens` y sus 4 RPCs,
+vía migración nueva — PR [#84](https://github.com/JoseRuarte04/ProyecTo/pull/84).
+
+**Por qué:** La biblioteca standalone (ejercicios, categorías, planes,
+programas) **no tiene `patient_id`** — son plantillas del profesional sin
+relación a un paciente puntual, así que no había motivo para tocarlas.
+Jose prefirió un DROP real (no solo ocultar) porque confirmó que no hay
+datos reales de pacientes cargados ahí (lo armó una vez, nunca lo usó) —
+dejar tablas/funciones muertas en el esquema solo suma ruido para cuando
+retome el catálogo HEP2go más adelante.
+
+**Consecuencias:** Si en el futuro se retoma la asignación a pacientes, hay
+que rearmar el esquema (`exercise_plans` y afines) desde cero — se perdió
+la trazabilidad de cómo estaba hecho la vez anterior, pero no había datos
+reales que recuperar. La migración de DROP no se aplicó a producción en
+esta sesión (queda para que Jose la corra cuando esté conforme con el PR).
+De paso se encontró (no se tocó) `treatment_plan_exercises`/`treatment_plans`,
+otra tabla de asignación a pacientes más vieja, sin migración en el repo
+(drift) y sin ninguna UI que la use — anotada en `TASKS.md` para decidir
+aparte.
+
+**Quién lo decidió:** Jose (con Claude, durante el planeamiento previo a
+este PR)
+
+---
+
+## [2026-10-11] Invitación de equipo: link copiable a mano en vez de esperar el dominio propio
+
+**Contexto:** Jose quiere empezar a invitar gente real a probar la app, pero
+todavía no tiene el dominio propio verificado en Resend. Sin él, el mail de
+invitación de *equipo* sale por el sandbox de Resend (`onboarding@resend.dev`),
+que solo entrega al dueño de la cuenta — ningún externo real lo recibe, y
+hasta ahora sin ningún aviso en la UI de que había fallado.
+
+**Opciones consideradas:**
+1. Esperar a tener el dominio propio antes de invitar a ningún equipo real.
+2. Configurar un proveedor SMTP alternativo sin verificación de dominio para
+   esta etapa (la mayoría de los proveedores tienen la misma restricción de
+   sandbox por anti-spam, no es específico de Resend).
+3. Exponer el link de invitación en la UI para que el admin lo mande a mano
+   (WhatsApp, mail personal, lo que sea) mientras no haya dominio.
+
+**Decisión:** opción 3. El token ya se generaba y ya llegaba al navegador del
+admin (se usa para armar el pedido a la función de email) — solo faltaba
+mostrarlo. Se agrega "Copiar link" a cada invitación pendiente en
+`/mi-equipo`.
+
+**Por qué:** no bloquea la beta esperando un trámite (verificar dominio, DNS)
+que no depende del código, y no suma otro proveedor/configuración temporal
+que haya que después deshacer. El link es el mismo que ya manda el mail
+(`/registro?invitation=<token>`), así que no hay una ruta nueva que mantener.
+
+**Consecuencias / trade-offs aceptados:** el admin tiene que acordarse de
+copiar y mandar el link a mano mientras no haya dominio — es más fricción
+que un mail automático, pero desbloquea invitar equipos reales ya mismo. Una
+vez que el dominio esté andando, el botón de copiar queda igual (sirve como
+respaldo general, no solo para esta etapa).
+
+**Quién lo decidió:** Jose (con Claude, durante el análisis de readiness)
+
+---
+
 ## [2026-10-11] `useUnsavedChangesGuard`: atrapar el "atrás" del navegador con un truco de historial, no con `useBlocker`
 
 **Contexto:** el hook ya interceptaba la navegación interna (botón propio) y

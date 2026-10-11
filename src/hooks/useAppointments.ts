@@ -28,7 +28,8 @@ export function useAppointments(filter: FilterStatus) {
         .select("*, patients(first_name, last_name, phone)")
         .order("appointment_date", { ascending: true });
       if (filter !== "all") q = q.in("status", FILTER_STATUSES[filter]);
-      const { data } = await q;
+      const { data, error } = await q;
+      if (error) throw error;
       return data ?? [];
     },
   });
@@ -76,6 +77,7 @@ export function useCancelAppointment() {
     onSuccess: () => {
       toast.success("Turno cancelado");
       queryClient.invalidateQueries({ queryKey: [APPOINTMENTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] }); // turnos del día en el Dashboard
     },
     onError: () => toast.error("Error al cancelar turno"),
   });
