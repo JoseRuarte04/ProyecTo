@@ -106,7 +106,7 @@ export default function Appointments() {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNotes, setCancelNotes] = useState("");
 
-  const { data: appointments = [], isLoading: loading } = useAppointments(filter);
+  const { data: appointments = [], isLoading: loading, isError: appointmentsError } = useAppointments(filter);
   const priorities = usePatientPriorities(appointments.map(a => a.patient_id));
   const { mutate: updateStatus, isPending: updatingStatus } = useUpdateAppointmentStatus();
   const changeStatus = (appt: AppointmentWithPatient, status: string) => {
@@ -233,6 +233,8 @@ export default function Appointments() {
         <div className="pt-4">
           <ListSkeleton rows={7} withHeader={false} />
         </div>
+      ) : appointmentsError ? (
+        <p className="text-destructive text-center py-12">No se pudieron cargar los turnos. Recargá la página.</p>
       ) : view === "list" ? (
         /* ── VISTA LISTA ── */
         <div className="flex-1 overflow-y-auto pt-4">
@@ -858,6 +860,7 @@ function NewAppointmentDialog({
 
   useEffect(() => {
     if (!selectedDate) { setDayAppts([]); return; }
+    let cancelled = false;
     setLoadingSlots(true);
     supabase
       .from("appointments")
@@ -866,12 +869,14 @@ function NewAppointmentDialog({
       .gte("appointment_date", `${selectedDate}T00:00:00`)
       .lt("appointment_date", `${selectedDate}T23:59:59`)
       .then(({ data, error }) => {
+        if (cancelled) return;
         if (error) {
           console.error("Error cargando turnos del día:", error);
           toast.error("No se pudieron cargar los turnos ya agendados", { description: "Los horarios que se muestran libres pueden no serlo — recargá antes de confirmar." });
         }
         setDayAppts(data || []); setLoadingSlots(false);
       });
+    return () => { cancelled = true; };
   }, [selectedDate]);
 
   // Ausencias previas del paciente elegido, para advertir si alcanzó el máximo configurado.
