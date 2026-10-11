@@ -9,6 +9,14 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-11] Panel admin: reconstrucción de migraciones faltantes + bugs + gestión de equipos + triage de feedback (PR #82, sin mergear)
+
+Análisis a fondo del panel admin a pedido de Jose. Se encontró que `admin_users`/`is_super_admin()`/9 RPCs admin corrían en producción sin migración en el repo — reconstruidos, con fix de un bug real (el email de login no se actualizaba al editar un terapista). Se agregó gestión de miembros de equipo, mover paciente a cualquier equipo, renombrar/activar equipos, manejo de errores que antes fallaban en silencio, y triage de feedback (nuevo/visto/resuelto). PR #82 queda para revisión de Jose por tocar `auth.users` directo.
+
+## [2026-10-11] Baseline completo de esquema: reemplaza ~190 migraciones desincronizadas (PR #88, sin mergear)
+
+Al investigar el drift de admin se encontró que el problema real es mucho más grande: 21 de las 38 tablas de producción (incluida `patients`) nunca tuvieron migración en el repo — herencia de Lovable, antes de adoptar migraciones versionadas. `supabase db dump --linked` generó un baseline fiel al estado real; se archivaron 68 migraciones viejas (sin borrar) y se verificó que `supabase start` desde cero levanta limpio por primera vez. Queda pendiente el `db diff` de verificación final (falló por un problema de entorno, no del contenido) y el `migration repair` que sincroniza la metadata de Supabase — ver `TASKS.md`.
+
 ## [2026-10-11] Eliminada la asignación de ejercicios al paciente (PR #84)
 - Se cerró: PR [#84](https://github.com/JoseRuarte04/ProyecTo/pull/84) — se armó una vez y nunca se usó, hoy solo confundía. Tab "Ejercicios" + wizard + link público borrados; la biblioteca standalone de `/exercises` queda intacta.
 - Decisión tomada: alcance acotado a la asignación a pacientes + DROP real de las tablas/funciones exclusivas (ver `DECISIONS.md`).
