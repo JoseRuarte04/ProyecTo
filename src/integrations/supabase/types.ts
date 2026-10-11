@@ -223,6 +223,45 @@ export type Database = {
           },
         ]
       }
+      appointment_reminders: {
+        Row: {
+          appointment_id: string
+          channel: string
+          id: string
+          sent_at: string
+          sent_by: string | null
+        }
+        Insert: {
+          appointment_id: string
+          channel: string
+          id?: string
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          channel?: string
+          id?: string
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_reminders_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_reminders_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_settings: {
         Row: {
           created_at: string
