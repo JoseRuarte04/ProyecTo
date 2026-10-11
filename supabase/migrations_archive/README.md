@@ -1,10 +1,22 @@
 # Migraciones archivadas (2026-10-11)
 
-Los ~68 archivos de esta carpeta **ya están aplicados en producción**. Se
+Los archivos de esta carpeta **ya están aplicados en producción**. Se
 movieron acá (no se borraron) al armar
 `supabase/migrations/20261011210000_baseline_schema.sql`, que reemplaza su
 efecto acumulado con un snapshot fiel de cómo quedó el esquema real después
 de aplicarlos todos (generado con `supabase db dump --linked`).
+
+**Actualizado al revisar este PR antes de mergear (mismo día):** el
+baseline se regeneró con un dump fresco (el original quedó armado antes de
+que se mergeara Turnos Fase 4) y absorbió 2 migraciones más que para
+entonces ya estaban aplicadas en producción: `20261011120000_reconstruct_admin_users_rpcs.sql`
+y `20261011120100_feedback_status_triage.sql` (panel admin, PR #82),
+`20261011210000_appointments_recurrence_id.sql` y
+`20261011220000_appointment_reminders.sql` (Turnos Fase 4, PRs #90/#91).
+Todas idénticas a las que vivían en `supabase/migrations/` — se archivan
+por el mismo motivo que el resto: el baseline ya captura su efecto, dejarlas
+activas además del baseline rompería un `supabase start`/`db reset` desde
+cero (create table / create policy duplicados).
 
 ## Por qué hacía falta esto
 

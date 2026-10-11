@@ -1,28 +1,3 @@
--- Baseline de esquema: reemplaza ~190 migraciones individuales que ya
--- estaban aplicadas en producción pero con drift de versión/timestamp
--- contra el repo (algunas ni siquiera tenían archivo — ver docs/TASKS.md y
--- docs/DECISIONS.md [2026-10-11]). Generado con
--- `supabase db dump --linked --schema public,extensions` contra el
--- proyecto real el 2026-10-11, más lo que ese dump no trae por vivir en
--- otros schemas (trigger de auth.users, buckets/policies de Storage —
--- sección al final de este archivo).
---
--- Es idempotente (CREATE TABLE/FUNCTION/VIEW/TRIGGER usan
--- IF NOT EXISTS/OR REPLACE) y refleja el estado REAL de producción en el
--- momento en que se generó — no agrega ni quita ninguna funcionalidad.
---
--- Las migraciones viejas que esto reemplaza se archivaron a
--- supabase/migrations_archive/ (no se borraron, ver el README ahí). Las
--- únicas 3 que siguen en supabase/migrations/ aparte de esta son las del
--- catálogo HEP2go (`20260823100000/110000/120000`), porque esas NUNCA se
--- aplicaron en producción (el catálogo sigue pausado) — se les corrió el
--- timestamp para que apliquen después de este baseline.
---
--- No se incluye ningún dato (`--schema-only`): los `INSERT`/backfills de
--- las migraciones viejas (seed de admin_users, backfills de obras
--- sociales/diagnósticos, etc.) ya cumplieron su función una vez en
--- producción y no hacían falta en una base nueva vacía.
-
 
 
 
@@ -2832,6 +2807,19 @@ COMMENT ON COLUMN "public"."analytical_evaluations"."goniometry" IS 'Goniometrí
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."appointment_reminders" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "appointment_id" "uuid" NOT NULL,
+    "channel" "text" NOT NULL,
+    "sent_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "sent_by" "uuid",
+    CONSTRAINT "appointment_reminders_channel_check" CHECK (("channel" = ANY (ARRAY['email'::"text", 'whatsapp'::"text", 'whatsapp_bot'::"text"])))
+);
+
+
+ALTER TABLE "public"."appointment_reminders" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."appointment_settings" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "owner_type" "text" NOT NULL,
@@ -2862,7 +2850,8 @@ CREATE TABLE IF NOT EXISTS "public"."appointments" (
     "cancellation_notes" "text",
     "is_overtime" boolean DEFAULT false NOT NULL,
     "modality" "public"."appointment_modality" DEFAULT 'in_person'::"public"."appointment_modality" NOT NULL,
-    "video_link" "text"
+    "video_link" "text",
+    "recurrence_id" "uuid"
 );
 
 
@@ -3716,6 +3705,16 @@ ALTER TABLE ONLY "public"."analytical_evaluations"
 
 
 
+ALTER TABLE ONLY "public"."appointment_reminders"
+    ADD CONSTRAINT "appointment_reminders_appointment_id_channel_key" UNIQUE ("appointment_id", "channel");
+
+
+
+ALTER TABLE ONLY "public"."appointment_reminders"
+    ADD CONSTRAINT "appointment_reminders_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."appointment_settings"
     ADD CONSTRAINT "appointment_settings_owner_type_owner_id_key" UNIQUE ("owner_type", "owner_id");
 
@@ -3983,6 +3982,10 @@ CREATE INDEX "idx_analytical_evaluations_episode_id" ON "public"."analytical_eva
 
 
 
+CREATE INDEX "idx_appointment_reminders_appointment_id" ON "public"."appointment_reminders" USING "btree" ("appointment_id");
+
+
+
 CREATE INDEX "idx_appointments_patient_date" ON "public"."appointments" USING "btree" ("patient_id", "appointment_date");
 
 
@@ -3992,6 +3995,10 @@ CREATE INDEX "idx_appointments_patient_id" ON "public"."appointments" USING "btr
 
 
 CREATE INDEX "idx_appointments_professional_date" ON "public"."appointments" USING "btree" ("professional_id", "appointment_date");
+
+
+
+CREATE INDEX "idx_appointments_recurrence_id" ON "public"."appointments" USING "btree" ("recurrence_id") WHERE ("recurrence_id" IS NOT NULL);
 
 
 
@@ -4580,6 +4587,16 @@ ALTER TABLE ONLY "public"."analytical_evaluations"
 
 
 
+ALTER TABLE ONLY "public"."appointment_reminders"
+    ADD CONSTRAINT "appointment_reminders_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."appointment_reminders"
+    ADD CONSTRAINT "appointment_reminders_sent_by_fkey" FOREIGN KEY ("sent_by") REFERENCES "public"."profiles"("id");
+
+
+
 ALTER TABLE ONLY "public"."appointments"
     ADD CONSTRAINT "appointments_patient_id_fkey" FOREIGN KEY ("patient_id") REFERENCES "public"."patients"("id") ON DELETE CASCADE;
 
@@ -4932,6 +4949,9 @@ CREATE POLICY "analytical_evals: ver" ON "public"."analytical_evaluations" FOR S
 ALTER TABLE "public"."analytical_evaluations" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."appointment_reminders" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."appointment_settings" ENABLE ROW LEVEL SECURITY;
 
 
@@ -5261,6 +5281,18 @@ CREATE POLICY "quickdash_tokens: update propio" ON "public"."quickdash_tokens" F
 
 
 CREATE POLICY "quickdash_tokens: ver" ON "public"."quickdash_tokens" FOR SELECT TO "authenticated" USING ((("created_by" = ( SELECT "auth"."uid"() AS "uid")) OR "public"."is_my_patient"("patient_id")));
+
+
+
+CREATE POLICY "reminders: crear" ON "public"."appointment_reminders" FOR INSERT TO "authenticated" WITH CHECK ((("sent_by" = ( SELECT "auth"."uid"() AS "uid")) AND ("channel" = 'whatsapp'::"text") AND (EXISTS ( SELECT 1
+   FROM "public"."appointments" "a"
+  WHERE (("a"."id" = "appointment_reminders"."appointment_id") AND (("a"."professional_id" = ( SELECT "auth"."uid"() AS "uid")) OR "public"."is_my_patient"("a"."patient_id")))))));
+
+
+
+CREATE POLICY "reminders: ver" ON "public"."appointment_reminders" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+   FROM "public"."appointments" "a"
+  WHERE (("a"."id" = "appointment_reminders"."appointment_id") AND (("a"."professional_id" = ( SELECT "auth"."uid"() AS "uid")) OR "public"."is_my_patient"("a"."patient_id"))))));
 
 
 
@@ -5873,6 +5905,12 @@ GRANT ALL ON TABLE "public"."analytical_evaluations" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."appointment_reminders" TO "anon";
+GRANT ALL ON TABLE "public"."appointment_reminders" TO "authenticated";
+GRANT ALL ON TABLE "public"."appointment_reminders" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."appointment_settings" TO "anon";
 GRANT ALL ON TABLE "public"."appointment_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."appointment_settings" TO "service_role";
@@ -6162,6 +6200,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
+
 
 
 
