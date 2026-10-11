@@ -9,11 +9,15 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
-## [2026-10-11] Panel admin: reconstrucción de migraciones faltantes + bugs + gestión de equipos + triage de feedback (PR #82, sin mergear)
+## [2026-10-11] Auditoría de integridad de todos los PRs/merges + mergeados #82 y #88
+
+Repaso completo del historial de PRs/merges a pedido de Jose. Local estaba 26 commits atrás de `origin/main` (sincronizado sin riesgo, repo limpio). CI/typecheck/build/tests (40/40, incluida RLS real) en verde sobre `main` actualizado. PR #82 (panel admin) mergeado tal cual tras rebase. PR #88 (baseline de esquema) tenía un bug real: el dump estaba desactualizado y recreaba `exercise_plans`/`_items`/`_tokens` — tablas que el PR #84 (mergeado la misma tarde) ya había decidido borrar — porque el DROP de #84 nunca se aplicó contra producción. Corregido antes de mergear: baseline regenerado fresco, 4 migraciones redundantes archivadas, el DROP reordenado para correr después del baseline (no antes) y completado (le faltaba dropear uno de los 2 overloads de `add_routine_to_exercise_plan`). Ningún cambio llegó a aplicarse contra producción real — todo quedó resuelto a nivel de archivos antes de que importara. No quedan PRs abiertos.
+
+## [2026-10-11] Panel admin: reconstrucción de migraciones faltantes + bugs + gestión de equipos + triage de feedback (PR #82, mergeado)
 
 Análisis a fondo del panel admin a pedido de Jose. Se encontró que `admin_users`/`is_super_admin()`/9 RPCs admin corrían en producción sin migración en el repo — reconstruidos, con fix de un bug real (el email de login no se actualizaba al editar un terapista). Se agregó gestión de miembros de equipo, mover paciente a cualquier equipo, renombrar/activar equipos, manejo de errores que antes fallaban en silencio, y triage de feedback (nuevo/visto/resuelto). PR #82 queda para revisión de Jose por tocar `auth.users` directo.
 
-## [2026-10-11] Baseline completo de esquema: reemplaza ~190 migraciones desincronizadas (PR #88, sin mergear)
+## [2026-10-11] Baseline completo de esquema: reemplaza ~190 migraciones desincronizadas (PR #88, mergeado)
 
 Al investigar el drift de admin se encontró que el problema real es mucho más grande: 21 de las 38 tablas de producción (incluida `patients`) nunca tuvieron migración en el repo — herencia de Lovable, antes de adoptar migraciones versionadas. `supabase db dump --linked` generó un baseline fiel al estado real; se archivaron 68 migraciones viejas (sin borrar) y se verificó que `supabase start` desde cero levanta limpio por primera vez. Queda pendiente el `db diff` de verificación final (falló por un problema de entorno, no del contenido) y el `migration repair` que sincroniza la metadata de Supabase — ver `TASKS.md`.
 

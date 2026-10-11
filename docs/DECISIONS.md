@@ -9,6 +9,43 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-11] Baseline de esquema: cuando un dump congelado contradice un DROP ya mergeado, reordenar las migraciones en vez de editar el dump a mano
+
+**Contexto:** al revisar el PR #88 antes de mergearlo (auditoría de integridad
+de todos los PRs/merges, pedido de Jose), se encontró que su baseline (dump
+de `supabase db dump --linked`, PR #88) todavía definía
+`exercise_plans`/`exercise_plan_items`/`exercise_plan_tokens` — las tablas
+que el PR #84 (mergeado horas después de que se armó el dump) decidió
+borrar. El dump es honesto: esas tablas seguían existiendo en producción
+porque el DROP de #84 nunca se aplicó contra la base real, solo quedó
+mergeado como código.
+
+**Decisión:** no se tocó el contenido del dump a mano (editar un pg_dump de
+~6000 líneas para sacar un bloque de tablas/funciones/policies/grants
+dispersos es fácil de hacer mal). En cambio, se renombró el archivo del
+DROP (de `20261011200000` a `20261011210400`) para que corra *después* del
+baseline en el orden de migraciones, no antes. Resultado: un `supabase
+start`/`db reset` desde cero aplica el baseline (crea las tablas, fiel a lo
+que había en producción en ese momento) y después el DROP las borra —
+termina en el estado correcto (sin esas tablas) sin que nadie edite el SQL
+generado por la herramienta.
+
+**Por qué importa para la próxima vez:** cualquier baseline nuevo que se
+arme en el futuro (el propio README de `migrations_archive/` ya anticipa
+que va a volver a hacer falta) puede chocar con un DROP reciente mergeado
+pero no aplicado todavía contra producción — la regla general es **el DROP
+va siempre con timestamp posterior al baseline que todavía incluye lo que
+borra**, nunca editar el dump para que "ya no lo tenga".
+
+**De paso, mismo PR:** se encontró que ese DROP (del #84) solo borraba un
+overload de `add_routine_to_exercise_plan` (el de 7 parámetros) y dejaba
+huérfano el de 6 — confirmado contra la base real que existen los 2.
+Cuando se dropea una función con overloads, hay que chequear
+`pg_get_function_identity_arguments` contra la base real antes de asumir
+que hay una sola firma.
+
+---
+
 ## [2026-10-11] Panel admin: reconstruir el drift de admin_users/is_super_admin ahí mismo, pero no mergear ni ampliar el alcance al drift de teams/RLS
 
 **Contexto:** Jose pidió analizar a fondo el panel admin y arreglar todo lo
