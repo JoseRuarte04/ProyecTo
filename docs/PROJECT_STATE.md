@@ -17,7 +17,7 @@ Reordenar la vista de información del paciente (pedido directo de Jose) — tab
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Nada en progreso ahora — ver Cerrado esta semana. | — | — | — |
+| Mejoras al calendario de Turnos — Fase 1 (bugs y limpieza de `Appointments.tsx`/`useAppointments.ts`), pedido directo de Jose. Backlog completo de 11 ítems en 4 fases armado tras analizar el calendario a fondo (`docs/TASKS.md`); Fase 1 ya tiene los 4 fixes aplicados: condición de carrera al cargar turnos del día en "Nuevo turno", `useCancelAppointment` sin invalidar el Dashboard, error silencioso en la lista de turnos, y las 3 funciones de validación de superposición horaria unificadas en una sola + prop muerta eliminada. | `tsc --build`/lint/build en verde | Falta abrir el PR y confirmar a mano en el navegador (sin credenciales en esta sesión) | Abrir PR, y si se mergea, pasar a Fase 2 (visibilidad en la grilla: sobreturnos superpuestos, buscador de paciente en vista Semana, ausencias visibles fuera del alta) |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
