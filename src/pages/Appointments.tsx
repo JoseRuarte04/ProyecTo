@@ -241,18 +241,76 @@ export default function Appointments() {
   const isCurrentHourInRange =
     now.getHours() >= HOUR_START && now.getHours() < HOUR_END;
 
-  const handleGridClick = (e: React.MouseEvent<HTMLDivElement>, day: Date) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relY = e.clientY - rect.top;
+  // Y relativo dentro de la grilla -> hora redondeada a 30 min, o null si cae fuera de 07:00-21:00.
+  const roundedTimeFromY = (relY: number): string | null => {
     const totalMins = HOUR_START * 60 + (relY / SLOT_H) * 60;
     const roundedMins = Math.round(totalMins / 30) * 30;
     const h = Math.floor(roundedMins / 60);
     const m = roundedMins % 60;
-    if (h < HOUR_START || h >= HOUR_END) return;
-    const timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    if (h < HOUR_START || h >= HOUR_END) return null;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+
+  const handleGridClick = (e: React.MouseEvent<HTMLDivElement>, day: Date) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const timeStr = roundedTimeFromY(e.clientY - rect.top);
+    if (!timeStr) return;
     setPrefilledDate(format(day, "yyyy-MM-dd"));
     setPrefilledTime(timeStr);
     setShowNew(true);
+  };
+
+  // Reprogramar arrastrando un turno a otro horario/día en la vista Semana.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const timeToMinOfDay = (iso: string) => { const d = parseISO(iso); return d.getHours() * 60 + d.getMinutes(); };
+
+  const handleDayDrop = (e: React.DragEvent<HTMLDivElement>, day: Date) => {
+    e.preventDefault();
+    const id = draggingId;
+    setDraggingId(null);
+    if (!id) return;
+    const dragged = appointments.find(a => a.id === id);
+    if (!dragged) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const timeStr = roundedTimeFromY(e.clientY - rect.top);
+    if (!timeStr) return;
+
+    const durationMin = dragged.appointment_end
+      ? timeToMinOfDay(dragged.appointment_end) - timeToMinOfDay(dragged.appointment_date)
+      : 30;
+    const [h, m] = timeStr.split(":").map(Number);
+    const newStartMin = h * 60 + m;
+    const newEndMin = newStartMin + durationMin;
+
+    const conflict = appointments.find(a =>
+      a.id !== id &&
+      isSameDay(parseISO(a.appointment_date), day) &&
+      isOpen(a.status) &&
+      (() => {
+        const aStart = timeToMinOfDay(a.appointment_date);
+        const aEnd = a.appointment_end ? timeToMinOfDay(a.appointment_end) : aStart + 30;
+        return newStartMin < aEnd && newEndMin > aStart;
+      })()
+    );
+    if (conflict) {
+      toast.error("Ese horario ya está ocupado", {
+        description: `Se superpone con el turno de ${conflict.patients?.last_name}, ${conflict.patients?.first_name}. Si querés agendar un sobreturno, usá "Reprogramar".`,
+      });
+      return;
+    }
+
+    const dateStr = format(day, "yyyy-MM-dd");
+    const newStart = new Date(`${dateStr}T${timeStr}:00`);
+    const newEnd = new Date(newStart.getTime() + durationMin * 60000);
+    supabase.from("appointments").update({
+      appointment_date: newStart.toISOString(),
+      appointment_end: newEnd.toISOString(),
+    }).eq("id", id).then(({ error }) => {
+      if (error) { toast.error("No se pudo reprogramar el turno"); return; }
+      toast.success("Turno reprogramado");
+      refreshAppointments();
+    });
   };
 
   return (
@@ -543,6 +601,8 @@ export default function Appointments() {
                       className="relative flex-1"
                       style={{ height: (HOUR_END - HOUR_START) * SLOT_H }}
                       onClick={e => handleGridClick(e, day)}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => handleDayDrop(e, day)}
                     >
                       {/* Líneas de hora */}
                       {Array.from({ length: HOUR_END - HOUR_START }, (_, i) => (
@@ -578,12 +638,17 @@ export default function Appointments() {
                           <div
                             key={a.id}
                             data-appointment-block="true"
+                            draggable={isOpen(a.status)}
+                            onDragStart={e => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", a.id); setDraggingId(a.id); }}
+                            onDragEnd={() => setDraggingId(null)}
                             onClick={e => { e.stopPropagation(); openDetail(a); }}
                             className={cn(
-                              "absolute rounded-md border-l-[3px] px-1.5 py-1 overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-sm",
+                              "absolute rounded-md border-l-[3px] px-1.5 py-1 overflow-hidden transition-all duration-150 hover:shadow-sm",
+                              isOpen(a.status) ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
                               appointmentStatusStyle(a.status).block,
                               a.is_overtime && "border border-dashed border-orange-400",
-                              isSelected && "ring-2 ring-sky-400 ring-offset-1 z-10"
+                              isSelected && "ring-2 ring-sky-400 ring-offset-1 z-10",
+                              draggingId === a.id && "opacity-40"
                             )}
                             style={{
                               top,
