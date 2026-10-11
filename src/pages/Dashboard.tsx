@@ -7,6 +7,8 @@ import { format, addDays, subDays, differenceInYears, differenceInMinutes } from
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { useDayAppointments, useActivePatients, useRecentSessions, useStalePatients } from "@/hooks/useDashboard";
+import { useTomorrowReminders } from "@/hooks/useReminders";
+import { BellRing } from "lucide-react";
 import { AppointmentStatusDot, APPOINTMENT_TYPE_LABEL, APPOINTMENT_TYPE_STRIPE, SESSION_TYPE_LABEL } from "@/components/status";
 import { DashboardSkeleton } from "@/components/skeletons";
 import { openCommandPalette } from "@/components/CommandPalette";
@@ -21,6 +23,7 @@ export default function Dashboard() {
   const { data: activePatientsData } = useActivePatients(workspace, user?.id);
   const { data: recentSessions = [] } = useRecentSessions(workspace, user?.id);
   const { data: stalePatients = [] } = useStalePatients(workspace, user?.id);
+  const { data: tomorrowReminders = [] } = useTomorrowReminders();
 
   const activePatients = activePatientsData?.patients ?? [];
   const activePatientsCount = activePatientsData?.count ?? 0;
@@ -218,6 +221,40 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* Recordatorios de mañana */}
+          {(() => {
+            const pendingReminders = tomorrowReminders.filter(a => !a.appointment_reminders.some(r => r.channel === "whatsapp"));
+            return (
+              <div className="dashboard-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-foreground text-sm">Recordatorios de mañana</h3>
+                  <span className="text-xs text-muted-foreground tabular-nums">{pendingReminders.length}</span>
+                </div>
+                {pendingReminders.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {tomorrowReminders.length === 0 ? "Sin turnos agendados para mañana." : "Ya se enviaron todos."}
+                  </p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {pendingReminders.slice(0, 3).map(a => (
+                      <div key={a.id} className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {a.patients?.last_name}, {a.patients?.first_name}
+                        </p>
+                        <span className="text-xs text-muted-foreground tabular-nums shrink-0 ml-2">
+                          {format(new Date(a.appointment_date), "HH:mm")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Link to="/appointments?reminders=1" className="flex items-center gap-1 mt-3 text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
+                  <BellRing className="h-3 w-3" /> Enviar recordatorios →
+                </Link>
+              </div>
+            );
+          })()}
 
           {/* Pendientes */}
           <div className="dashboard-card p-5">
