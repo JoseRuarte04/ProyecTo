@@ -20,6 +20,7 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useEvaluationSettings } from "@/hooks/useEvaluationSettings";
 import type { EvaluationKey } from "@/lib/evaluationSettings";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
+import { DraftFoundDialog } from "@/components/ui/draft-found-dialog";
 import { DatosStep } from "@/components/session/steps/DatosStep";
 import { FichaClinicaStep } from "@/components/session/steps/FichaClinicaStep";
 import { PerfilOcupacionalStep } from "@/components/session/steps/PerfilOcupacionalStep";
@@ -342,6 +343,7 @@ export default function SessionForm() {
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestStateRef = useRef<Record<string, any>>({});
   const initialSnapshotRef = useRef<string | null>(null);
+  const clearDraft = () => sessionStorage.removeItem(draftKey);
   latestStateRef.current = {
     session_date, session_type, session_number, week_at_session,
     general_observations, discharge_summary,
@@ -380,7 +382,7 @@ export default function SessionForm() {
   const isDirty = draftRestored
     && initialSnapshotRef.current !== null
     && JSON.stringify(latestStateRef.current) !== initialSnapshotRef.current;
-  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
+  const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty, clearDraft);
 
 
   useEffect(() => {
@@ -392,109 +394,129 @@ export default function SessionForm() {
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
   });
 
-  const clearDraft = () => sessionStorage.removeItem(draftKey);
   const hadDraftRef = useRef(false);
+  const [pendingDraftRaw, setPendingDraftRaw] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading || !secondaryLoaded || draftRestored) return;
     const raw = sessionStorage.getItem(draftKey);
     hadDraftRef.current = !!raw;
     if (raw) {
-      try {
-        const d = JSON.parse(raw);
-        if (d.session_date !== undefined) setSessionDate(d.session_date);
-        if (d.session_type !== undefined && !typeParam) setSessionType(d.session_type);
-        if (d.session_number !== undefined) setSessionNumber(d.session_number);
-        if (d.week_at_session !== undefined) setWeekAtSession(d.week_at_session);
-        if (d.general_observations !== undefined) setGeneralObservations(d.general_observations);
-        if (d.discharge_summary !== undefined) setDischargeSummary(d.discharge_summary);
-        if (d.occupations_items !== undefined) setOccupationsItems(d.occupations_items);
-        if (d.occupations_notes !== undefined) setOccupationsNotes(d.occupations_notes);
-        if (d.performance_context !== undefined) setPerformanceContextState(d.performance_context);
-        if (d.fim_items !== undefined) setFimItems(d.fim_items);
-        if (d.barthel_items !== undefined) setBarthelItems(d.barthel_items);
-        if (d.quickdash_items !== undefined) setQuickdashItems(d.quickdash_items);
-        if (d.cli_diagnoses !== undefined) setCliDiagnoses(d.cli_diagnoses);
-        else if (d.cli_diagnosis) setCliDiagnoses([{ code: null, label: d.cli_diagnosis }]); // draft viejo
-        if (d.cli_doctor_name !== undefined) setCliDoctorName(d.cli_doctor_name);
-        if (d.cli_injury_date !== undefined) setCliInjuryDate(d.cli_injury_date);
-        if (d.cli_surgery_date !== undefined) setCliSurgeryDate(d.cli_surgery_date);
-        if (d.cli_injury_mechanism !== undefined) setCliInjuryMechanism(d.cli_injury_mechanism);
-        if (d.cli_treatment_type !== undefined) setCliTreatmentType(d.cli_treatment_type);
-        if (d.cli_immob_weeks !== undefined) setCliImmobWeeks(d.cli_immob_weeks);
-        if (d.cli_immob_days !== undefined) setCliImmobDays(d.cli_immob_days);
-        if (d.cli_immob_type !== undefined) setCliImmobType(d.cli_immob_type);
-        if (d.cli_medical_history !== undefined) setCliMedicalHistory(d.cli_medical_history);
-        if (d.cli_pharma !== undefined) setCliPharma(d.cli_pharma);
-        if (d.cli_studies !== undefined) setCliStudies(d.cli_studies);
-        if (d.occ_dominance !== undefined) setOccDominance(d.occ_dominance);
-        if (d.occ_marital_status !== undefined) setOccMaritalStatus(d.occ_marital_status);
-        if (d.occ_education_level !== undefined) setOccEducationLevel(d.occ_education_level);
-        if (d.occ_support_network !== undefined) setOccSupportNetwork(d.occ_support_network);
-        if (d.occ_job !== undefined) setOccJob(d.occ_job);
-        if (d.showFunctional !== undefined) setShowFunctional(d.showFunctional);
-        if (d.show_measurements !== undefined) setShowMeasurements(d.show_measurements);
-        if (d.affected_side !== undefined) setAffectedSide(d.affected_side);
-        if (d.pains !== undefined && Array.isArray(d.pains)) { setPains(d.pains); painsNextId.current = d.pains.reduce((m: number, p: PainEntry) => Math.max(m, p.id + 1), 2); }
-        if (d.referral_date !== undefined) setReferralDate(d.referral_date);
-        if (d.mobility_observations !== undefined) setMobilityObservations(d.mobility_observations);
-        if (d.edema_obs !== undefined) setEdemaObs(d.edema_obs);
-        if (d.godet_test !== undefined) setGodetTest(d.godet_test);
-        if (d.edema_circ_items !== undefined) setEdemaCircItems(d.edema_circ_items);
-        if (d.all_pre_gonio !== undefined) setAllPreGonio(d.all_pre_gonio);
-        if (d.show_arom !== undefined) setShowArom(d.show_arom);
-        if (d.show_arom_post !== undefined) setShowAromPost(d.show_arom_post);
-        if (d.all_arom_post_gonio !== undefined) setAllAromPostGonio(d.all_arom_post_gonio);
-        if (d.show_prom !== undefined) setShowProm(d.show_prom);
-        if (d.all_prom_pre_gonio !== undefined) setAllPromPreGonio(d.all_prom_pre_gonio);
-        if (d.show_prom_post !== undefined) setShowPromPost(d.show_prom_post);
-        if (d.all_post_gonio !== undefined) setAllPostGonio(d.all_post_gonio);
-        if (d.fist_closure !== undefined) setFistClosure(d.fist_closure);
-        if (d.dyn_msd_vals !== undefined) setDynMsdVals(d.dyn_msd_vals);
-        if (d.dyn_msi_vals !== undefined) setDynMsiVals(d.dyn_msi_vals);
-        if (d.kapandji_val !== undefined) setKapandjiVal(d.kapandji_val);
-        if (d.kapandji_pain !== undefined) setKapandjiPain(d.kapandji_pain);
-        if (d.dppd_pulgar !== undefined) setDppdPulgar(d.dppd_pulgar);
-        if (d.dppd_indice !== undefined) setDppdIndice(d.dppd_indice);
-        if (d.dppd_medio !== undefined) setDppdMedio(d.dppd_medio);
-        if (d.dppd_anular !== undefined) setDppdAnular(d.dppd_anular);
-        if (d.dppd_menique !== undefined) setDppdMenique(d.dppd_menique);
-        if (d.danielsRows !== undefined) setDanielsRows(d.danielsRows);
-        if (d.specificTests !== undefined) setSpecificTests(d.specificTests);
-        if (d.sensitivity !== undefined) setSensitivity(d.sensitivity);
-        if (d.sensitivity_tacto_ligero !== undefined) setSensitivityTactoLigero(d.sensitivity_tacto_ligero);
-        if (d.sensitivity_dos_puntos !== undefined) setSensitivityDosPuntos(d.sensitivity_dos_puntos);
-        if (d.sensitivity_picking_up !== undefined) setSensitivityPickingUp(d.sensitivity_picking_up);
-        if (d.sensitivity_semmes_weinstein !== undefined) setSensitivitySemmesWeinstein(d.sensitivity_semmes_weinstein);
-        if (d.sensitivity_toco_pincho !== undefined) setSensitivityTocoPincho(d.sensitivity_toco_pincho);
-        if (d.sensitivity_temperatura !== undefined) setSensitivityTemperatura(d.sensitivity_temperatura);
-        if (d.trophic_state !== undefined) setTrophicState(d.trophic_state);
-        if (d.scar_localizacion !== undefined) setScarLocalizacion(d.scar_localizacion);
-        if (d.scar_longitud !== undefined) setScarLongitud(d.scar_longitud);
-        if (d.scar_vascularizacion !== undefined) setScarVascularizacion(d.scar_vascularizacion);
-        if (d.scar_pigmentacion !== undefined) setScarPigmentacion(d.scar_pigmentacion);
-        if (d.scar_flexibilidad !== undefined) setScarFlexibilidad(d.scar_flexibilidad);
-        if (d.scar_sensibilidad !== undefined) setScarSensibilidad(d.scar_sensibilidad);
-        if (d.scar_relieve !== undefined) setScarRelieve(d.scar_relieve);
-        if (d.scar_temperatura !== undefined) setScarTemperatura(d.scar_temperatura);
-        if (d.scar_observaciones !== undefined) setScarObservaciones(d.scar_observaciones);
-        if (d.vss_pigmentacion !== undefined) setVssPigmentacion(d.vss_pigmentacion);
-        if (d.vss_vascularizacion !== undefined) setVssVascularizacion(d.vss_vascularizacion);
-        if (d.vss_flexibilidad !== undefined) setVssFlexibilidad(d.vss_flexibilidad);
-        if (d.vss_altura !== undefined) setVssAltura(d.vss_altura);
-        if (d.posture !== undefined) setPosture(d.posture);
-        if (d.emotional_state !== undefined) setEmotionalState(d.emotional_state);
-        if (d.session_goals !== undefined) setSessionGoals(d.session_goals);
-        if (d.interventions !== undefined) setInterventions(d.interventions);
-        if (d.home_instructions_sent !== undefined) setHomeInstructionsSent(d.home_instructions_sent);
-        if (d.notes !== undefined) setNotes(d.notes);
-        if (d.currentStep !== undefined) setCurrentStep(d.currentStep);
-        toast.info("Se restauró un borrador guardado", { duration: 4000 });
-      } catch { /* ignore corrupt draft */ }
+      setPendingDraftRaw(raw);
+      return;
     }
     setDraftRestored(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, secondaryLoaded, draftRestored]);
+
+  // Se aplica recién cuando el usuario elige "Continuar borrador" en
+  // DraftFoundDialog — así nunca se pisa el estado sin preguntar, y "Empezar
+  // de cero" puede saltearse sin tener que deshacer nada.
+  const applyDraft = (raw: string) => {
+    try {
+      const d = JSON.parse(raw);
+      if (d.session_date !== undefined) setSessionDate(d.session_date);
+      if (d.session_type !== undefined && !typeParam) setSessionType(d.session_type);
+      if (d.session_number !== undefined) setSessionNumber(d.session_number);
+      if (d.week_at_session !== undefined) setWeekAtSession(d.week_at_session);
+      if (d.general_observations !== undefined) setGeneralObservations(d.general_observations);
+      if (d.discharge_summary !== undefined) setDischargeSummary(d.discharge_summary);
+      if (d.occupations_items !== undefined) setOccupationsItems(d.occupations_items);
+      if (d.occupations_notes !== undefined) setOccupationsNotes(d.occupations_notes);
+      if (d.performance_context !== undefined) setPerformanceContextState(d.performance_context);
+      if (d.fim_items !== undefined) setFimItems(d.fim_items);
+      if (d.barthel_items !== undefined) setBarthelItems(d.barthel_items);
+      if (d.quickdash_items !== undefined) setQuickdashItems(d.quickdash_items);
+      if (d.cli_diagnoses !== undefined) setCliDiagnoses(d.cli_diagnoses);
+      else if (d.cli_diagnosis) setCliDiagnoses([{ code: null, label: d.cli_diagnosis }]); // draft viejo
+      if (d.cli_doctor_name !== undefined) setCliDoctorName(d.cli_doctor_name);
+      if (d.cli_injury_date !== undefined) setCliInjuryDate(d.cli_injury_date);
+      if (d.cli_surgery_date !== undefined) setCliSurgeryDate(d.cli_surgery_date);
+      if (d.cli_injury_mechanism !== undefined) setCliInjuryMechanism(d.cli_injury_mechanism);
+      if (d.cli_treatment_type !== undefined) setCliTreatmentType(d.cli_treatment_type);
+      if (d.cli_immob_weeks !== undefined) setCliImmobWeeks(d.cli_immob_weeks);
+      if (d.cli_immob_days !== undefined) setCliImmobDays(d.cli_immob_days);
+      if (d.cli_immob_type !== undefined) setCliImmobType(d.cli_immob_type);
+      if (d.cli_medical_history !== undefined) setCliMedicalHistory(d.cli_medical_history);
+      if (d.cli_pharma !== undefined) setCliPharma(d.cli_pharma);
+      if (d.cli_studies !== undefined) setCliStudies(d.cli_studies);
+      if (d.occ_dominance !== undefined) setOccDominance(d.occ_dominance);
+      if (d.occ_marital_status !== undefined) setOccMaritalStatus(d.occ_marital_status);
+      if (d.occ_education_level !== undefined) setOccEducationLevel(d.occ_education_level);
+      if (d.occ_support_network !== undefined) setOccSupportNetwork(d.occ_support_network);
+      if (d.occ_job !== undefined) setOccJob(d.occ_job);
+      if (d.showFunctional !== undefined) setShowFunctional(d.showFunctional);
+      if (d.show_measurements !== undefined) setShowMeasurements(d.show_measurements);
+      if (d.affected_side !== undefined) setAffectedSide(d.affected_side);
+      if (d.pains !== undefined && Array.isArray(d.pains)) { setPains(d.pains); painsNextId.current = d.pains.reduce((m: number, p: PainEntry) => Math.max(m, p.id + 1), 2); }
+      if (d.referral_date !== undefined) setReferralDate(d.referral_date);
+      if (d.mobility_observations !== undefined) setMobilityObservations(d.mobility_observations);
+      if (d.edema_obs !== undefined) setEdemaObs(d.edema_obs);
+      if (d.godet_test !== undefined) setGodetTest(d.godet_test);
+      if (d.edema_circ_items !== undefined) setEdemaCircItems(d.edema_circ_items);
+      if (d.all_pre_gonio !== undefined) setAllPreGonio(d.all_pre_gonio);
+      if (d.show_arom !== undefined) setShowArom(d.show_arom);
+      if (d.show_arom_post !== undefined) setShowAromPost(d.show_arom_post);
+      if (d.all_arom_post_gonio !== undefined) setAllAromPostGonio(d.all_arom_post_gonio);
+      if (d.show_prom !== undefined) setShowProm(d.show_prom);
+      if (d.all_prom_pre_gonio !== undefined) setAllPromPreGonio(d.all_prom_pre_gonio);
+      if (d.show_prom_post !== undefined) setShowPromPost(d.show_prom_post);
+      if (d.all_post_gonio !== undefined) setAllPostGonio(d.all_post_gonio);
+      if (d.fist_closure !== undefined) setFistClosure(d.fist_closure);
+      if (d.dyn_msd_vals !== undefined) setDynMsdVals(d.dyn_msd_vals);
+      if (d.dyn_msi_vals !== undefined) setDynMsiVals(d.dyn_msi_vals);
+      if (d.kapandji_val !== undefined) setKapandjiVal(d.kapandji_val);
+      if (d.kapandji_pain !== undefined) setKapandjiPain(d.kapandji_pain);
+      if (d.dppd_pulgar !== undefined) setDppdPulgar(d.dppd_pulgar);
+      if (d.dppd_indice !== undefined) setDppdIndice(d.dppd_indice);
+      if (d.dppd_medio !== undefined) setDppdMedio(d.dppd_medio);
+      if (d.dppd_anular !== undefined) setDppdAnular(d.dppd_anular);
+      if (d.dppd_menique !== undefined) setDppdMenique(d.dppd_menique);
+      if (d.danielsRows !== undefined) setDanielsRows(d.danielsRows);
+      if (d.specificTests !== undefined) setSpecificTests(d.specificTests);
+      if (d.sensitivity !== undefined) setSensitivity(d.sensitivity);
+      if (d.sensitivity_tacto_ligero !== undefined) setSensitivityTactoLigero(d.sensitivity_tacto_ligero);
+      if (d.sensitivity_dos_puntos !== undefined) setSensitivityDosPuntos(d.sensitivity_dos_puntos);
+      if (d.sensitivity_picking_up !== undefined) setSensitivityPickingUp(d.sensitivity_picking_up);
+      if (d.sensitivity_semmes_weinstein !== undefined) setSensitivitySemmesWeinstein(d.sensitivity_semmes_weinstein);
+      if (d.sensitivity_toco_pincho !== undefined) setSensitivityTocoPincho(d.sensitivity_toco_pincho);
+      if (d.sensitivity_temperatura !== undefined) setSensitivityTemperatura(d.sensitivity_temperatura);
+      if (d.trophic_state !== undefined) setTrophicState(d.trophic_state);
+      if (d.scar_localizacion !== undefined) setScarLocalizacion(d.scar_localizacion);
+      if (d.scar_longitud !== undefined) setScarLongitud(d.scar_longitud);
+      if (d.scar_vascularizacion !== undefined) setScarVascularizacion(d.scar_vascularizacion);
+      if (d.scar_pigmentacion !== undefined) setScarPigmentacion(d.scar_pigmentacion);
+      if (d.scar_flexibilidad !== undefined) setScarFlexibilidad(d.scar_flexibilidad);
+      if (d.scar_sensibilidad !== undefined) setScarSensibilidad(d.scar_sensibilidad);
+      if (d.scar_relieve !== undefined) setScarRelieve(d.scar_relieve);
+      if (d.scar_temperatura !== undefined) setScarTemperatura(d.scar_temperatura);
+      if (d.scar_observaciones !== undefined) setScarObservaciones(d.scar_observaciones);
+      if (d.vss_pigmentacion !== undefined) setVssPigmentacion(d.vss_pigmentacion);
+      if (d.vss_vascularizacion !== undefined) setVssVascularizacion(d.vss_vascularizacion);
+      if (d.vss_flexibilidad !== undefined) setVssFlexibilidad(d.vss_flexibilidad);
+      if (d.vss_altura !== undefined) setVssAltura(d.vss_altura);
+      if (d.posture !== undefined) setPosture(d.posture);
+      if (d.emotional_state !== undefined) setEmotionalState(d.emotional_state);
+      if (d.session_goals !== undefined) setSessionGoals(d.session_goals);
+      if (d.interventions !== undefined) setInterventions(d.interventions);
+      if (d.home_instructions_sent !== undefined) setHomeInstructionsSent(d.home_instructions_sent);
+      if (d.notes !== undefined) setNotes(d.notes);
+      if (d.currentStep !== undefined) setCurrentStep(d.currentStep);
+    } catch { /* ignore corrupt draft */ }
+  };
+
+  const keepDraft = () => {
+    if (pendingDraftRaw) applyDraft(pendingDraftRaw);
+    setPendingDraftRaw(null);
+    setDraftRestored(true);
+  };
+
+  const discardDraft = () => {
+    clearDraft();
+    hadDraftRef.current = false;
+    setPendingDraftRaw(null);
+    setDraftRestored(true);
+  };
 
   // Mantener/Actualizar: recién se activa una vez que el borrador (si había
   // uno) ya se restauró, y se re-evalúa si la evaluación previa del episodio
@@ -1198,6 +1220,7 @@ export default function SessionForm() {
       </div>
 
       <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
+      <DraftFoundDialog open={pendingDraftRaw !== null} onKeep={keepDraft} onDiscard={discardDraft} />
     </div>
   );
 }

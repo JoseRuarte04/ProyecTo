@@ -9,10 +9,15 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
-## [2026-10-11] Reestructuración de "Ficha Clínica" (PR #77 abierto)
+## [2026-10-11] Confirmación al volver atrás + opción de descartar borrador en Evolución/Admisión (PR #79)
+- El botón/gesto "atrás" del navegador no mostraba ninguna advertencia con cambios sin guardar (el hook compartido por ~20 formularios/diálogos solo cubría la navegación interna y el cierre de pestaña) — ahora también se atrapa el "atrás" real.
+- El borrador de una sesión no se limpiaba al descartar cambios, así que un borrador no deseado volvía a aparecer solo cada vez que se reabría. Ahora se pregunta antes de aplicarlo ("Continuar borrador" / "Empezar de cero"), y "salir sin guardar" lo limpia de verdad.
+- PR [#79](https://github.com/JoseRuarte04/ProyecTo/pull/79), pendiente de confirmación manual en el navegador.
+
+## [2026-10-11] Reestructuración de "Ficha Clínica" (PR #77 mergeado)
 - Secciones reagrupadas con el mismo criterio que "Editar ficha": Datos personales, Obra social (nueva — no se mostraba en ningún lado), Datos clínicos (con Alergias destacada, lado afectado y fecha de derivación nuevos — tampoco se mostraban), Contacto, Contacto de emergencia (4 campos separados en vez de un string), Perfil ocupacional sin cambios.
 - De paso se corrige "Tipo de tratamiento" duplicado (aparecía en 2 secciones).
-- Verificado en el navegador por Jose, junto con la tab "Resumen" del PR #72 (ya mergeado).
+- Verificado en el navegador por Jose, junto con la tab "Resumen" del PR #72.
 
 ## [2026-10-09] Tab "Resumen" como pantalla principal del paciente (PRs #72/#73 mergeados)
 - Al abrir un paciente ahora se ve primero "Resumen": diagnóstico, datos clínicos relevantes (mecanismo de lesión, tratamiento, antecedentes, alergias) y la última sesión con Objetivo/Intervenciones/Indicaciones/Notas internas. "Ficha Clínica" (datos administrativos) pasa a 2da tab, sin cambios.
