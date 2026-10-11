@@ -15,7 +15,6 @@ import { SessionsTab } from "@/components/patients/tabs/SessionsTab";
 import { EvaluacionesTab } from "@/components/patients/tabs/EvaluacionesTab";
 import { ArchivosTab } from "@/components/patients/tabs/ArchivosTab";
 import { EvolucionTab } from "@/components/patients/EvolucionTab";
-import { EjerciciosTab } from "@/components/patients/EjerciciosTab";
 
 import { EditFichaDialog } from "@/components/patients/dialogs/EditFichaDialog";
 import { NewFuncEvalDialog } from "@/components/patients/dialogs/NewFuncEvalDialog";
@@ -385,7 +384,6 @@ export default function PatientProfile() {
                     { value: "sessions", label: "Sesiones" },
                     { value: "evolucion", label: "Evolución" },
                     { value: "evaluaciones", label: "Evaluaciones" },
-                    { value: "ejercicios", label: "Ejercicios" },
                     { value: "archivos", label: "Archivos" },
                   ].map(tab => (
                     <TabsTrigger key={tab.value} value={tab.value} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none text-muted-foreground px-4 py-3 text-[13px] font-medium tracking-wide whitespace-nowrap shrink-0">
@@ -413,10 +411,6 @@ export default function PatientProfile() {
 
               <TabsContent value="evaluaciones">
                 <EvaluacionesTab funcEvals={funcEvals} analEvals={analEvals} patientId={id!} onNewFuncEval={() => setShowNewFuncEval(true)} />
-              </TabsContent>
-
-              <TabsContent value="ejercicios">
-                <EjerciciosTab patientId={id!} />
               </TabsContent>
 
               <TabsContent value="archivos">

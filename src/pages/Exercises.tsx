@@ -249,13 +249,9 @@ export default function Exercises() {
       setDeleteEx(null);
       return;
     }
-    const [{ count: treatmentCount }, { count: planItemCount }, { count: routineItemCount }] = await Promise.all([
+    const [{ count: treatmentCount }, { count: routineItemCount }] = await Promise.all([
       supabase
         .from("treatment_plan_exercises")
-        .select("id", { count: "exact", head: true })
-        .eq("exercise_id", deleteEx.id),
-      supabase
-        .from("exercise_plan_items")
         .select("id", { count: "exact", head: true })
         .eq("exercise_id", deleteEx.id),
       supabase
@@ -263,7 +259,7 @@ export default function Exercises() {
         .select("id", { count: "exact", head: true })
         .eq("exercise_id", deleteEx.id),
     ]);
-    if ((treatmentCount ?? 0) + (planItemCount ?? 0) > 0) {
+    if ((treatmentCount ?? 0) > 0) {
       toast.error("Este ejercicio está en uso en el programa de uno o más pacientes");
       setDeleteEx(null);
       return;
