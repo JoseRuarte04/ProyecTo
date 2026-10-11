@@ -36,7 +36,8 @@ export default function AdminPatients() {
   const [filterStatus, setFilterStatus]   = useState<string>("active");
 
   useEffect(() => {
-    supabase.rpc("admin_list_patients").then(({ data, error }) => {
+    setLoading(true);
+    supabase.rpc("admin_list_patients", { p_include_deleted: true }).then(({ data, error }) => {
       if (error) setError("Error al cargar pacientes");
       else setPatients((data as unknown as Patient[]) || []);
       setLoading(false);

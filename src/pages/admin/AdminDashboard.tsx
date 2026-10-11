@@ -104,6 +104,10 @@ export default function AdminDashboard() {
       supabase.rpc("admin_get_active_teams"),
       supabase.rpc("admin_get_stale_invitations", { p_days: 7 }),
     ]);
+    const failed = [statsRes, trendsRes, monthlyRes, teamsRes, invRes].filter((r) => r.error);
+    if (failed.length > 0) {
+      toast.error(`No se pudo cargar parte del dashboard (${failed.length} de 5 consultas fallaron)`);
+    }
     if (statsRes.data)  setStats(statsRes.data as unknown as Stats);
     if (trendsRes.data) setTrends(trendsRes.data as unknown as Trends);
     if (monthlyRes.data) setMonthly(monthlyRes.data as unknown as MonthlySession[]);
