@@ -263,6 +263,7 @@ export type Database = {
           notes: string | null
           patient_id: string
           professional_id: string
+          recurrence_id: string | null
           status: Database["public"]["Enums"]["appointment_status"]
           type: Database["public"]["Enums"]["appointment_type"]
           updated_at: string
@@ -280,6 +281,7 @@ export type Database = {
           notes?: string | null
           patient_id: string
           professional_id: string
+          recurrence_id?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
           type?: Database["public"]["Enums"]["appointment_type"]
           updated_at?: string
@@ -297,6 +299,7 @@ export type Database = {
           notes?: string | null
           patient_id?: string
           professional_id?: string
+          recurrence_id?: string | null
           status?: Database["public"]["Enums"]["appointment_status"]
           type?: Database["public"]["Enums"]["appointment_type"]
           updated_at?: string
@@ -1056,21 +1059,27 @@ export type Database = {
           created_at: string
           id: string
           message: string
+          resolved_at: string | null
           route: string | null
+          status: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           message: string
+          resolved_at?: string | null
           route?: string | null
+          status?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           message?: string
+          resolved_at?: string | null
           route?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -2200,7 +2209,7 @@ export type Database = {
         }[]
       }
       admin_get_activity: {
-        Args: never
+        Args: { p_limit?: number; p_offset?: number }
         Returns: {
           action: string
           created_at: string
@@ -2246,11 +2255,16 @@ export type Database = {
       admin_get_stats: { Args: never; Returns: Json }
       admin_get_trends: { Args: never; Returns: Json }
       admin_list_patients: {
-        Args: { p_professional_id?: string; p_team_id?: string }
+        Args: {
+          p_include_deleted?: boolean
+          p_professional_id?: string
+          p_team_id?: string
+        }
         Returns: {
           created_at: string
           full_name: string
           id: string
+          is_deleted: boolean
           professional_id: string
           professional_name: string
           status: string
@@ -2292,6 +2306,10 @@ export type Database = {
       }
       admin_set_team_limit: {
         Args: { p_limit: number; p_team_id: string }
+        Returns: undefined
+      }
+      admin_update_feedback_status: {
+        Args: { p_feedback_id: string; p_status: string }
         Returns: undefined
       }
       admin_upsert_therapist: {
@@ -2364,6 +2382,7 @@ export type Database = {
       is_super_admin: { Args: never; Returns: boolean }
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
+      normalize_obra_social_name: { Args: { p: string }; Returns: string }
       obra_social_usage_count: { Args: { p_name: string }; Returns: number }
       remove_team_member: {
         Args: { p_team_id: string; p_user_id: string }
@@ -2578,3 +2597,4 @@ export const Constants = {
     },
   },
 } as const
+

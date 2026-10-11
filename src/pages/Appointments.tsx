@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -153,6 +154,8 @@ export default function Appointments() {
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNotes, setCancelNotes] = useState("");
+  const [cancelWholeSeries, setCancelWholeSeries] = useState(false);
+  const [cancellingSeries, setCancellingSeries] = useState(false);
 
   // Buscador de paciente — filtra los turnos ya cargados (Lista y Semana), no dispara ninguna query nueva.
   const [patientQuery, setPatientQuery] = useState("");
@@ -180,13 +183,31 @@ export default function Appointments() {
     setCancelTarget(id);
     setCancelReason("");
     setCancelNotes("");
+    setCancelWholeSeries(false);
   };
 
-  const handleCancel = () => {
+  const cancelTargetAppt = appointments.find(a => a.id === cancelTarget) ?? null;
+
+  const handleCancel = async () => {
     if (!cancelTarget || !cancelReason) return;
+    if (cancelWholeSeries && cancelTargetAppt?.recurrence_id) {
+      setCancellingSeries(true);
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status: "cancelled", cancellation_reason: cancelReason, cancellation_notes: cancelNotes || null })
+        .eq("recurrence_id", cancelTargetAppt.recurrence_id)
+        .in("status", OCCUPYING_STATUSES);
+      setCancellingSeries(false);
+      if (error) { toast.error("No se pudo cancelar la serie"); return; }
+      toast.success("Serie de turnos cancelada");
+      queryClient.invalidateQueries({ queryKey: [APPOINTMENTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      setCancelTarget(null); setCancelReason(""); setCancelNotes(""); setCancelWholeSeries(false);
+      return;
+    }
     cancelAppointment(
       { id: cancelTarget, reason: cancelReason, notes: cancelNotes },
-      { onSuccess: () => { setCancelTarget(null); setCancelReason(""); setCancelNotes(""); } }
+      { onSuccess: () => { setCancelTarget(null); setCancelReason(""); setCancelNotes(""); setCancelWholeSeries(false); } }
     );
   };
 
@@ -733,11 +754,19 @@ export default function Appointments() {
                 rows={2}
               />
             </div>
+            {cancelTargetAppt?.recurrence_id && (
+              <div className="flex items-center gap-2">
+                <Checkbox id="cancel-series" checked={cancelWholeSeries} onCheckedChange={v => setCancelWholeSeries(!!v)} />
+                <Label htmlFor="cancel-series" className="cursor-pointer text-sm">
+                  Este turno es parte de una serie — cancelar todas las ocurrencias
+                </Label>
+              </div>
+            )}
           </div>
           <DialogFooter className="pt-2">
             <Button variant="outline" onClick={() => setCancelTarget(null)}>Volver</Button>
-            <Button variant="destructive" onClick={handleCancel} disabled={!cancelReason}>
-              Cancelar turno
+            <Button variant="destructive" onClick={handleCancel} disabled={!cancelReason || cancellingSeries}>
+              {cancellingSeries ? <Loader2 className="h-4 w-4 animate-spin" /> : cancelWholeSeries ? "Cancelar toda la serie" : "Cancelar turno"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1084,6 +1113,7 @@ function NewAppointmentDialog({
   const [dayAppts, setDayAppts] = useState<DayAppointment[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [form, setForm] = useState({ type: "consultation" as string, modality: "in_person" as "in_person" | "virtual", notes: "" });
+  const [repeat, setRepeat] = useState<{ enabled: boolean; frequency: "weekly" | "biweekly"; count: number }>({ enabled: false, frequency: "weekly", count: 4 });
   const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
   const [showOvertimeConfirm, setShowOvertimeConfirm] = useState(false);
   const { maxAbsences } = useAppointmentSettings();
@@ -1110,6 +1140,7 @@ function NewAppointmentDialog({
       setEndTime("");
       setForm({ type: "consultation", modality: "in_person", notes: "" });
       setOvertimeConflict(null);
+      setRepeat({ enabled: false, frequency: "weekly", count: 4 });
     }
   }, [open, prefilledDate, prefilledTime, resetDirty]);
 
@@ -1229,6 +1260,83 @@ function NewAppointmentDialog({
     onClose();
   };
 
+  // Serie de turnos recurrentes: cada ocurrencia es su propia fila (mismo
+  // recurrence_id), gobernada por las mismas RLS de appointments de siempre
+  // — no hace falta tabla ni policies nuevas. Las ocurrencias que chocan con
+  // un turno existente se saltean y se reportan al final (no se arma la
+  // confirmación de sobreturno fila por fila, para no interrumpir la carga).
+  const doSaveRecurring = async () => {
+    setSaving(true);
+    const stepDays = repeat.frequency === "weekly" ? 7 : 14;
+    const baseStart = new Date(`${selectedDate}T${startTime}:00`);
+    const baseEnd = new Date(`${selectedDate}T${endTime}:00`);
+    const durationMs = baseEnd.getTime() - baseStart.getTime();
+    const occurrences = Array.from({ length: repeat.count }, (_, k) => {
+      const start = new Date(baseStart.getTime() + k * stepDays * 86400000);
+      return { start, end: new Date(start.getTime() + durationMs) };
+    });
+
+    const { data: existing, error: fetchError } = await supabase
+      .from("appointments")
+      .select("appointment_date, appointment_end, patients(first_name, last_name)")
+      .in("status", OCCUPYING_STATUSES)
+      .gte("appointment_date", occurrences[0].start.toISOString())
+      .lt("appointment_date", occurrences[occurrences.length - 1].end.toISOString());
+    if (fetchError) {
+      setSaving(false);
+      toast.error("No se pudieron validar los horarios existentes");
+      return;
+    }
+
+    const recurrenceId = crypto.randomUUID();
+    const toInsert: Database["public"]["Tables"]["appointments"]["Insert"][] = [];
+    const skipped: string[] = [];
+
+    for (const occ of occurrences) {
+      const conflict = (existing || []).find(a => {
+        const aStart = parseISO(a.appointment_date);
+        const aEnd = a.appointment_end ? parseISO(a.appointment_end) : new Date(aStart.getTime() + 30 * 60000);
+        return occ.start < aEnd && occ.end > aStart;
+      });
+      if (conflict) {
+        skipped.push(`${format(occ.start, "d/MM", { locale: es })} (choca con ${conflict.patients?.last_name}, ${conflict.patients?.first_name})`);
+        continue;
+      }
+      toInsert.push({
+        patient_id: selectedPatient.id,
+        professional_id: userId,
+        appointment_date: occ.start.toISOString(),
+        appointment_end: occ.end.toISOString(),
+        type: form.type as Database["public"]["Enums"]["appointment_type"],
+        status: "scheduled",
+        notes: form.notes || null,
+        is_overtime: false,
+        modality: form.modality,
+        video_link: form.modality === "virtual" ? createVideoRoom() : null,
+        recurrence_id: recurrenceId,
+      });
+    }
+
+    if (toInsert.length === 0) {
+      setSaving(false);
+      toast.error("No se pudo agendar ningún turno de la serie", { description: "Todos los horarios elegidos ya están ocupados." });
+      return;
+    }
+
+    const { error } = await supabase.from("appointments").insert(toInsert);
+    setSaving(false);
+    if (error) { toast.error("Error al crear los turnos de la serie"); return; }
+
+    if (skipped.length > 0) {
+      toast.success(`Se agendaron ${toInsert.length} de ${repeat.count} turnos`, { description: `No se pudo: ${skipped.join("; ")}` });
+    } else {
+      toast.success(`Se agendaron los ${toInsert.length} turnos de la serie`);
+    }
+    resetDirty();
+    onSaved();
+    onClose();
+  };
+
   const handleSave = async () => {
     if (!selectedPatient || !selectedDate || !startTime || !endTime) {
       toast.error("Completá todos los campos obligatorios");
@@ -1236,6 +1344,10 @@ function NewAppointmentDialog({
     }
     if (timeToMin(endTime) <= timeToMin(startTime)) {
       toast.error("La hora de fin debe ser posterior a la de inicio");
+      return;
+    }
+    if (repeat.enabled) {
+      await doSaveRecurring();
       return;
     }
     const conflict = hasOverlap();
@@ -1489,10 +1601,41 @@ function NewAppointmentDialog({
               <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} />
             </div>
 
+            {/* Repetir (turnos recurrentes) */}
+            <div className="space-y-2 rounded-md border border-border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="repeat-enabled"
+                  checked={repeat.enabled}
+                  onCheckedChange={v => setRepeat(r => ({ ...r, enabled: !!v }))}
+                />
+                <Label htmlFor="repeat-enabled" className="cursor-pointer">Repetir este turno</Label>
+              </div>
+              {repeat.enabled && (
+                <div className="flex items-center gap-2 pl-6">
+                  <Select value={repeat.frequency} onValueChange={(v: "weekly" | "biweekly") => setRepeat(r => ({ ...r, frequency: v }))}>
+                    <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Semanal</SelectItem>
+                      <SelectItem value="biweekly">Quincenal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">×</span>
+                  <Select value={String(repeat.count)} onValueChange={v => setRepeat(r => ({ ...r, count: Number(v) }))}>
+                    <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[2, 3, 4, 6, 8, 10, 12].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground">veces</span>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving || !canSave}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar turno"}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : repeat.enabled ? "Guardar serie" : "Guardar turno"}
               </Button>
             </div>
           </div>
