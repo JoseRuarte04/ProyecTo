@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-11] `send-team-invitation` re-deployada + runbook del dominio
+- La función de invitación de equipo en producción estaba desactualizada desde antes del PR #52 (no leía `RESEND_FROM`, remitente de sandbox hardcodeado) — nunca se había re-deployado. Re-deployada ahora: mismo comportamiento hasta que se cargue el secret, lista para cuando llegue el dominio.
+- `docs/BETA_CHECKLIST.md` tiene el runbook exacto para esa semana: verificar el dominio en Resend, cargar `RESEND_FROM`, configurar SMTP custom de Supabase Auth.
+- Confirmado que los secrets de backup sí están cargados (viven en un Environment, no como repo secret) y el cron semanal está activo.
+
 ## [2026-10-11] Análisis de readiness para la beta + link de invitación de equipo a mano (PR #80)
 - Repaso de los 21 PRs mergeados desde el 2026-10-06: el recorrido manual de `BETA_CHECKLIST.md` nunca se confirmó hecho, y 3 cambios de esta semana que tocan la carga de sesión nunca se probaron logueados (gate Mantener/Actualizar, confirmación "atrás"/borrador).
 - Mientras no haya dominio propio en Resend, invitar a un equipo real no llega por mail — se agregó un botón "Copiar link" por invitación pendiente en `/mi-equipo` como atajo manual, y se corrigieron 2 bugs reales: el aviso de "enviado" no chequeaba si el mail salió de verdad, y "Reenviar" generaba un token nuevo sin mandar nada a ningún lado.
