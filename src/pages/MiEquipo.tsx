@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { Loader2, Users2, UserX, RefreshCw, X, UserCog } from "lucide-react";
+import { Loader2, Users2, UserX, RefreshCw, X, UserCog, Copy } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
@@ -212,6 +212,22 @@ function MembersTab({ team, onReload }: { team: MyTeam; onReload: () => void }) 
 
 // ── Tab Invitaciones ─────────────────────────────────────────────────────────
 
+// Mientras no haya dominio propio verificado en Resend, el mail de invitación
+// de equipo puede no llegar (sandbox de Resend solo entrega al dueño de la
+// cuenta) — este link es el mismo que manda ese mail, para pasarlo a mano.
+function invitationLink(token: string): string {
+  return `${window.location.origin}/registro?invitation=${token}`;
+}
+
+async function copyInvitationLink(token: string) {
+  try {
+    await navigator.clipboard.writeText(invitationLink(token));
+    toast.success("Link copiado");
+  } catch {
+    toast.error("No se pudo copiar el link");
+  }
+}
+
 function InvitationsTab({ team, onReload }: { team: MyTeam; onReload: () => void }) {
   const { user, profile } = useAuth();
   const [email, setEmail]                 = useState("");
@@ -231,7 +247,7 @@ function InvitationsTab({ team, onReload }: { team: MyTeam; onReload: () => void
       setInviting(false); toast.success("Miembro agregado directamente"); setEmail(""); onReload();
     } else if (res.result === "invited" && res.token) {
       const { data: { session } } = await supabase.auth.getSession();
-      await fetch(
+      const mailRes = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-team-invitation`,
         {
           method: "POST",
@@ -243,7 +259,15 @@ function InvitationsTab({ team, onReload }: { team: MyTeam; onReload: () => void
           }),
         }
       );
-      setInviting(false); toast.success(`Invitación enviada a ${email.trim()}`); setEmail(""); onReload();
+      setInviting(false); setEmail(""); onReload();
+      if (mailRes.ok) {
+        toast.success(`Invitación enviada a ${email.trim()}`);
+      } else {
+        toast.warning(`No se pudo enviar el mail a ${email.trim()}`, {
+          description: "Copiá el link de la lista de abajo y pasáselo a mano.",
+          duration: 8000,
+        });
+      }
     } else if (res.result === "already_member") {
       setInviting(false); toast.warning("Ya es miembro del equipo");
     } else if (res.result === "limit_reached") {
@@ -255,10 +279,34 @@ function InvitationsTab({ team, onReload }: { team: MyTeam; onReload: () => void
 
   const handleResend = async (invitationId: string, invEmail: string) => {
     setActionLoading(invitationId);
-    const { error } = await supabase.rpc("resend_invitation", { p_invitation_id: invitationId });
-    setActionLoading(null);
-    if (error) { toast.error("Error: " + error.message); return; }
-    toast.success(`Invitación reenviada a ${invEmail}`); onReload();
+    // Esta RPC genera un token nuevo (e invalida el anterior) y lo devuelve —
+    // hay que usarlo para el mail y para el link, no alcanza con avisar que
+    // "se reenvió" sin mandar nada a ningún lado.
+    const { data: newToken, error } = await supabase.rpc("resend_invitation", { p_invitation_id: invitationId });
+    if (error) { setActionLoading(null); toast.error("Error: " + error.message); return; }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const mailRes = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-team-invitation`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+        body: JSON.stringify({
+          token: newToken, email: invEmail,
+          teamName: team.name,
+          inviterName: profile?.full_name || user?.email || "Un terapista",
+        }),
+      }
+    );
+    setActionLoading(null); onReload();
+    if (mailRes.ok) {
+      toast.success(`Invitación reenviada a ${invEmail}`);
+    } else {
+      toast.warning(`No se pudo reenviar el mail a ${invEmail}`, {
+        description: "Copiá el link nuevo de la lista de abajo y pasáselo a mano.",
+        duration: 8000,
+      });
+    }
   };
 
   const handleCancel = async (invitationId: string, invEmail: string) => {
@@ -289,7 +337,7 @@ function InvitationsTab({ team, onReload }: { team: MyTeam; onReload: () => void
           </Button>
         </div>
         <p className="text-[11px] text-muted-foreground mt-1.5">
-          Si tiene cuenta en HisTO se agrega directamente. Si no, recibirá un email.
+          Si tiene cuenta en HisTO se agrega directamente. Si no, recibirá un email — si no llega, podés copiar el link de la invitación pendiente y pasárselo a mano.
         </p>
       </div>
 
@@ -319,6 +367,17 @@ function InvitationsTab({ team, onReload }: { team: MyTeam; onReload: () => void
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1"
+                      disabled={isBusy}
+                      onClick={() => copyInvitationLink(inv.token)}
+                      title="Copiar link de invitación — útil si el mail no llega (ej. sin dominio propio en Resend)"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                      Copiar link
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

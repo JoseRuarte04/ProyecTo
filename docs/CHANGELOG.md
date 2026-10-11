@@ -9,6 +9,29 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-11] Panel admin: reconstrucción de migraciones faltantes + bugs + gestión de equipos + triage de feedback (PR #82, sin mergear)
+
+Análisis a fondo del panel admin a pedido de Jose. Se encontró que `admin_users`/`is_super_admin()`/9 RPCs admin corrían en producción sin migración en el repo — reconstruidos, con fix de un bug real (el email de login no se actualizaba al editar un terapista). Se agregó gestión de miembros de equipo, mover paciente a cualquier equipo, renombrar/activar equipos, manejo de errores que antes fallaban en silencio, y triage de feedback (nuevo/visto/resuelto). PR #82 queda para revisión de Jose por tocar `auth.users` directo.
+
+## [2026-10-11] Baseline completo de esquema: reemplaza ~190 migraciones desincronizadas (PR #88, sin mergear)
+
+Al investigar el drift de admin se encontró que el problema real es mucho más grande: 21 de las 38 tablas de producción (incluida `patients`) nunca tuvieron migración en el repo — herencia de Lovable, antes de adoptar migraciones versionadas. `supabase db dump --linked` generó un baseline fiel al estado real; se archivaron 68 migraciones viejas (sin borrar) y se verificó que `supabase start` desde cero levanta limpio por primera vez. Queda pendiente el `db diff` de verificación final (falló por un problema de entorno, no del contenido) y el `migration repair` que sincroniza la metadata de Supabase — ver `TASKS.md`.
+
+## [2026-10-11] Eliminada la asignación de ejercicios al paciente (PR #84)
+- Se cerró: PR [#84](https://github.com/JoseRuarte04/ProyecTo/pull/84) — se armó una vez y nunca se usó, hoy solo confundía. Tab "Ejercicios" + wizard + link público borrados; la biblioteca standalone de `/exercises` queda intacta.
+- Decisión tomada: alcance acotado a la asignación a pacientes + DROP real de las tablas/funciones exclusivas (ver `DECISIONS.md`).
+- Quedó pendiente: correr la migración en producción y confirmar en el navegador (no bloqueante); `treatment_plan_exercises`/`treatment_plans` (drift sin UI, hallazgo aparte) anotado en `TASKS.md`.
+
+## [2026-10-11] `send-team-invitation` re-deployada + runbook del dominio
+- La función de invitación de equipo en producción estaba desactualizada desde antes del PR #52 (no leía `RESEND_FROM`, remitente de sandbox hardcodeado) — nunca se había re-deployado. Re-deployada ahora: mismo comportamiento hasta que se cargue el secret, lista para cuando llegue el dominio.
+- `docs/BETA_CHECKLIST.md` tiene el runbook exacto para esa semana: verificar el dominio en Resend, cargar `RESEND_FROM`, configurar SMTP custom de Supabase Auth.
+- Confirmado que los secrets de backup sí están cargados (viven en un Environment, no como repo secret) y el cron semanal está activo.
+
+## [2026-10-11] Análisis de readiness para la beta + link de invitación de equipo a mano (PR #80)
+- Repaso de los 21 PRs mergeados desde el 2026-10-06: el recorrido manual de `BETA_CHECKLIST.md` nunca se confirmó hecho, y 3 cambios de esta semana que tocan la carga de sesión nunca se probaron logueados (gate Mantener/Actualizar, confirmación "atrás"/borrador).
+- Mientras no haya dominio propio en Resend, invitar a un equipo real no llega por mail — se agregó un botón "Copiar link" por invitación pendiente en `/mi-equipo` como atajo manual, y se corrigieron 2 bugs reales: el aviso de "enviado" no chequeaba si el mail salió de verdad, y "Reenviar" generaba un token nuevo sin mandar nada a ningún lado.
+- Hallazgo aparte: `npm run lint` da miles de warnings de más si se corre con worktrees activos (lintea `.claude/worktrees` por error de config) — no es una regresión real, CI no lo sufre.
+
 ## [2026-10-11] Confirmación al volver atrás + opción de descartar borrador en Evolución/Admisión (PR #79)
 - El botón/gesto "atrás" del navegador no mostraba ninguna advertencia con cambios sin guardar (el hook compartido por ~20 formularios/diálogos solo cubría la navegación interna y el cierre de pestaña) — ahora también se atrapa el "atrás" real.
 - El borrador de una sesión no se limpiaba al descartar cambios, así que un borrador no deseado volvía a aparecer solo cada vez que se reabría. Ahora se pregunta antes de aplicarlo ("Continuar borrador" / "Empezar de cero"), y "salir sin guardar" lo limpia de verdad.
