@@ -9,6 +9,16 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-11] `send-team-invitation` re-deployada + runbook del dominio
+- La función de invitación de equipo en producción estaba desactualizada desde antes del PR #52 (no leía `RESEND_FROM`, remitente de sandbox hardcodeado) — nunca se había re-deployado. Re-deployada ahora: mismo comportamiento hasta que se cargue el secret, lista para cuando llegue el dominio.
+- `docs/BETA_CHECKLIST.md` tiene el runbook exacto para esa semana: verificar el dominio en Resend, cargar `RESEND_FROM`, configurar SMTP custom de Supabase Auth.
+- Confirmado que los secrets de backup sí están cargados (viven en un Environment, no como repo secret) y el cron semanal está activo.
+
+## [2026-10-11] Análisis de readiness para la beta + link de invitación de equipo a mano (PR #80)
+- Repaso de los 21 PRs mergeados desde el 2026-10-06: el recorrido manual de `BETA_CHECKLIST.md` nunca se confirmó hecho, y 3 cambios de esta semana que tocan la carga de sesión nunca se probaron logueados (gate Mantener/Actualizar, confirmación "atrás"/borrador).
+- Mientras no haya dominio propio en Resend, invitar a un equipo real no llega por mail — se agregó un botón "Copiar link" por invitación pendiente en `/mi-equipo` como atajo manual, y se corrigieron 2 bugs reales: el aviso de "enviado" no chequeaba si el mail salió de verdad, y "Reenviar" generaba un token nuevo sin mandar nada a ningún lado.
+- Hallazgo aparte: `npm run lint` da miles de warnings de más si se corre con worktrees activos (lintea `.claude/worktrees` por error de config) — no es una regresión real, CI no lo sufre.
+
 ## [2026-10-11] Confirmación al volver atrás + opción de descartar borrador en Evolución/Admisión (PR #79)
 - El botón/gesto "atrás" del navegador no mostraba ninguna advertencia con cambios sin guardar (el hook compartido por ~20 formularios/diálogos solo cubría la navegación interna y el cierre de pestaña) — ahora también se atrapa el "atrás" real.
 - El borrador de una sesión no se limpiaba al descartar cambios, así que un borrador no deseado volvía a aparecer solo cada vez que se reabría. Ahora se pregunta antes de aplicarlo ("Continuar borrador" / "Empezar de cero"), y "salir sin guardar" lo limpia de verdad.

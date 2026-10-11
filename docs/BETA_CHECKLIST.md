@@ -63,21 +63,60 @@
 
 Todo esto depende de Jose, no se puede resolver desde el código:
 
-- [ ] **Dominio propio.** Sin esto, ninguna invitación de equipo llega a un
-  externo real (ver punto 2 de arriba). Una vez comprado: verificarlo en
-  Resend, cargar los registros DNS que da Resend, y configurar el SMTP
-  custom de Supabase Auth (Dashboard → Auth → SMTP Settings) con las
-  credenciales de Resend — esto además arregla el rate limit del servicio
-  nativo de Supabase Auth (punto 1 de arriba), porque pasa a mandar los
-  mails por Resend en vez del servicio de prueba.
-- [ ] Una vez con el dominio: cargar el secret `RESEND_FROM` en la función
-  `send-team-invitation` (`supabase secrets set RESEND_FROM="HisTO <invitaciones@mail.tudominio>" --project-ref pvuaqatdendcgumwktid`)
-  y re-deployarla.
-- [ ] Deployar `send-team-invitation` apenas se mergee su PR (el cambio de
-  código no se auto-deploya, es una acción manual — ver PR correspondiente).
-- [ ] Secrets de backups (`SUPABASE_DB_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-  `BACKUP_ENCRYPTION_PASSPHRASE`) — detalle completo de cada uno en
-  `docs/BACKUP_RESTORE.md`.
+### Dominio propio + Resend (en curso — comprándolo esta semana)
+
+**Ya listo, sin esperar al dominio (2026-10-11):** la función
+`send-team-invitation` desplegada en producción estaba **desactualizada**
+desde antes del PR #52 — tenía el remitente de sandbox hardcodeado y ni
+siquiera leía `RESEND_FROM` (encontrado comparando el código deployado
+contra el del repo). Re-deployada con el código actual: mismo comportamiento
+hasta que se cargue el secret (fallback a sandbox), lista para leerlo apenas
+se configure. **No falta re-deployar nada más para esto.**
+
+Pasos para cuando el dominio esté comprado (en orden, cada uno depende del
+anterior):
+
+1. **Resend → Domains → Add Domain.** Cargar el dominio. Resend da registros
+   DNS (SPF, DKIM, y a veces un record de verificación) — cargarlos en el
+   proveedor donde se compró el dominio (DNS management). Esperar a que
+   Resend lo marque **Verified** (minutos a unas horas según el proveedor).
+2. **Cargar el secret de la función de equipo:**
+   ```
+   supabase secrets set RESEND_FROM="HisTO <invitaciones@tudominio.com>" --project-ref pvuaqatdendcgumwktid
+   ```
+   (reemplazar `tudominio.com` por el dominio verificado en el paso 1; puede
+   ser el dominio raíz o un subdominio tipo `mail.tudominio.com`, lo que se
+   haya verificado). Los secrets se inyectan en runtime — no hace falta
+   re-deployar la función de nuevo después de esto, ya está lista desde el
+   punto anterior.
+3. **Supabase Dashboard → Authentication → Settings → SMTP Settings →
+   Enable Custom SMTP.** Esto arregla el rate limit del servicio nativo
+   (que hoy limita las invitaciones individuales de profesional, ver punto 1
+   del recorrido más arriba) pasando TODOS los mails de Auth (invitaciones,
+   reset de password, confirmación de signup) por Resend en vez del
+   servicio de prueba. Datos del SMTP relay de Resend:
+   - Host: `smtp.resend.com`
+   - Port: `465` (SSL) o `587` (TLS)
+   - Username: `resend`
+   - Password: la API key de Resend (la misma que usa `RESEND_API_KEY`)
+   - Sender email: una dirección del dominio verificado en el paso 1
+   - Sender name: `HisTO`
+4. **Probar los 2 flujos** del recorrido de arriba (punto 1: invitación
+   individual; punto 2: invitación de equipo) con un email externo real —
+   confirmar que ambos mails llegan.
+
+Mientras no se complete esto: el botón "Copiar link" en las invitaciones de
+equipo pendientes (`/mi-equipo`, PR #80) sirve de atajo manual — no hace
+falta esperar al dominio para invitar equipos reales, solo hay que mandar el
+link a mano en vez de que llegue por mail.
+
+- [x] Secrets de backups (`SUPABASE_DB_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `BACKUP_ENCRYPTION_PASSPHRASE`) — confirmado 2026-10-11 que están cargados
+  en el Environment `production-backup` (no como repo secret, restringido a
+  `main`). Cron semanal activo (lunes 6am UTC) + corrida manual exitosa el
+  2026-10-08. Todavía no se vio una corrida automática por cron (recién
+  empieza a aplicar) — confirmarlo el próximo lunes. Detalle completo de cada
+  secret en `docs/BACKUP_RESTORE.md`.
 - [ ] Activar **Web Analytics** en el dashboard de Vercel (el paquete
   `@vercel/analytics` instalado no alcanza solo, hay que habilitarlo ahí).
 - [ ] Revisar y completar el **email de contacto real** en `/privacidad`
