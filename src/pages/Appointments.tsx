@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -20,8 +20,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { AlertTriangle, Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, Calendar, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin } from "lucide-react";
-import { whatsappUrl } from "@/lib/whatsapp";
+import { AlertTriangle, Plus, Loader2, Search, CheckCircle, XCircle, Clock, List, Calendar, CalendarDays, ChevronLeft, ChevronRight, Zap, X, FileText, User, MessageCircle, Video, Copy, MapPin, BellRing } from "lucide-react";
+import { RemindersPanel } from "@/components/reminders/RemindersPanel";
+import { whatsappUrl, buildReminderMessage } from "@/lib/whatsapp";
 import { createVideoRoom } from "@/lib/videoRoom";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, addWeeks, subWeeks, addMonths, subMonths, isSameDay, isSameMonth, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -159,6 +160,10 @@ export default function Appointments() {
 
   // Buscador de paciente — filtra los turnos ya cargados (Lista y Semana), no dispara ninguna query nueva.
   const [patientQuery, setPatientQuery] = useState("");
+
+  // Panel de Recordatorios — se abre solo con ?reminders=1 (link desde el Dashboard).
+  const [searchParams] = useSearchParams();
+  const [remindersOpen, setRemindersOpen] = useState(() => searchParams.get("reminders") === "1");
 
   const { data: appointments = [], isLoading: loading, isError: appointmentsError } = useAppointments(filter);
   const priorities = usePatientPriorities(appointments.map(a => a.patient_id));
@@ -362,6 +367,9 @@ export default function Appointments() {
                 <Calendar className="h-3.5 w-3.5" /> Mes
               </button>
             </div>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setRemindersOpen(true)}>
+              <BellRing className="h-4 w-4" /> Recordatorios
+            </Button>
             <Button onClick={() => { setPrefilledDate(""); setPrefilledTime(""); setShowNew(true); }} size="sm" className="gap-1.5">
               <Plus className="h-4 w-4" /> Nuevo turno
             </Button>
@@ -775,6 +783,8 @@ export default function Appointments() {
       {rescheduleAppt && (
         <RescheduleDialog appt={rescheduleAppt} onClose={() => setRescheduleAppt(null)} onSaved={refreshAppointments} />
       )}
+
+      <RemindersPanel open={remindersOpen} onOpenChange={setRemindersOpen} />
     </div>
   );
 }
@@ -1001,9 +1011,7 @@ function AppointmentDetailPanel({
             <Clock className="h-4 w-4" /> Reprogramar
           </Button>
           {appt.patients?.phone && (() => {
-            const message = appt.modality === "virtual" && appt.video_link
-              ? `Hola ${appt.patients.first_name}! Te recordamos tu turno virtual de Terapia Ocupacional el ${dateStr} a las ${startStr} hs. Unite a la videollamada desde este link (conectate 5 minutos antes): ${appt.video_link}`
-              : `Hola ${appt.patients.first_name}! Te recordamos tu turno de Terapia Ocupacional el ${dateStr} a las ${startStr} hs. ¡Nos vemos!`;
+            const message = buildReminderMessage(appt, appt.patients.first_name);
             const url = whatsappUrl(appt.patients.phone, message);
             return url ? (
               <Button

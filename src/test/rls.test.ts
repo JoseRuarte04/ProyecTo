@@ -334,6 +334,79 @@ describe("RLS: aislamiento entre profesionales", () => {
     });
   });
 
+  describe("reminders: aislamiento entre profesionales (appointment_reminders)", () => {
+    const REMINDER_APPT_DATE = "2030-01-02T12:00:00Z";
+    let reminderApptId: string;
+
+    beforeAll(async () => {
+      const { data: found, error: findErr } = await clientA
+        .from("appointments")
+        .select("id")
+        .eq("patient_id", patientId)
+        .eq("appointment_date", REMINDER_APPT_DATE)
+        .limit(1);
+      if (findErr) throw findErr;
+      if (found.length > 0) {
+        reminderApptId = found[0].id;
+      } else {
+        const { data, error } = await clientA
+          .from("appointments")
+          .insert({ patient_id: patientId, professional_id: userAId, appointment_date: REMINDER_APPT_DATE })
+          .select("id")
+          .single();
+        if (error) throw error;
+        reminderApptId = data.id;
+      }
+
+      const { data: existingReminder, error: remFindErr } = await clientA
+        .from("appointment_reminders")
+        .select("id")
+        .eq("appointment_id", reminderApptId)
+        .eq("channel", "whatsapp")
+        .limit(1);
+      if (remFindErr) throw remFindErr;
+      if (existingReminder.length === 0) {
+        const { error } = await clientA
+          .from("appointment_reminders")
+          .insert({ appointment_id: reminderApptId, channel: "whatsapp", sent_by: userAId });
+        if (error) throw error;
+      }
+    });
+
+    it("B no puede ver los reminders del turno de A", async () => {
+      const { data, error } = await clientB.from("appointment_reminders").select("id").eq("appointment_id", reminderApptId);
+      expect(error).toBeNull();
+      expect(data).toHaveLength(0);
+    });
+
+    it("B no puede insertar un reminder sobre el turno de A", async () => {
+      const { data, error } = await clientB
+        .from("appointment_reminders")
+        .insert({ appointment_id: reminderApptId, channel: "whatsapp_bot", sent_by: userBId })
+        .select("id");
+      expect(error).not.toBeNull();
+      expect(data).toBeNull();
+    });
+
+    it("A no puede insertar un reminder con sent_by de otro usuario", async () => {
+      const { data, error } = await clientA
+        .from("appointment_reminders")
+        .insert({ appointment_id: reminderApptId, channel: "whatsapp_bot", sent_by: userBId })
+        .select("id");
+      expect(error).not.toBeNull();
+      expect(data).toBeNull();
+    });
+
+    it("A no puede insertar un reminder de canal 'email' (reservado al sistema)", async () => {
+      const { data, error } = await clientA
+        .from("appointment_reminders")
+        .insert({ appointment_id: reminderApptId, channel: "email", sent_by: userAId })
+        .select("id");
+      expect(error).not.toBeNull();
+      expect(data).toBeNull();
+    });
+  });
+
   it("B no puede editar el perfil de A", async () => {
     const { data, error } = await clientB
       .from("profiles")
