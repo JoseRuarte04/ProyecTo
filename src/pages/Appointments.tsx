@@ -79,6 +79,53 @@ type StatusValue = Database["public"]["Enums"]["appointment_status"];
 // Los turnos que todavía se pueden operar (confirmar llegada, atender, cancelar, reprogramar).
 const isOpen = (status: string) => (OCCUPYING_STATUSES as string[]).includes(status);
 
+type LaidOutAppointment = { appt: AppointmentWithPatient; lane: number; lanes: number };
+
+// Asigna a cada turno del día una "lane" (columna) y el total de lanes de su
+// grupo de solapamiento, para que los sobreturnos se dibujen lado a lado en
+// la grilla en vez de tapar al turno con el que chocan.
+function layoutDayAppointments(dayAppts: AppointmentWithPatient[]): LaidOutAppointment[] {
+  const toMin = (iso: string) => {
+    const d = parseISO(iso);
+    return d.getHours() * 60 + d.getMinutes();
+  };
+  const items = dayAppts
+    .map(appt => {
+      const startMin = toMin(appt.appointment_date);
+      const endMin = appt.appointment_end ? toMin(appt.appointment_end) : startMin + 30;
+      return { appt, startMin, endMin, lane: 0, lanes: 1 };
+    })
+    .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
+  let active: { endMin: number; lane: number }[] = [];
+  let cluster: typeof items = [];
+  let clusterMaxActive = 0;
+
+  const flushCluster = () => {
+    const lanes = Math.max(clusterMaxActive, 1);
+    for (const item of cluster) item.lanes = lanes;
+    cluster = [];
+    clusterMaxActive = 0;
+  };
+
+  for (const item of items) {
+    active = active.filter(a => a.endMin > item.startMin);
+    if (active.length === 0 && cluster.length > 0) flushCluster();
+
+    const usedLanes = new Set(active.map(a => a.lane));
+    let lane = 0;
+    while (usedLanes.has(lane)) lane++;
+
+    item.lane = lane;
+    active.push({ endMin: item.endMin, lane });
+    cluster.push(item);
+    clusterMaxActive = Math.max(clusterMaxActive, active.length);
+  }
+  flushCluster();
+
+  return items.map(({ appt, lane, lanes }) => ({ appt, lane, lanes }));
+}
+
 /* ═══════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
 ═══════════════════════════════════════════════════════════ */
@@ -105,6 +152,9 @@ export default function Appointments() {
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNotes, setCancelNotes] = useState("");
+
+  // Buscador de paciente — filtra los turnos ya cargados (Lista y Semana), no dispara ninguna query nueva.
+  const [patientQuery, setPatientQuery] = useState("");
 
   const { data: appointments = [], isLoading: loading, isError: appointmentsError } = useAppointments(filter);
   const priorities = usePatientPriorities(appointments.map(a => a.patient_id));
@@ -147,9 +197,18 @@ export default function Appointments() {
     { label: "Cancelados", value: "cancelled" },
   ];
 
+  const normalize = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const matchesPatientQuery = (a: AppointmentWithPatient) => {
+    const q = normalize(patientQuery.trim());
+    if (!q) return true;
+    const name = normalize(`${a.patients?.first_name ?? ""} ${a.patients?.last_name ?? ""}`);
+    return name.includes(q);
+  };
+  const visibleAppointments = appointments.filter(matchesPatientQuery);
+
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const apptsByDay = (day: Date) =>
-    appointments.filter(a => isSameDay(parseISO(a.appointment_date), day));
+    visibleAppointments.filter(a => isSameDay(parseISO(a.appointment_date), day));
 
   const topForTime = (timeStr: string) => {
     const [h, m] = timeStr.split(":").map(Number);
@@ -213,20 +272,31 @@ export default function Appointments() {
         }
       />
 
-      {/* Filter tabs */}
-      <div className="flex border-b border-border shrink-0">
-        {filterTabs.map(f => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={cn(
-              "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-              filter === f.value ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* Filter tabs + buscador de paciente */}
+      <div className="flex items-center justify-between border-b border-border shrink-0">
+        <div className="flex">
+          {filterTabs.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={cn(
+                "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                filter === f.value ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative pr-2 w-44 sm:w-56 shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={patientQuery}
+            onChange={e => setPatientQuery(e.target.value)}
+            placeholder="Buscar paciente…"
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
       </div>
 
       {loading ? (
@@ -238,17 +308,19 @@ export default function Appointments() {
       ) : view === "list" ? (
         /* ── VISTA LISTA ── */
         <div className="flex-1 overflow-y-auto pt-4">
-          {appointments.length === 0 ? (
-            <p className="text-muted-foreground text-center py-12">No hay turnos.</p>
+          {visibleAppointments.length === 0 ? (
+            <p className="text-muted-foreground text-center py-12">
+              {patientQuery.trim() ? "Ningún turno coincide con esa búsqueda." : "No hay turnos."}
+            </p>
           ) : (
             <TooltipProvider>
               <div className="dashboard-card overflow-hidden">
-                {appointments.map((a, idx) => (
+                {visibleAppointments.map((a, idx) => (
                   <div
                     key={a.id}
                     className={cn(
                       "grid grid-cols-[4px_1fr_auto] items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors group cursor-pointer",
-                      idx !== appointments.length - 1 && "border-b border-border/60"
+                      idx !== visibleAppointments.length - 1 && "border-b border-border/60"
                     )}
                     onClick={() => openDetail(a)}
                   >
@@ -358,7 +430,7 @@ export default function Appointments() {
             {/* Columnas de días */}
             <div className="flex flex-1 overflow-x-auto overflow-y-auto">
               {weekDays.map(day => {
-                const dayAppts = apptsByDay(day);
+                const dayAppts = layoutDayAppointments(apptsByDay(day));
                 const isToday = isSameDay(day, new Date());
 
                 return (
@@ -407,8 +479,8 @@ export default function Appointments() {
                         </div>
                       )}
 
-                      {/* Bloques de turnos */}
-                      {dayAppts.map(a => {
+                      {/* Bloques de turnos — lado a lado cuando hay sobreturno (se solapan en el tiempo) */}
+                      {dayAppts.map(({ appt: a, lane, lanes }) => {
                         const startStr = format(parseISO(a.appointment_date), "HH:mm");
                         const endStr = a.appointment_end ? format(parseISO(a.appointment_end), "HH:mm") : null;
                         const top = topForTime(startStr);
@@ -421,12 +493,18 @@ export default function Appointments() {
                             data-appointment-block="true"
                             onClick={e => { e.stopPropagation(); openDetail(a); }}
                             className={cn(
-                              "absolute left-0.5 right-0.5 rounded-md border-l-[3px] px-1.5 py-1 overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-sm",
+                              "absolute rounded-md border-l-[3px] px-1.5 py-1 overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-sm",
                               appointmentStatusStyle(a.status).block,
                               a.is_overtime && "border border-dashed border-orange-400",
                               isSelected && "ring-2 ring-sky-400 ring-offset-1 z-10"
                             )}
-                            style={{ top, height, zIndex: isSelected ? 15 : 5 }}
+                            style={{
+                              top,
+                              height,
+                              zIndex: isSelected ? 15 : 5,
+                              left: `calc(${(lane / lanes) * 100}% + 2px)`,
+                              width: `calc(${100 / lanes}% - 4px)`,
+                            }}
                           >
                             <div className="flex items-center gap-0.5 min-w-0">
                               {a.is_overtime && <Zap className="h-2.5 w-2.5 shrink-0 text-orange-500" />}
@@ -538,6 +616,25 @@ function AppointmentDetailPanel({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
+  const { maxAbsences } = useAppointmentSettings();
+  const [absenceCount, setAbsenceCount] = useState<number | null>(null);
+
+  // Ausencias del paciente contra el máximo configurado en Ajustes — antes solo se avisaba al agendar un turno nuevo.
+  useEffect(() => {
+    if (!open || !appt?.patient_id || maxAbsences === null) { setAbsenceCount(null); return; }
+    let cancelled = false;
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("patient_id", appt.patient_id)
+      .eq("status", "absent")
+      .then(({ count, error }) => {
+        if (cancelled) return;
+        if (error) { console.error("Error contando ausencias:", error); setAbsenceCount(null); return; }
+        setAbsenceCount(count ?? 0);
+      });
+    return () => { cancelled = true; };
+  }, [open, appt?.patient_id, maxAbsences]);
 
   const handleGenerateLink = async () => {
     setGeneratingLink(true);
@@ -592,6 +689,14 @@ function AppointmentDetailPanel({
             <h2 className="text-base font-bold text-foreground leading-snug mt-0.5 truncate">
               {appt.patients?.last_name}, {appt.patients?.first_name}
             </h2>
+            {maxAbsences !== null && absenceCount !== null && (
+              <span className={cn(
+                "inline-block mt-1 text-[10px] font-medium rounded px-1.5 py-0.5",
+                absenceCount >= maxAbsences ? "bg-red-100 text-red-600" : "bg-muted text-muted-foreground"
+              )}>
+                {absenceCount}/{maxAbsences} ausencias
+              </span>
+            )}
           </div>
           <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 -mt-0.5" onClick={onClose}>
             <X className="h-4 w-4" />
