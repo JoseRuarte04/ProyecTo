@@ -1056,21 +1056,27 @@ export type Database = {
           created_at: string
           id: string
           message: string
+          resolved_at: string | null
           route: string | null
+          status: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           message: string
+          resolved_at?: string | null
           route?: string | null
+          status?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           message?: string
+          resolved_at?: string | null
           route?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -2297,6 +2303,10 @@ export type Database = {
       }
       admin_set_team_limit: {
         Args: { p_limit: number; p_team_id: string }
+        Returns: undefined
+      }
+      admin_update_feedback_status: {
+        Args: { p_feedback_id: string; p_status: string }
         Returns: undefined
       }
       admin_upsert_therapist: {
