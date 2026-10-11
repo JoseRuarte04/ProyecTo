@@ -15,6 +15,7 @@ export interface TeamInvitation {
   email: string;
   expires_at: string;
   status: string;
+  token: string;
 }
 
 export interface MyTeam {
@@ -60,7 +61,7 @@ export function useMyTeams() {
         .in("team_id", teamIds),
       supabase
         .from("team_invitations")
-        .select("id, team_id, email, expires_at, status")
+        .select("id, team_id, email, expires_at, status, token")
         .in("team_id", teamIds)
         .eq("status", "pending"),
     ]);
