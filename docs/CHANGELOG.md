@@ -9,6 +9,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-11] Panel admin: reconstrucción de migraciones faltantes + bugs + gestión de equipos (PR #82, sin mergear)
+
+Análisis a fondo del panel admin a pedido de Jose. Se encontró que `admin_users`/`is_super_admin()`/9 RPCs admin corrían en producción sin migración en el repo — reconstruidos, con fix de un bug real (el email de login no se actualizaba al editar un terapista). Se agregó gestión de miembros de equipo, mover paciente a cualquier equipo, renombrar/activar equipos, y manejo de errores que antes fallaban en silencio. PR #82 queda para revisión de Jose por tocar `auth.users` directo. Pendiente: triage de feedback (bloqueado por permisos) y un drift más grande (teams/RLS) sin migración, fuera de alcance — ver `TASKS.md`.
+
 ## [2026-10-11] `send-team-invitation` re-deployada + runbook del dominio
 - La función de invitación de equipo en producción estaba desactualizada desde antes del PR #52 (no leía `RESEND_FROM`, remitente de sandbox hardcodeado) — nunca se había re-deployado. Re-deployada ahora: mismo comportamiento hasta que se cargue el secret, lista para cuando llegue el dominio.
 - `docs/BETA_CHECKLIST.md` tiene el runbook exacto para esa semana: verificar el dominio en Resend, cargar `RESEND_FROM`, configurar SMTP custom de Supabase Auth.
