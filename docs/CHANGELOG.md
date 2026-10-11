@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-11] Confirmación al volver atrás + opción de descartar borrador en Evolución/Admisión (PR #79 abierto)
+- El botón/gesto "atrás" del navegador no mostraba ninguna advertencia con cambios sin guardar (el hook compartido por ~20 formularios/diálogos solo cubría la navegación interna y el cierre de pestaña) — ahora también se atrapa el "atrás" real.
+- El borrador de una sesión no se limpiaba al descartar cambios, así que un borrador no deseado volvía a aparecer solo cada vez que se reabría. Ahora se pregunta antes de aplicarlo ("Continuar borrador" / "Empezar de cero"), y "salir sin guardar" lo limpia de verdad.
+- PR [#79](https://github.com/JoseRuarte04/ProyecTo/pull/79), pendiente de review y de confirmación manual en el navegador.
+
 ## [2026-10-09] Tab "Resumen" como pantalla principal del paciente (PR #72 abierto)
 - Al abrir un paciente ahora se ve primero "Resumen": diagnóstico, datos clínicos relevantes (mecanismo de lesión, tratamiento, antecedentes, alergias) y la última sesión con Objetivo/Intervenciones/Indicaciones/Notas internas. "Ficha Clínica" (datos administrativos) pasa a 2da tab, sin cambios.
 - "Ver sesión completa" ya no manda a edición — abre la sesión en modo lectura en la tab "Sesiones".

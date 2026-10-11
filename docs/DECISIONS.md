@@ -9,6 +9,39 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-11] `useUnsavedChangesGuard`: atrapar el "atrás" del navegador con un truco de historial, no con `useBlocker`
+
+**Contexto:** el hook ya interceptaba la navegación interna (botón propio) y
+el cierre de pestaña (`beforeunload`), pero no el botón/gesto "atrás" del
+navegador — un popstate real dispara el evento después de que el browser ya
+cambió de URL, así que un simple `isDirty` no alcanza para frenarlo. Lo usan
+~20 formularios/diálogos (`NewPatientForm`, `EditFichaDialog`, `Appointments`,
+`SessionForm`, etc.), todos montados con `<BrowserRouter>` (no un data
+router vía `createBrowserRouter`/`RouterProvider`).
+
+**Opciones consideradas:**
+1. Migrar a `createBrowserRouter` + `RouterProvider` para poder usar
+   `useBlocker` (la solución "nativa" de react-router v6 para esto).
+2. Interceptar `popstate` a mano con un truco de historial: mientras
+   `isDirty`, empujar un entry duplicado de la URL actual; el primer "atrás"
+   del usuario solo consume ese duplicado (misma URL, nada cambia a la
+   vista) y ahí se intercepta para mostrar la confirmación antes de dejar
+   salir de verdad.
+
+**Decisión:** opción 2. Migrar el router es un cambio grande y riesgoso
+(afecta el montaje de toda la app en `App.tsx`) para resolver un bug
+puntual — el truco de `popstate` es localizado al hook mismo, sin tocar
+`App.tsx` ni ningún call site. Si en el futuro se migra a `RouterProvider`
+por otro motivo, este hook es un buen candidato para simplificar a
+`useBlocker` en ese momento.
+
+**De paso:** se sumó un parámetro opcional `onDiscard` al hook (corre una
+sola vez al confirmar "salir sin guardar", por cualquier vía) — lo usa
+`SessionForm` para limpiar su borrador de `sessionStorage` recién ahí, no
+antes. Ver PR [#79](https://github.com/JoseRuarte04/ProyecTo/pull/79).
+
+---
+
 ## [2026-10-09] Ficha del paciente: nueva tab "Resumen" reemplaza a "Ficha Clínica" como pantalla principal
 
 **Contexto:** pedido directo de Jose — al abrir un paciente, lo primero que se
