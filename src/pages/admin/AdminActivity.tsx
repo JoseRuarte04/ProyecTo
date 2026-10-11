@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+const PAGE_SIZE = 100;
 
 interface ActivityRow {
   id: string;
@@ -28,21 +31,35 @@ function ActionBadge({ action }: { action: string }) {
 export default function AdminActivity() {
   const [rows, setRows]       = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
 
   useEffect(() => {
-    supabase.rpc("admin_get_activity").then(({ data, error }) => {
-      if (error) setError("Error al cargar actividad");
-      else setRows((data as unknown as ActivityRow[]) || []);
+    supabase.rpc("admin_get_activity", { p_limit: PAGE_SIZE, p_offset: 0 }).then(({ data, error }) => {
+      if (error) { setError("Error al cargar actividad"); setLoading(false); return; }
+      const page = (data as unknown as ActivityRow[]) || [];
+      setRows(page);
+      setHasMore(page.length === PAGE_SIZE);
       setLoading(false);
     });
   }, []);
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    const { data, error } = await supabase.rpc("admin_get_activity", { p_limit: PAGE_SIZE, p_offset: rows.length });
+    setLoadingMore(false);
+    if (error) { setError("Error al cargar más actividad"); return; }
+    const page = (data as unknown as ActivityRow[]) || [];
+    setRows((prev) => [...prev, ...page]);
+    setHasMore(page.length === PAGE_SIZE);
+  };
 
   return (
     <div className="space-y-5">
       <div>
         <h2 className="font-serif text-xl font-semibold text-foreground">Actividad</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Últimos 100 eventos del sistema</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Eventos del sistema, más recientes primero</p>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -87,6 +104,15 @@ export default function AdminActivity() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+            Cargar más
+          </Button>
         </div>
       )}
     </div>

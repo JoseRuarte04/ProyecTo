@@ -47,36 +47,41 @@ export function InviteTherapistDialog({ open, onClose, onInvited }: Props) {
     setErrors({});
     setSaving(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-therapist`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":  "application/json",
-          "Authorization": `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          email:          email.trim().toLowerCase(),
-          full_name:      fullName.trim() || null,
-          specialty:      specialty.trim() || null,
-          license_number: license.trim() || null,
-        }),
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-therapist`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            email:          email.trim().toLowerCase(),
+            full_name:      fullName.trim() || null,
+            specialty:      specialty.trim() || null,
+            license_number: license.trim() || null,
+          }),
+        }
+      );
+
+      const body = await res.json();
+
+      if (!res.ok || body.error) {
+        toast.error(body.error || "Error al enviar la invitación");
+        return;
       }
-    );
 
-    setSaving(false);
-    const body = await res.json();
-
-    if (!res.ok || body.error) {
-      toast.error(body.error || "Error al enviar la invitación");
-      return;
+      toast.success(`Invitación enviada a ${email.trim()}`);
+      reset();
+      onInvited();
+      onClose();
+    } catch {
+      toast.error("Error de red al enviar la invitación");
+    } finally {
+      setSaving(false);
     }
-
-    toast.success(`Invitación enviada a ${email.trim()}`);
-    reset();
-    onInvited();
-    onClose();
   };
 
   return (

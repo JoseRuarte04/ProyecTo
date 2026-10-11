@@ -2200,7 +2200,7 @@ export type Database = {
         }[]
       }
       admin_get_activity: {
-        Args: never
+        Args: { p_limit?: number; p_offset?: number }
         Returns: {
           action: string
           created_at: string
@@ -2246,11 +2246,16 @@ export type Database = {
       admin_get_stats: { Args: never; Returns: Json }
       admin_get_trends: { Args: never; Returns: Json }
       admin_list_patients: {
-        Args: { p_professional_id?: string; p_team_id?: string }
+        Args: {
+          p_include_deleted?: boolean
+          p_professional_id?: string
+          p_team_id?: string
+        }
         Returns: {
           created_at: string
           full_name: string
           id: string
+          is_deleted: boolean
           professional_id: string
           professional_name: string
           status: string
@@ -2364,6 +2369,7 @@ export type Database = {
       is_super_admin: { Args: never; Returns: boolean }
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
+      normalize_obra_social_name: { Args: { p: string }; Returns: string }
       obra_social_usage_count: { Args: { p_name: string }; Returns: number }
       remove_team_member: {
         Args: { p_team_id: string; p_user_id: string }
