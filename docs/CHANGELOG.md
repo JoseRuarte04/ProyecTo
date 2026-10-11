@@ -9,6 +9,11 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-11] Eliminada la asignación de ejercicios al paciente (PR #84)
+- Se cerró: PR [#84](https://github.com/JoseRuarte04/ProyecTo/pull/84) — se armó una vez y nunca se usó, hoy solo confundía. Tab "Ejercicios" + wizard + link público borrados; la biblioteca standalone de `/exercises` queda intacta.
+- Decisión tomada: alcance acotado a la asignación a pacientes + DROP real de las tablas/funciones exclusivas (ver `DECISIONS.md`).
+- Quedó pendiente: correr la migración en producción y confirmar en el navegador (no bloqueante); `treatment_plan_exercises`/`treatment_plans` (drift sin UI, hallazgo aparte) anotado en `TASKS.md`.
+
 ## [2026-10-11] `send-team-invitation` re-deployada + runbook del dominio
 - La función de invitación de equipo en producción estaba desactualizada desde antes del PR #52 (no leía `RESEND_FROM`, remitente de sandbox hardcodeado) — nunca se había re-deployado. Re-deployada ahora: mismo comportamiento hasta que se cargue el secret, lista para cuando llegue el dominio.
 - `docs/BETA_CHECKLIST.md` tiene el runbook exacto para esa semana: verificar el dominio en Resend, cargar `RESEND_FROM`, configurar SMTP custom de Supabase Auth.
