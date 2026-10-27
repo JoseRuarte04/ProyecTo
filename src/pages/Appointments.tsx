@@ -1067,12 +1067,9 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
   const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
   const closeGuarded = () => guard(onClose);
 
-  const handleSave = async () => {
-    if (!date || !startTime) { toast.error("Completá la fecha y hora"); return; }
-    if (isEndNotAfterStart(startTime, endTime)) {
-      toast.error("La hora de fin debe ser posterior a la de inicio");
-      return;
-    }
+  const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
+
+  const doSave = async (isOvertime: boolean) => {
     setSaving(true);
     const appointmentDate = new Date(`${date}T${startTime}:00`).toISOString();
     const appointmentEnd = endTime ? new Date(`${date}T${endTime}:00`).toISOString() : null;
@@ -1080,13 +1077,46 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
       appointment_date: appointmentDate,
       appointment_end: appointmentEnd,
       notes: notes || null,
+      is_overtime: isOvertime,
     }).eq("id", appt.id);
     setSaving(false);
     if (error) { toast.error("Error al reprogramar turno"); return; }
-    toast.success("Turno reprogramado");
+    toast.success(isOvertime ? "Turno reprogramado como sobreturno" : "Turno reprogramado");
     resetDirty();
     onSaved();
     onClose();
+  };
+
+  const handleSave = async () => {
+    if (!date || !startTime) { toast.error("Completá la fecha y hora"); return; }
+    if (isEndNotAfterStart(startTime, endTime)) {
+      toast.error("La hora de fin debe ser posterior a la de inicio");
+      return;
+    }
+    // Choque con otro turno abierto del mismo día (aunque el horario no coincida exacto).
+    // Se avisa siempre, aunque este turno ya fuera sobreturno antes de reprogramarlo.
+    setSaving(true);
+    const newStart = new Date(`${date}T${startTime}:00`);
+    const newEnd = endTime ? new Date(`${date}T${endTime}:00`) : new Date(newStart.getTime() + 30 * 60000);
+    const { data: dayAppts, error: fetchError } = await supabase
+      .from("appointments")
+      .select("id, appointment_date, appointment_end, patients(first_name, last_name)")
+      .in("status", OCCUPYING_STATUSES)
+      .neq("id", appt.id)
+      .gte("appointment_date", `${date}T00:00:00`)
+      .lt("appointment_date", `${date}T23:59:59`);
+    setSaving(false);
+    if (fetchError) { toast.error("No se pudieron validar los horarios existentes"); return; }
+    const conflict = (dayAppts || []).find(a => {
+      const aStart = parseISO(a.appointment_date);
+      const aEnd = a.appointment_end ? parseISO(a.appointment_end) : new Date(aStart.getTime() + 30 * 60000);
+      return newStart < aEnd && newEnd > aStart;
+    });
+    if (conflict) {
+      setOvertimeConflict(`${conflict.patients?.last_name}, ${conflict.patients?.first_name}`);
+      return;
+    }
+    await doSave(false);
   };
 
   return (
@@ -1113,6 +1143,27 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
         </div>
       </DialogContent>
     </Dialog>
+    <AlertDialog open={!!overtimeConflict} onOpenChange={(v) => { if (!v) setOvertimeConflict(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-orange-500" /> ¿Reprogramar como sobreturno?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            El nuevo horario se superpone con el turno de <strong>{overtimeConflict}</strong>. Podés reprogramarlo igual como sobreturno.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            onClick={async () => { setOvertimeConflict(null); await doSave(true); }}
+          >
+            <Zap className="h-3.5 w-3.5 mr-1.5" /> Reprogramar como sobreturno
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
     </>
   );
