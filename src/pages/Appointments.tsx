@@ -67,6 +67,20 @@ const CANCELLATION_REASONS = [
 
 const HOUR_START = 7;
 const HOUR_END = 21;
+const DEFAULT_SESSION_MINUTES = 45;
+
+/** Suma minutos a un "HH:mm" sin pasar de las 23:59 (no cruza de día). */
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return "";
+  const total = Math.min(h * 60 + m + minutes, 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/** true si ambos horarios están completos y el fin no es posterior al inicio. */
+function isEndNotAfterStart(start: string, end: string): boolean {
+  return !!start && !!end && end <= start; // "HH:mm" compara bien como string
+}
 const SLOT_H = 56; // px por hora
 
 // Paciente resumido que devuelve la búsqueda del dialog de turno nuevo
@@ -1055,6 +1069,10 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
 
   const handleSave = async () => {
     if (!date || !startTime) { toast.error("Completá la fecha y hora"); return; }
+    if (isEndNotAfterStart(startTime, endTime)) {
+      toast.error("La hora de fin debe ser posterior a la de inicio");
+      return;
+    }
     setSaving(true);
     const appointmentDate = new Date(`${date}T${startTime}:00`).toISOString();
     const appointmentEnd = endTime ? new Date(`${date}T${endTime}:00`).toISOString() : null;
@@ -1079,13 +1097,16 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
         <div className="space-y-4">
           <div className="space-y-1.5"><Label>Fecha</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Hora inicio</Label><Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Hora fin</Label><Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Hora inicio</Label><Input type="time" value={startTime} onChange={e => { setStartTime(e.target.value); if (e.target.value) setEndTime(addMinutesToTime(e.target.value, DEFAULT_SESSION_MINUTES)); }} /></div>
+            <div className="space-y-1.5"><Label>Hora fin</Label><Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} aria-invalid={isEndNotAfterStart(startTime, endTime)} /></div>
           </div>
+          {isEndNotAfterStart(startTime, endTime) && (
+            <p className="text-xs text-destructive -mt-2">La hora de fin debe ser posterior a la de inicio.</p>
+          )}
           <div className="space-y-1.5"><Label>Notas</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSave} disabled={saving || isEndNotAfterStart(startTime, endTime)}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
             </Button>
           </div>
@@ -1137,7 +1158,10 @@ function NewAppointmentDialog({
   useEffect(() => {
     if (open) {
       if (prefilledDate) setSelectedDate(prefilledDate);
-      if (prefilledTime) setStartTime(prefilledTime);
+      if (prefilledTime) {
+        setStartTime(prefilledTime);
+        setEndTime(addMinutesToTime(prefilledTime, DEFAULT_SESSION_MINUTES));
+      }
       resetDirty();
     } else {
       // Reset al cerrar
@@ -1367,7 +1391,7 @@ function NewAppointmentDialog({
     await doSave(false);
   };
 
-  const canSave = !!selectedPatient && !!selectedDate && !!startTime && !!endTime;
+  const canSave = !!selectedPatient && !!selectedDate && !!startTime && !!endTime && !isEndNotAfterStart(startTime, endTime);
   const hoursInRange = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) =>
     String(HOUR_START + i).padStart(2, "0")
   );
@@ -1452,13 +1476,16 @@ function NewAppointmentDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Hora inicio *</Label>
-                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} min="07:00" max="21:00" />
+                <Input type="time" value={startTime} onChange={e => { setStartTime(e.target.value); if (e.target.value) setEndTime(addMinutesToTime(e.target.value, DEFAULT_SESSION_MINUTES)); }} min="07:00" max="21:00" />
               </div>
               <div className="space-y-1.5">
                 <Label>Hora fin *</Label>
-                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} min="07:00" max="21:00" />
+                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} min="07:00" max="21:00" aria-invalid={isEndNotAfterStart(startTime, endTime)} />
               </div>
             </div>
+            {isEndNotAfterStart(startTime, endTime) && (
+              <p className="text-xs text-destructive -mt-2">La hora de fin debe ser posterior a la de inicio.</p>
+            )}
 
             {/* Mini timeline */}
             {selectedDate && (
