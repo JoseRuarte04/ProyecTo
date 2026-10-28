@@ -30,6 +30,15 @@ actual, no resolverla al toque — anotarla como candidata para
 Commits chicos y frecuentes con mensajes descriptivos (qué y por qué, no
 "fix" genérico).
 
+Regla de deploy (desde que `deploy.yml` esté andando de punta a punta, ver
+`docs/TASKS.md` 2026-10-28 para lo que falta configurar): producción sale
+SOLO por el pipeline (`deploy-db-prod` con aprobación manual →
+`deploy-front-prod`), nunca por push directo a `main` ni por un `vercel
+deploy --prod`/`supabase db push` corrido a mano. Si una sesión de Claude
+Code necesita que algo llegue a producción fuera de ese pipeline (un caso
+de verdad excepcional), confirmarlo explícitamente con Jose antes, igual
+que cualquier otra acción directa contra producción.
+
 Al cerrar CUALQUIER sesión, proponer activamente (sin esperar que se pida):
 - Resumen de 3-5 líneas de lo hecho
 - Actualización sugerida para `docs/PROJECT_STATE.md` (qué pasa a Cerrado, qué
