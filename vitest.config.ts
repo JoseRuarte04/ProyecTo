@@ -22,6 +22,16 @@ export default defineConfig({
     // Los tests de RLS pegan contra el Supabase real por red
     testTimeout: 15_000,
     env,
+    // json-summary lo lee ci.yml para la tabla en $GITHUB_STEP_SUMMARY (igual
+    // que ingsoft3-tp01); text queda para ver el detalle por archivo en el
+    // log de la corrida. Por default vitest mide TODO src/ (incluido lo que
+    // ningún test importa, ahí es donde sale la mayoría del 0%), no solo los
+    // archivos que algún test toca — es lo que confirma que no hay cobertura
+    // inflada por archivos nunca instrumentados.
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary"],
+    },
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

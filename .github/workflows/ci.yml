@@ -72,8 +72,40 @@ jobs:
       - name: Typecheck
         run: npx tsc --build
 
-      - name: Tests
-        run: npm test
+      # Antes corría `npm test` (sin --coverage) y no se publicaba nada.
+      # Mismo patrón que ingsoft3-tp01/.github/workflows/ci.yml: un solo run
+      # de la suite ya mide cobertura (no hace falta correrla dos veces).
+      - name: Tests (con cobertura)
+        run: npm run test:coverage
+
+      # Piso real medido en esta sesión (2026-10-28), sin inventar un número
+      # más alto: lines 0.14% (48/32538), functions 2.31%, branches 8.97%.
+      # Es tan bajo porque el único test que corre hoy (rls.test.ts) pega
+      # contra Supabase por red y no importa nada de src/ — vitest igual
+      # instrumenta TODO src/ por default (no solo lo que algún test toca),
+      # así que el 0% de componentes/hooks/páginas queda reflejado de verdad,
+      # no oculto. No hay step que falle por umbral: el objetivo de este PR es
+      # visibilidad, no bloquear merges con un número que todavía no se ganó.
+      - name: Resumen de cobertura
+        if: ${{ !cancelled() }}
+        run: |
+          F=coverage/coverage-summary.json
+          test -f "$F"
+          node -e "
+            const t = require('./$F').total;
+            if (!t.lines.total) { console.error('midió 0 archivos: revisá vitest.config.ts'); process.exit(1); }
+            const f = (m) => \`| \${m} | \${t[m].pct}% |\`;
+            console.log('### Cobertura de tests');
+            console.log('| métrica | % |'); console.log('|---|---|');
+            console.log(f('lines')); console.log(f('branches')); console.log(f('functions'));
+          " >> $GITHUB_STEP_SUMMARY
+
+      - name: Publicar cobertura
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage
+          path: coverage
 
       - name: Build
         run: npm run build
