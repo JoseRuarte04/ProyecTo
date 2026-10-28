@@ -85,7 +85,13 @@ def main():
 
     cols = "(name, professional_id, is_active, exercise_type, catalog_region, catalog_subcategory, instructions, source_exercise_id)"
     conflict = (
-        "ON CONFLICT (source_exercise_id) DO UPDATE SET\n"
+        # El índice único es parcial (WHERE source_exercise_id IS NOT NULL,
+        # ver 20261011210100_exercise_library_catalog_columns.sql) — un
+        # ON CONFLICT sin ese mismo predicado no matchea el índice y Postgres
+        # lo rechaza con "no unique or exclusion constraint" (encontrado
+        # 2026-10-28 al aplicar esta migración por primera vez, contra
+        # rehabot-staging; nunca se había corrido antes).
+        "ON CONFLICT (source_exercise_id) WHERE source_exercise_id IS NOT NULL DO UPDATE SET\n"
         "  name = EXCLUDED.name,\n"
         "  exercise_type = EXCLUDED.exercise_type,\n"
         "  catalog_region = EXCLUDED.catalog_region,\n"
