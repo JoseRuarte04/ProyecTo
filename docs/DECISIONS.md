@@ -9,6 +9,33 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-28] Pipeline de deploy: dos builds del mismo commit, no un artefacto promovido
+
+**Contexto:** `ingsoft3-tp01` (el TP de referencia para este pipeline) buildea la
+imagen Docker UNA vez en `build-api`/`build-client`, la verifica en QA, y
+`deploy-prod` promueve **esa misma imagen** a producción — "se promueve lo que
+se verificó" es el principio. `deploy.yml` acá hace lo contrario a propósito:
+`deploy-front-staging` y `deploy-front-prod` corren `vercel build` dos veces
+sobre el mismo commit, una por entorno.
+
+**Decisión:** mantener dos builds separados, cada uno con las `VITE_SUPABASE_*`
+de su propio entorno (staging/prod) seteadas como env del job antes de buildear.
+
+**Por qué:** Vite resuelve `import.meta.env.VITE_*` en **build time** —
+reemplaza el texto literal en el bundle, no lo lee de ningún lado en runtime
+(a diferencia de una imagen Docker con un backend que sí puede leer variables
+de entorno al arrancar). El JS que sale de `deploy-front-staging` tiene la URL
+de `rehabot-staging` horneada adentro; no hay forma de agarrar ESE bundle y
+"apuntarlo" a producción después sin volver a compilarlo. Promover el mismo
+artefacto (como el TP) exigiría que el build fuera agnóstico del backend y
+leyera la URL en runtime — eso es un cambio de arquitectura de la app (un
+`config.json` servido aparte, o variables inyectadas en `index.html` al
+deployar), no algo para colar en este pipeline. Dos builds del mismo commit
+es más caro (two `vercel build`) pero cero riesgo de que el bundle de
+staging termine sirviendo en producción por error.
+
+---
+
 ## [2026-10-11] Baseline de esquema: cuando un dump congelado contradice un DROP ya mergeado, reordenar las migraciones en vez de editar el dump a mano
 
 **Contexto:** al revisar el PR #88 antes de mergearlo (auditoría de integridad
