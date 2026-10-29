@@ -103,11 +103,18 @@ jobs:
       # esquema — pasarle la URL completa (con "https://") dio "Error: User
       # not found" en la corrida real (confirmado con VERCEL_ORG_ID/
       # PROJECT_ID ya seteados, así que no era un tema de scope).
+      # Diagnóstico temporal: "Error: User not found" en el step de abajo no
+      # trae más detalle — esto confirma a qué cuenta/team resuelve
+      # realmente el token antes de intentar el alias.
+      - name: Debug — quién es este token
+        if: always()
+        run: npx vercel@latest whoami --token="${{ secrets.VERCEL_TOKEN }}" --scope "${{ secrets.VERCEL_ORG_ID }}" || true
+
       - name: Alias a la URL fija de staging
         run: |
           host="${{ steps.deploy.outputs.url }}"
           host="${host#https://}"
-          npx vercel@latest alias set "$host" proyec-to-staging.vercel.app --token="${{ secrets.VERCEL_TOKEN }}"
+          npx vercel@latest alias set "$host" proyec-to-staging.vercel.app --scope "${{ secrets.VERCEL_ORG_ID }}" --token="${{ secrets.VERCEL_TOKEN }}"
 
   smoke-staging:
     needs: deploy-front-staging
