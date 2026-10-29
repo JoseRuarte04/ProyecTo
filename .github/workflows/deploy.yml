@@ -99,24 +99,15 @@ jobs:
       # otra cuenta de Vercel (es un namespace global de *.vercel.app),
       # este step falla y hay que elegir otro subdominio — avisar a Jose.
       #
-      # `alias set` espera el deployment como HOSTNAME puro, sin el
-      # esquema — pasarle la URL completa (con "https://") dio "Error: User
-      # not found" en la corrida real (confirmado con VERCEL_ORG_ID/
-      # PROJECT_ID ya seteados, así que no era un tema de scope).
-      # Diagnóstico temporal: "Error: User not found" en el step de abajo no
-      # trae más detalle — esto confirma a qué cuenta/team resuelve
-      # realmente el token antes de intentar el alias.
-      # "Not able to load user... User not found (404)" pasaba incluso en
-      # whoami con --scope — probando sin scope para aislar si el token
-      # solo no resuelve, o si es específico de VERCEL_ORG_ID.
-      - name: Debug — quién es este token (sin scope)
-        if: always()
-        run: npx vercel@latest whoami --token="${{ secrets.VERCEL_TOKEN }}" || true
-
-      - name: Debug — equipos a los que pertenece este token
-        if: always()
-        run: npx vercel@latest teams ls --token="${{ secrets.VERCEL_TOKEN }}" || true
-
+      # `alias set` espera el deployment como HOSTNAME puro, sin el esquema.
+      #
+      # "Error: User not found" que vimos acá en corridas anteriores no era
+      # por el formato del hostname ni por --scope: era porque el
+      # VERCEL_TOKEN de ese momento tenía scope a un team/proyecto distinto
+      # del de la cuenta (confirmado comparando el scope del token contra
+      # los demás tokens en vercel.com/account/settings/tokens). Con un
+      # token de cuenta normal esto resuelve bien — por eso no queda acá
+      # ningún paso de debug permanente.
       - name: Alias a la URL fija de staging
         run: |
           host="${{ steps.deploy.outputs.url }}"
@@ -129,12 +120,17 @@ jobs:
     concurrency:
       group: deploy-staging
       cancel-in-progress: false
+    env:
+      # Supabase ahora exige el header `apikey` hasta para /auth/v1/health
+      # (antes respondía sin nada) — sin esto el smoke test fallaba con 401
+      # "No API key found in request" aunque el servicio estuviera sano.
+      VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9taWdrZmhpc3piZmJ5bWJ6YXhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMDA2MTksImV4cCI6MjEwODc3NjYxOX0.QNQvDZKe0KCH1rJcMVv3ijHYN54r4KwxA39CpxjvCc8 # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
     steps:
       - name: La app de staging responde
         run: curl -fsS --max-time 15 https://proyec-to-staging.vercel.app/ > /dev/null
 
       - name: El Supabase de staging responde
-        run: curl -fsS --max-time 15 https://omigkfhiszbfbymbzaxr.supabase.co/auth/v1/health > /dev/null
+        run: curl -fsS --max-time 15 -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" https://omigkfhiszbfbymbzaxr.supabase.co/auth/v1/health > /dev/null
 
   # RLS + e2e contra la staging recién deployada — a diferencia del job `e2e`
   # de ci.yml (Supabase local efímero por PR, no bloqueante todavía), ESTE sí
@@ -259,9 +255,12 @@ jobs:
     concurrency:
       group: deploy-prod
       cancel-in-progress: false
+    env:
+      # Mismo motivo que en smoke-staging: /auth/v1/health ahora exige apikey.
+      VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dWFxYXRkZW5kY2d1bXdrdGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxODI1NDksImV4cCI6MjA5MDc1ODU0OX0.lXARzBHFr25LgypLiGivFC49FO4Yy6FdZiH4JMSl9lI # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
     steps:
       - name: La app de producción responde
         run: curl -fsS --max-time 15 https://proyec-to.vercel.app/ > /dev/null
 
       - name: El Supabase de producción responde
-        run: curl -fsS --max-time 15 https://pvuaqatdendcgumwktid.supabase.co/auth/v1/health > /dev/null
+        run: curl -fsS --max-time 15 -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" https://pvuaqatdendcgumwktid.supabase.co/auth/v1/health > /dev/null
