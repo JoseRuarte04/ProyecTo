@@ -120,6 +120,16 @@ jobs:
       - name: Seed de usuarios de prueba (Supabase local)
         run: node scripts/ci/seed-local-test-users.mjs
 
+      # Diagnóstico temporal: GoTrue devuelve "Database error saving new
+      # user" sin detalle vía la API cuando el trigger handle_new_user tira
+      # una excepción — esto saca el error real de Postgres de los logs del
+      # contenedor. Se saca una vez que el seed ande estable.
+      - name: Logs de auth si el seed de arriba falló
+        if: failure()
+        run: |
+          docker ps -a
+          docker logs "$(docker ps -aqf 'name=auth')" 2>&1 | tail -150
+
       - name: Tests
         run: npm test
 
