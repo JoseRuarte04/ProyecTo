@@ -386,6 +386,11 @@ export default function NewPatientForm() {
                 <Input value={preferredName} onChange={(e) => setPreferredName(e.target.value)} className={inputClass} placeholder="Cómo le gusta que le llamen" />
               </div>
               <div>
+                <FieldLabel required>Fecha de nacimiento</FieldLabel>
+                <Input data-testid="patient-birth-date" type="date" value={birthDate} onChange={(e) => { setBirthDate(e.target.value); liveCheck("birthDate", e.target.value); }} onBlur={() => checkField("birthDate")} className={cn(inputClass, fieldCls("birthDate"))} />
+                <ErrMsg field="birthDate" />
+              </div>
+              <div>
                 <FieldLabel required>Tipo de documento</FieldLabel>
                 <Select value={documentType} onValueChange={(v) => {
                   setDocumentType(v);
@@ -404,11 +409,6 @@ export default function NewPatientForm() {
                 <FieldLabel required>N° de documento</FieldLabel>
                 <Input data-testid="patient-dni" value={dni} onChange={(e) => { setDni(e.target.value); liveCheck("dni", e.target.value); }} onBlur={() => checkField("dni")} className={cn(inputClass, fieldCls("dni"))} />
                 <ErrMsg field="dni" />
-              </div>
-              <div>
-                <FieldLabel required>Fecha de nacimiento</FieldLabel>
-                <Input data-testid="patient-birth-date" type="date" value={birthDate} onChange={(e) => { setBirthDate(e.target.value); liveCheck("birthDate", e.target.value); }} onBlur={() => checkField("birthDate")} className={cn(inputClass, fieldCls("birthDate"))} />
-                <ErrMsg field="birthDate" />
               </div>
               <div>
                 <FieldLabel>Sexo</FieldLabel>
