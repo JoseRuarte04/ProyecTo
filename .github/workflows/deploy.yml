@@ -137,8 +137,14 @@ jobs:
         run: |
           curl -fsS --max-time 15 -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" https://proyec-to-staging.vercel.app/ > /dev/null
 
+      # `run: |` (bloque) y no `run:` en una sola línea: el ": " dentro del
+      # header "apikey: $VAR" rompe el parser de YAML si va como escalar
+      # plano en la misma línea del `run:` ("mapping values are not allowed
+      # here") — esto tiró abajo la corrida completa (ni siquiera arrancó
+      # ningún job) hasta que se detectó acá.
       - name: El Supabase de staging responde
-        run: curl -fsS --max-time 15 -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" https://omigkfhiszbfbymbzaxr.supabase.co/auth/v1/health > /dev/null
+        run: |
+          curl -fsS --max-time 15 -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" https://omigkfhiszbfbymbzaxr.supabase.co/auth/v1/health > /dev/null
 
   # RLS + e2e contra la staging recién deployada — a diferencia del job `e2e`
   # de ci.yml (Supabase local efímero por PR, no bloqueante todavía), ESTE sí
@@ -275,5 +281,7 @@ jobs:
       - name: La app de producción responde
         run: curl -fsS --max-time 15 https://proyec-to.vercel.app/ > /dev/null
 
+      # Mismo motivo que arriba en smoke-staging: bloque, no escalar plano.
       - name: El Supabase de producción responde
-        run: curl -fsS --max-time 15 -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" https://pvuaqatdendcgumwktid.supabase.co/auth/v1/health > /dev/null
+        run: |
+          curl -fsS --max-time 15 -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" https://pvuaqatdendcgumwktid.supabase.co/auth/v1/health > /dev/null
