@@ -9,6 +9,41 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-29] Bypass de Vercel SSO Protection vía header oficial, no desactivando la protección
+
+**Contexto:** el alias fijo de staging (`proyec-to-staging.vercel.app`) quedó
+atrás de Vercel Deployment Protection (`ssoProtection: all_except_custom_domains`)
+porque no es un dominio propio del proyecto (a diferencia de `proyec-to.vercel.app`,
+registrado desde el principio). Playwright y el curl de smoke-staging recibían
+un `302` a `vercel.com/sso-api` en vez de la app real.
+
+**Decisión:** usar el mecanismo oficial de Vercel para automatización — header
+`x-vercel-protection-bypass: <secret>` ("Protection Bypass for Automation",
+Vercel dashboard → Deployment Protection) — en vez de desactivar la protección
+del proyecto entero. El secret lo generó y cargó Jose directamente en Vercel +
+GitHub (`VERCEL_AUTOMATION_BYPASS_SECRET`); no se generó ni se vio desde la
+sesión de Claude Code (regla fija: ningún secret nuevo pasa por el chat).
+
+**Alternativa descartada:** desactivar SSO Protection para todo `*.vercel.app`
+del proyecto — mismo efecto para CI pero deja el alias de staging público para
+cualquiera, sin necesidad.
+
+## [2026-10-29] `migration repair` contra producción: comando mostrado y autorizado explícitamente, no inferido
+
+**Contexto:** `deploy-db-prod` rechazaba cualquier migración nueva porque el
+historial de tracking de producción (`supabase_migrations.schema_migrations`)
+tenía ~102 versiones que el baseline del PR #88 ya había sacado del repo —
+deuda conocida desde la Fase 1 del diagnóstico del 2026-10-28.
+
+**Decisión:** mostrar el comando completo (`supabase migration repair
+--status reverted <versiones>`) en el chat y esperar confirmación explícita de
+Jose antes de ejecutarlo, en vez de correrlo directo al detectar el error en
+CI. Se implementó como un paso temporal en `deploy.yml` (así corre con las
+credenciales ya cargadas en el Environment `production`, sin que la sesión
+tocara el `SUPABASE_DB_URL` real) y se sacó en el PR de limpieza inmediato
+siguiente, una vez confirmado que corrió bien — no queda como paso permanente
+del pipeline.
+
 ## [2026-10-28] Baseline: sacar las funciones de infraestructura de Supabase que `db push` no puede recrear
 
 **Contexto:** al armar `rehabot-staging` (proyecto de staging, ver más abajo en

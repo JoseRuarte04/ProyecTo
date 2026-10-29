@@ -9,6 +9,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-29] Pipeline de CI/CD en verde de punta a punta por primera vez (producción real)
+
+Continuación del 2026-10-28: Jose mergeó los 4 PRs pendientes y autorizó modo automático. Cascada de 5 bugs reales de producción encontrados y arreglados uno por uno (token de Vercel con scope equivocado, `apikey` faltante en el health check de Supabase, YAML roto dos veces por un `run:` de una sola línea, Vercel SSO Protection bloqueando el alias de staging, conexión directa en vez de Session Pooler en `SUPABASE_DB_URL` de prod) + la deuda de `migration repair` del baseline #88 finalmente reparada contra producción (comando mostrado y autorizado por Jose antes de correr). Gate de aprobación manual de `deploy-db-prod` funcionó como estaba pensado — lo aprobó Jose. 5 PRs nuevos (#108-#112). Pipeline completo (7 jobs) confirmado en verde.
+
 ## [2026-10-28] Pipeline de CI/CD: staging, gate de tests, deploy con aprobación manual
 
 Diagnóstico + plan aprobado + ejecución, inspirado en el TP de IS3 de Jose. 4 PRs abiertos sin mergear (#97 cobertura real en CI, #98 RLS/e2e contra Supabase local en vez de producción, #99 fix real del baseline — no se podía aplicar contra ningún proyecto real, #100 workflow `deploy.yml`) + 1 acción directa contra producción (metadata del `migration repair` ya acordado) + proyecto nuevo `rehabot-staging` creado y poblado con datos ficticios. Falta la config externa (secrets, revisor del environment, 2 ajustes de Vercel sin permiso de API) para que el pipeline corra de verdad — ver `docs/TASKS.md`/`docs/PROJECT_STATE.md`.
