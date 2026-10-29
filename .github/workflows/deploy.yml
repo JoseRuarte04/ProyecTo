@@ -98,8 +98,16 @@ jobs:
       # deployment. Si "proyec-to-staging.vercel.app" ya está tomado por
       # otra cuenta de Vercel (es un namespace global de *.vercel.app),
       # este step falla y hay que elegir otro subdominio — avisar a Jose.
+      #
+      # `alias set` espera el deployment como HOSTNAME puro, sin el
+      # esquema — pasarle la URL completa (con "https://") dio "Error: User
+      # not found" en la corrida real (confirmado con VERCEL_ORG_ID/
+      # PROJECT_ID ya seteados, así que no era un tema de scope).
       - name: Alias a la URL fija de staging
-        run: npx vercel@latest alias set "${{ steps.deploy.outputs.url }}" proyec-to-staging.vercel.app --token="${{ secrets.VERCEL_TOKEN }}"
+        run: |
+          host="${{ steps.deploy.outputs.url }}"
+          host="${host#https://}"
+          npx vercel@latest alias set "$host" proyec-to-staging.vercel.app --token="${{ secrets.VERCEL_TOKEN }}"
 
   smoke-staging:
     needs: deploy-front-staging
