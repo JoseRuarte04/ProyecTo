@@ -117,9 +117,11 @@ jobs:
     env:
       VITE_SUPABASE_URL: https://omigkfhiszbfbymbzaxr.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9taWdrZmhpc3piZmJ5bWJ6YXhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMDA2MTksImV4cCI6MjEwODc3NjYxOX0.QNQvDZKe0KCH1rJcMVv3ijHYN54r4KwxA39CpxjvCc8 # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
-      # service_role de STAGING (no de prod) — hace falta para que el seed
-      # de más abajo pueda crear/reactivar rls-test-a/b vía Admin API.
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      # Connection string de STAGING (no de prod) — el seed de más abajo
+      # hace un INSERT directo a auth.users/auth.identities (no
+      # admin.inviteUserByEmail: ver el comentario del propio script, el
+      # trigger handle_new_user no llega a ver invited_at con ese camino).
+      SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
       RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
       RLS_TEST_USER_B_PASSWORD: ${{ secrets.RLS_TEST_USER_B_PASSWORD }}
     steps:
