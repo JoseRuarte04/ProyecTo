@@ -126,8 +126,16 @@ jobs:
       # "No API key found in request" aunque el servicio estuviera sano.
       VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9taWdrZmhpc3piZmJ5bWJ6YXhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMDA2MTksImV4cCI6MjEwODc3NjYxOX0.QNQvDZKe0KCH1rJcMVv3ijHYN54r4KwxA39CpxjvCc8 # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
     steps:
+      # El proyecto tiene SSO Protection habilitado para todo excepto
+      # dominios propios — *.vercel.app (incluido este alias) queda atrás
+      # de esa pantalla, así que un curl sin más terminaba "pasando" sin
+      # haber visto la app real (302 a vercel.com, que curl -f no trata
+      # como error). El bypass header es el mecanismo oficial de Vercel
+      # para esto (Settings → Deployment Protection → Protection Bypass
+      # for Automation); no desactiva la protección para nadie más.
       - name: La app de staging responde
-        run: curl -fsS --max-time 15 https://proyec-to-staging.vercel.app/ > /dev/null
+        run: |
+          curl -fsS --max-time 15 -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}" https://proyec-to-staging.vercel.app/ > /dev/null
 
       # `run: |` (bloque) y no `run:` en una sola línea: el ": " dentro del
       # header "apikey: $VAR" rompe el parser de YAML si va como escalar
@@ -158,6 +166,11 @@ jobs:
       SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
       RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
       RLS_TEST_USER_B_PASSWORD: ${{ secrets.RLS_TEST_USER_B_PASSWORD }}
+      # Mismo motivo que en smoke-staging: sin esto, Playwright navega
+      # contra la pantalla de SSO de Vercel en vez de la app — leído por
+      # playwright.config.ts (extraHTTPHeaders), no hace falta tocar los
+      # specs.
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
