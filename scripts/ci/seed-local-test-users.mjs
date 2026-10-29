@@ -77,9 +77,11 @@ try {
     const userId = rows[0].id;
 
     await client.query(
+      // $1/$2 son el mismo valor (provider_id es texto, user_id uuid) — no se
+      // reusa un solo parámetro porque pg no puede inferirle un tipo único.
       `INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-       VALUES ($1, $1, $2::jsonb, 'email', now(), now(), now())`,
-      [userId, JSON.stringify({ sub: userId, email: user.email, email_verified: true, phone_verified: false })],
+       VALUES ($1, $2, $3::jsonb, 'email', now(), now(), now())`,
+      [userId, userId, JSON.stringify({ sub: userId, email: user.email, email_verified: true, phone_verified: false })],
     );
 
     console.log(`✓ ${user.email} creado en Supabase local (${userId})`);
