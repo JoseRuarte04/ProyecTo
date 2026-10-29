@@ -94,14 +94,14 @@ jobs:
       - name: Levantar Supabase local
         run: supabase start
 
-      # `supabase status --env` imprime las credenciales de ESTE stack local
+      # `supabase status -o env` imprime las credenciales de ESTE stack local
       # (URL/keys cambian en cada corrida) en formato dotenv — `--override-name`
       # las renombra a como las espera el resto del repo (mismas variables
       # que usa la app real vía Vite) y las deja disponibles para los steps
       # siguientes de este job.
       - name: Exportar credenciales del Supabase local
         run: |
-          supabase status --override-name API_URL=VITE_SUPABASE_URL,ANON_KEY=VITE_SUPABASE_PUBLISHABLE_KEY,SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY --env --output-format text >> "$GITHUB_ENV"
+          supabase status --override-name API_URL=VITE_SUPABASE_URL,ANON_KEY=VITE_SUPABASE_PUBLISHABLE_KEY,SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY -o env >> "$GITHUB_ENV"
 
       # Crea rls-test-a/b@example.com en ESTE Supabase local (no existen de
       # antemano en una base recién levantada) — ver el comentario del
@@ -145,7 +145,7 @@ jobs:
 
       - name: Exportar credenciales del Supabase local
         run: |
-          supabase status --override-name API_URL=VITE_SUPABASE_URL,ANON_KEY=VITE_SUPABASE_PUBLISHABLE_KEY,SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY --env --output-format text >> "$GITHUB_ENV"
+          supabase status --override-name API_URL=VITE_SUPABASE_URL,ANON_KEY=VITE_SUPABASE_PUBLISHABLE_KEY,SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY -o env >> "$GITHUB_ENV"
 
       # Solo rls-test-a (ver e2e/supabaseTestClient.ts) — ningún spec usa B.
       - name: Seed de usuarios de prueba (Supabase local)
