@@ -49,6 +49,15 @@ jobs:
     env:
       VITE_SUPABASE_URL: https://omigkfhiszbfbymbzaxr.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9taWdrZmhpc3piZmJ5bWJ6YXhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMDA2MTksImV4cCI6MjEwODc3NjYxOX0.QNQvDZKe0KCH1rJcMVv3ijHYN54r4KwxA39CpxjvCc8 # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
+      # Sin estas dos, `vercel alias set` falló con "User not found" en la
+      # corrida real: sin contexto de team explícito, resuelve el scope del
+      # token contra la cuenta personal en vez del team donde vive el
+      # proyecto. `pull`/`build`/`deploy` no lo necesitaban (usan
+      # .vercel/project.json), pero `alias` sí — se ponen acá, a nivel job,
+      # para que TODOS los comandos de este job compartan el mismo scope sin
+      # tener que acordarse de repetirlo paso por paso.
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -72,9 +81,6 @@ jobs:
       # archivo de todos modos.
       - name: Traer la config del proyecto de Vercel (vercel pull)
         run: npx vercel@latest pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build (con las VITE_* de staging de este job)
         run: npx vercel@latest build --token="${{ secrets.VERCEL_TOKEN }}"
@@ -201,6 +207,8 @@ jobs:
     env:
       VITE_SUPABASE_URL: https://pvuaqatdendcgumwktid.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dWFxYXRkZW5kY2d1bXdrdGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxODI1NDksImV4cCI6MjA5MDc1ODU0OX0.lXARzBHFr25LgypLiGivFC49FO4Yy6FdZiH4JMSl9lI # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -214,9 +222,6 @@ jobs:
 
       - name: Traer la config del proyecto de Vercel (vercel pull)
         run: npx vercel@latest pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build de producción (con las VITE_* de prod de este job)
         run: npx vercel@latest build --prod --token="${{ secrets.VERCEL_TOKEN }}"
