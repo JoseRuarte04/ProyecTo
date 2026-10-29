@@ -96,11 +96,11 @@ jobs:
 
       # `supabase status -o env` imprime las credenciales de ESTE stack local
       # (URL/keys cambian en cada corrida) en formato dotenv — API_URL,
-      # ANON_KEY, SERVICE_ROLE_KEY (nombres confirmados contra la corrida
-      # real, no `--override-name`: esa flag espera un nombre de origen tipo
-      # "api.url" según su propio --help, no "API_URL" como muestran algunos
-      # ejemplos de la doc — para no depender de adivinar bien ese formato,
-      # el archivo se sourcea tal cual y se reexporta con los nombres que
+      # ANON_KEY, DB_URL (nombres confirmados contra la corrida real, no
+      # `--override-name`: esa flag espera un nombre de origen tipo "api.url"
+      # según su propio --help, no "API_URL" como muestran algunos ejemplos
+      # de la doc — para no depender de adivinar bien ese formato, el
+      # archivo se sourcea tal cual y se reexporta con los nombres que
       # espera el resto del repo).
       - name: Exportar credenciales del Supabase local
         run: |
@@ -111,24 +111,15 @@ jobs:
           {
             echo "VITE_SUPABASE_URL=$API_URL"
             echo "VITE_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "SUPABASE_DB_URL=$DB_URL"
           } >> "$GITHUB_ENV"
 
       # Crea rls-test-a/b@example.com en ESTE Supabase local (no existen de
       # antemano en una base recién levantada) — ver el comentario del
-      # propio script para el porqué del camino "invite" en vez de signUp.
+      # propio script para el porqué del INSERT directo en vez de
+      # signUp/inviteUserByEmail.
       - name: Seed de usuarios de prueba (Supabase local)
         run: node scripts/ci/seed-local-test-users.mjs
-
-      # Diagnóstico temporal: GoTrue devuelve "Database error saving new
-      # user" sin detalle vía la API cuando el trigger handle_new_user tira
-      # una excepción — esto saca el error real de Postgres de los logs del
-      # contenedor. Se saca una vez que el seed ande estable.
-      - name: Logs de auth si el seed de arriba falló
-        if: failure()
-        run: |
-          docker ps -a
-          docker logs "$(docker ps -aqf 'name=auth')" 2>&1 | tail -150
 
       - name: Tests
         run: npm test
@@ -173,7 +164,7 @@ jobs:
           {
             echo "VITE_SUPABASE_URL=$API_URL"
             echo "VITE_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "SUPABASE_DB_URL=$DB_URL"
           } >> "$GITHUB_ENV"
 
       # Solo rls-test-a (ver e2e/supabaseTestClient.ts) — ningún spec usa B.

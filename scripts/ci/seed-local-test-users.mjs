@@ -3,24 +3,23 @@
 // levantó `supabase start` en este mismo job de CI. Nunca contra producción
 // (no recibe ni necesita ninguna URL/key de prod).
 //
-// Por qué no alcanza con signUp/admin.createUser: el trigger
-// "handle_new_user" (ver supabase/migrations/20261011210000_baseline_schema.sql)
-// rechaza cualquier alta salvo que `invited_at` esté seteado o exista una fila
-// pendiente en `team_invitations` para ese email — en una base local recién
-// creada no hay ninguna de las dos. `inviteUserByEmail` es el único camino de
-// la Admin API que deja `invited_at` seteado (mismo mecanismo que ya usa la
-// invitación individual de profesional en producción), así que crea la cuenta
-// sin pelearse con el trigger. El mail de invite no se lee en ningún lado (no
-// hace falta: el paso siguiente ya deja una password conocida).
-import { createClient } from "@supabase/supabase-js";
+// Por qué INSERT directo a auth.users/auth.identities y no
+// admin.inviteUserByEmail: se probó primero con inviteUserByEmail (deja
+// invited_at seteado, que es lo que pide el trigger handle_new_user para
+// no exigir una invitación de equipo — mismo mecanismo que la invitación
+// individual de profesional en producción). Falló igual en la corrida real
+// ("signup_not_allowed", confirmado en los logs del contenedor de auth):
+// GoTrue v2.197.0 (la versión que levanta `supabase start` acá) hace el
+// INSERT con invited_at NULL y recién lo completa con un UPDATE separado —
+// el trigger, que corre AL INSERT, nunca llega a ver el invited_at seteado.
+// Insertando la fila nosotros mismos, en un solo INSERT, no hay esa carrera.
+import pg from "pg";
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+const DB_URL = process.env.SUPABASE_DB_URL;
+if (!DB_URL) {
   throw new Error(
-    "Faltan VITE_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY — ¿corriste este script después de " +
-      "`supabase start` + el step que exporta `supabase status` a $GITHUB_ENV?",
+    "Falta SUPABASE_DB_URL — ¿corriste este script después de `supabase start` + el step que exporta " +
+      "`supabase status` a $GITHUB_ENV?",
   );
 }
 
@@ -29,33 +28,62 @@ const USERS = [
   { email: "rls-test-b@example.com", password: process.env.RLS_TEST_USER_B_PASSWORD, name: "RLS Test B" },
 ];
 
-const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const client = new pg.Client({ connectionString: DB_URL });
+await client.connect();
 
-for (const user of USERS) {
-  if (!user.password) {
-    throw new Error(`Falta la password de ${user.email} (RLS_TEST_USER_${user === USERS[0] ? "A" : "B"}_PASSWORD)`);
+try {
+  // Local (Docker) suele traerla habilitada por default igual que producción,
+  // pero no está en el baseline dump — se asegura acá por las dudas, no
+  // rompe nada si ya estaba.
+  await client.query("CREATE EXTENSION IF NOT EXISTS pgcrypto;");
+
+  for (const [i, user] of USERS.entries()) {
+    const varName = i === 0 ? "A" : "B";
+    if (!user.password) throw new Error(`Falta RLS_TEST_USER_${varName}_PASSWORD`);
+
+    const { rows: existing } = await client.query("SELECT id FROM auth.users WHERE email = $1", [user.email]);
+
+    if (existing.length > 0) {
+      await client.query("UPDATE auth.users SET encrypted_password = crypt($1, gen_salt('bf')) WHERE id = $2", [
+        user.password,
+        existing[0].id,
+      ]);
+      console.log(`✓ ${user.email} ya existía, password actualizada (${existing[0].id})`);
+      continue;
+    }
+
+    const { rows } = await client.query(
+      `INSERT INTO auth.users (
+         instance_id, id, aud, role, email, encrypted_password,
+         email_confirmed_at, invited_at, confirmation_token, recovery_token,
+         email_change_token_new, email_change, raw_app_meta_data, raw_user_meta_data,
+         is_super_admin, created_at, updated_at,
+         phone_change, phone_change_token, email_change_token_current,
+         is_sso_user, is_anonymous
+       ) VALUES (
+         '00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
+         $1, crypt($2, gen_salt('bf')),
+         now(), now(), '', '', '', '', $3::jsonb, $4::jsonb,
+         false, now(), now(),
+         '', '', '', false, false
+       ) RETURNING id`,
+      [
+        user.email,
+        user.password,
+        JSON.stringify({ provider: "email", providers: ["email"] }),
+        JSON.stringify({ full_name: user.name }),
+      ],
+    );
+    const userId = rows[0].id;
+
+    await client.query(
+      `INSERT INTO auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+       VALUES ($1, $1, $2::jsonb, 'email', now(), now(), now())`,
+      [userId, JSON.stringify({ sub: userId, email: user.email, email_verified: true, phone_verified: false })],
+    );
+
+    console.log(`✓ ${user.email} creado en Supabase local (${userId})`);
   }
-
-  const { data: list, error: listErr } = await admin.auth.admin.listUsers();
-  if (listErr) throw new Error(`No se pudo listar usuarios: ${listErr.message}`);
-
-  let userId = list.users.find((u) => u.email === user.email)?.id;
-
-  if (!userId) {
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(user.email, {
-      data: { full_name: user.name },
-    });
-    if (error) throw new Error(`No se pudo invitar a ${user.email}: ${error.message}`);
-    userId = data.user.id;
-  }
-
-  const { error: updErr } = await admin.auth.admin.updateUserById(userId, {
-    password: user.password,
-    email_confirm: true,
-  });
-  if (updErr) throw new Error(`No se pudo fijar la password de ${user.email}: ${updErr.message}`);
-
-  console.log(`✓ ${user.email} listo en Supabase local (${userId})`);
+} finally {
+  await client.end();
 }
