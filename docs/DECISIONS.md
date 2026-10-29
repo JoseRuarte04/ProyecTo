@@ -9,6 +9,38 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-28] Baseline: sacar las funciones de infraestructura de Supabase que `db push` no puede recrear
+
+**Contexto:** al armar `rehabot-staging` (proyecto de staging, ver más abajo en
+este mismo archivo) se corrió `supabase db push --linked` contra un proyecto de
+Supabase real por primera vez — hasta ahora el baseline (`20261011210000`,
+2026-10-11) solo se había probado con `supabase start` (Docker local, rol
+`postgres` con privilegios reales de superusuario).
+
+**Decisión:** sacar del baseline 6 funciones (`extensions.grant_pg_cron_access`,
+`grant_pg_graphql_access`, `grant_pg_net_access`, `pgrst_ddl_watch`,
+`pgrst_drop_watch`, `set_graphql_placeholder`) que `supabase db dump` capturó
+pero que son infraestructura que el propio Supabase crea en cualquier proyecto
+nuevo — el event trigger que las dispara no está en el dump, así que quedaban
+huérfanas. Recrearlas rompía `db push` contra cualquier proyecto real: ya
+existen con dueño `supabase_admin`, y el rol con el que corre el push no es su
+dueño ni superuser ahí (`must be owner of function grant_pg_cron_access`).
+
+**Por qué:** es exactamente el mismo síntoma que ya bloqueaba `supabase db
+reset --local`/`db diff --linked` desde el 2026-10-06 (ver `docs/TASKS.md`) —
+confirma que el problema nunca fue del contenido de la app, sino de estas 6
+funciones. Sacarlas no cambia nada real: producción y cualquier proyecto nuevo
+ya las tienen, correctas, desde que Supabase los crea.
+
+De paso se encontró y arregló un bug de sintaxis real en el seed del catálogo
+HEP2go (`ON CONFLICT` sin el predicado del índice parcial) — y, al arreglar
+ese, un segundo problema real de datos que SÍ queda pendiente (valores de
+`exercise_type` que no pasan el CHECK constraint): ver la entrada de
+`docs/TASKS.md` y `supabase/migrations_pending/README.md`, es una decisión de
+producto sobre HEP2go, no algo para resolver en este fix.
+
+---
+
 ## [2026-10-11] Baseline de esquema: cuando un dump congelado contradice un DROP ya mergeado, reordenar las migraciones en vez de editar el dump a mano
 
 **Contexto:** al revisar el PR #88 antes de mergearlo (auditoría de integridad
