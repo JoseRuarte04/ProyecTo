@@ -6,13 +6,17 @@ on:
   pull_request:
 
 env:
-  # Valores públicos por diseño (viajan en el bundle del cliente).
-  # Cualquier secreto real va en GitHub Secrets, nunca acá.
-  VITE_SUPABASE_PROJECT_ID: pvuaqatdendcgumwktid
-  VITE_SUPABASE_URL: https://pvuaqatdendcgumwktid.supabase.co
-  VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dWFxYXRkZW5kY2d1bXdrdGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxODI1NDksImV4cCI6MjA5MDc1ODU0OX0.lXARzBHFr25LgypLiGivFC49FO4Yy6FdZiH4JMSl9lI
-  # Passwords de los usuarios de prueba de RLS — estas sí son secretas
-  # (dan acceso real a esas cuentas), ver docs/DECISIONS.md [2026-10-06].
+  # Antes acá vivían VITE_SUPABASE_PROJECT_ID/URL/PUBLISHABLE_KEY de
+  # PRODUCCIÓN — ningún job de este workflow los necesita más: los tests
+  # corren contra el Supabase LOCAL que cada job levanta con `supabase
+  # start` (ver steps de abajo), y `npm run build` nunca ejecuta ese código,
+  # solo lo empaqueta (un string vacío compila igual). El build real para
+  # Vercel usa las env vars que Vercel tiene configuradas, no las de acá.
+  #
+  # Passwords de los usuarios de prueba de RLS (rls-test-a/b@example.com) —
+  # siguen siendo secretas: ya no identifican cuentas que existen de
+  # antemano en ningún lado, son la password con la que cada job CREA esas
+  # cuentas en su propio Supabase local (ver scripts/ci/seed-local-test-users.mjs).
   RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
   RLS_TEST_USER_B_PASSWORD: ${{ secrets.RLS_TEST_USER_B_PASSWORD }}
 
@@ -75,6 +79,48 @@ jobs:
       - name: Typecheck
         run: npx tsc --build
 
+      # CLI oficial, acción de Supabase (no fija versión exacta: ci.yml
+      # tampoco fija la de Node a nivel patch, mismo criterio). Va acá y no
+      # más arriba: si Audit/Lint/Typecheck ya fallaron, no tiene sentido
+      # esperar a que levante Docker para nada.
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      # Levanta Postgres+Auth+Storage local con el baseline del repo
+      # (supabase/migrations/) — es el mismo stack que ya se confirmó que
+      # levanta limpio desde cero (ver docs/PROJECT_STATE.md, 2026-10-11).
+      # A partir de acá, rls.test.ts ya NO le pega a producción.
+      - name: Levantar Supabase local
+        run: supabase start
+
+      # `supabase status -o env` imprime las credenciales de ESTE stack local
+      # (URL/keys cambian en cada corrida) en formato dotenv — API_URL,
+      # ANON_KEY, DB_URL (nombres confirmados contra la corrida real, no
+      # `--override-name`: esa flag espera un nombre de origen tipo "api.url"
+      # según su propio --help, no "API_URL" como muestran algunos ejemplos
+      # de la doc — para no depender de adivinar bien ese formato, el
+      # archivo se sourcea tal cual y se reexporta con los nombres que
+      # espera el resto del repo).
+      - name: Exportar credenciales del Supabase local
+        run: |
+          supabase status -o env > /tmp/supabase-status.env
+          set -a
+          source /tmp/supabase-status.env
+          set +a
+          {
+            echo "VITE_SUPABASE_URL=$API_URL"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "SUPABASE_DB_URL=$DB_URL"
+          } >> "$GITHUB_ENV"
+
+      # Crea rls-test-a/b@example.com en ESTE Supabase local (no existen de
+      # antemano en una base recién levantada) — ver el comentario del
+      # propio script para el porqué del INSERT directo en vez de
+      # signUp/inviteUserByEmail.
+      - name: Seed de usuarios de prueba (Supabase local)
+        run: node scripts/ci/seed-local-test-users.mjs
+
       - name: Tests
         run: npm test
 
@@ -82,23 +128,15 @@ jobs:
         run: npm run build
 
   # Piloto de e2e (docs/AUDIT_2026-10-02.md, "endurecer CI + sumar tests",
-  # PR #43). Corre contra Supabase real (mismo usuario de prueba que
-  # src/test/rls.test.ts) con el patrón "crear solo si no existe" + cleanup
-  # en afterAll — no debería acumular datos de prueba, pero por eso este job
-  # es NO bloqueante todavía: no está en required_status_checks de main (ver
-  # DECISIONS.md). Se promueve a bloqueante en una sesión futura una vez se
-  # vea estable en corridas reales.
+  # PR #43). Corre contra Supabase LOCAL propio de este job (ver steps de
+  # abajo) desde este PR — antes pegaba contra producción. Sigue NO
+  # bloqueante por ahora (no está en required_status_checks de main, ver
+  # DECISIONS.md): el cambio de entorno es nuevo y conviene verlo estable
+  # en corridas reales antes de sumarle además la presión de ser bloqueante
+  # — ver docs/TASKS.md para el criterio exacto de cuándo promoverlo.
   e2e:
     needs: ci
     runs-on: ubuntu-latest
-    # El spec de paciente+sesión usa un DNI fijo (90000001) reusado entre
-    # corridas — dos corridas concurrentes (dos PRs activos a la vez)
-    # podrían pisarse al crear el paciente o al limpiar la sesión de prueba
-    # equivocada. Este group serializa solo las corridas de e2e entre sí,
-    # sin frenar el resto de los jobs/PRs.
-    concurrency:
-      group: e2e-supabase-pilot
-      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -110,8 +148,34 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Levantar Supabase local
+        run: supabase start
+
+      - name: Exportar credenciales del Supabase local
+        run: |
+          supabase status -o env > /tmp/supabase-status.env
+          set -a
+          source /tmp/supabase-status.env
+          set +a
+          {
+            echo "VITE_SUPABASE_URL=$API_URL"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "SUPABASE_DB_URL=$DB_URL"
+          } >> "$GITHUB_ENV"
+
+      # Solo rls-test-a (ver e2e/supabaseTestClient.ts) — ningún spec usa B.
+      - name: Seed de usuarios de prueba (Supabase local)
+        run: node scripts/ci/seed-local-test-users.mjs
+
       - name: Instalar Playwright (solo Chromium, único browser del config)
         run: npx playwright install --with-deps chromium
 
+      # El `webServer` de playwright.config.ts (`npm run dev`) hereda estas
+      # env vars del job — el dev server que Playwright maneja sirve el
+      # bundle ya apuntando al Supabase local, no a producción.
       - name: E2E
         run: npm run test:e2e
