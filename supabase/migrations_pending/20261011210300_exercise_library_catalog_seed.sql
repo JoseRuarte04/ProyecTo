@@ -3,7 +3,11 @@
 -- (pestaña 'Catalogo HEP2go ES') por scripts/generate_catalog_seed.py — no editar a mano.
 -- professional_id NULL = fila de catálogo global (ver 20260823100000).
 -- ON CONFLICT sobre source_exercise_id permite reimportar de forma segura
--- si la planilla de origen se actualiza más adelante.
+-- si la planilla de origen se actualiza más adelante. El índice es parcial
+-- (WHERE source_exercise_id IS NOT NULL) así que el ON CONFLICT repite ese
+-- predicado — sin él, Postgres no lo toma como árbitro de conflicto
+-- (encontrado 2026-10-28 al aplicar esta migración por primera vez contra
+-- rehabot-staging; nunca se había corrido antes, ver scripts/generate_catalog_seed.py).
 
 INSERT INTO exercise_library (name, professional_id, is_active, exercise_type, catalog_region, catalog_subcategory, instructions, source_exercise_id)
 VALUES
@@ -507,7 +511,7 @@ VALUES
   ('ROTACIÓN EXTERNA 90/90 CON PESOS LIBRES - RE', NULL, true, 'fortalecimiento', 'Hombro', 'Peso libre', 'Empezá sosteniendo pesas con los codos flexionados a 90 grados y separados 90 grados del costado del cuerpo. Después, rotá los hombros hacia atrás de modo que las palmas de las manos miren hacia adelante y después volvé, como se muestra.', 16045),
   ('PRESS ARNOLD - MANCUERNAS', NULL, true, 'fortalecimiento', 'Hombro', 'Peso libre', 'Sostené las pesas a la altura del pecho alto con las palmas hacia vos, después movés las pesas en un arco hacia el costado y elevalas por encima de la cabeza mientras girás los antebrazos de modo que las palmas queden hacia adelante. Bajá a la posición inicial por el mismo arco lateral mientras girás los antebrazos de modo que las palmas vuelvan a mirarte. Repetí.', 76588),
   ('POLEA - FLEXIÓN D2 DE RODILLAS', NULL, true, 'fortalecimiento', 'Hombro', 'Peso libre', 'Colocá la polea en posición alta y arrodillate de espaldas a la polea, con la manija en la mano. Tirá de la manija cruzando por delante del cuerpo hacia el muslo contrario. Volvé a la posición inicial. Repetí.', 155341)
-ON CONFLICT (source_exercise_id) DO UPDATE SET
+ON CONFLICT (source_exercise_id) WHERE source_exercise_id IS NOT NULL DO UPDATE SET
   name = EXCLUDED.name,
   exercise_type = EXCLUDED.exercise_type,
   catalog_region = EXCLUDED.catalog_region,
@@ -1017,7 +1021,7 @@ VALUES
   ('EJERCITADOR DE AGARRE - ADUCCIÓN DE PULGAR', NULL, true, 'fortalecimiento', 'Codo y mano', 'Banda elástica', 'Sostené el ejercitador con el pulgar sobre la barra móvil de arriba y los otros dedos abajo, como se muestra. Apretá, soltá y repetí.', 53005),
   ('EJERCITADOR DE AGARRE - PUÑO', NULL, true, 'fortalecimiento', 'Codo y mano', 'Banda elástica', 'Usá un ejercitador de agarre para apretar hasta cerrar el puño y después soltá. Repetí.', 52991),
   ('DECÚBITO VENTRAL - EXTENSIÓN DE TRÍCEPS CON BANDA ELÁSTICA - AUTOFIJADA', NULL, true, 'fortalecimiento', 'Codo y mano', 'Banda elástica', 'Acostate boca arriba, sostené y fijá una punta de una banda elástica contra el pecho. Sostené la otra punta con la mano contraria, con el codo flexionado y el brazo al costado del cuerpo. Empezá tirando de la banda hacia abajo de modo que el codo pase de flexionado a estirado, como se muestra. Volvé a la posición inicial y repetí.', 183377)
-ON CONFLICT (source_exercise_id) DO UPDATE SET
+ON CONFLICT (source_exercise_id) WHERE source_exercise_id IS NOT NULL DO UPDATE SET
   name = EXCLUDED.name,
   exercise_type = EXCLUDED.exercise_type,
   catalog_region = EXCLUDED.catalog_region,
@@ -1527,7 +1531,7 @@ VALUES
   ('PELOTA DE EJERCICIOS - PUENTE CON ESPALDA ALTA', NULL, true, 'fortalecimiento', 'Lumbar y torácica', 'Estabilización', 'Empezá sentado sobre una pelota de ejercicios. Después, caminá lentamente con los pies hacia adelante de modo que la pelota quede en la espalda alta. Después, elevá la cola y la pelvis despegándolas de la pelota, formando un puente con el cuerpo. Mantené esta posición y después volvé caminando con los pies hacia la pelota para regresar a la posición inicial. Repetí.', 292),
   ('PELOTA DE EJERCICIOS - BICHO MUERTO', NULL, true, 'fortalecimiento', 'Lumbar y torácica', 'Estabilización', 'Acostate boca arriba con una pelota de ejercicios apoyada sobre el abdomen. Después, hacé una báscula pélvica o activá los músculos abdominales en posición de columna neutra. Después, sostené la pelota con las rodillas y los brazos. Las piernas tienen que estar en posición 90-90, como en la imagen de arriba. Después, presioná la pelota con una rodilla y el brazo contrario mientras estirás la otra pierna y el otro brazo, como se muestra, en un movimiento alternado. Mantené la columna plana o en posición neutra.', 36382),
   ('PELOTA DE EJERCICIOS - MARCHA', NULL, true, 'activo', 'Lumbar y torácica', 'Estabilización', 'Sentado sobre una pelota de ejercicios, elevá lentamente un pie del piso. Volvé y después elevá el otro lado. Mantené la columna estable y erguida. Tratá de mover solamente las piernas.', 308)
-ON CONFLICT (source_exercise_id) DO UPDATE SET
+ON CONFLICT (source_exercise_id) WHERE source_exercise_id IS NOT NULL DO UPDATE SET
   name = EXCLUDED.name,
   exercise_type = EXCLUDED.exercise_type,
   catalog_region = EXCLUDED.catalog_region,
@@ -2037,7 +2041,7 @@ VALUES
   ('TRX - ESTOCADA CRUZADA DE EQUILIBRIO PLIOMÉTRICA', NULL, true, 'fortalecimiento', 'Cadera y rodilla', 'Equilibrio; Cadena cerrada', 'Sostené las manijas del TRX de frente al anclaje. Parate sobre una pierna y llevá la otra hacia atrás y cruzando la línea media mientras flexionás la rodilla de apoyo, como se muestra. Al volver a la posición erguida, estirá la rodilla de apoyo e impulsate en un salto chico mientras la otra rodilla sube hasta la altura de la cintura o más. No dejes que la rodilla de apoyo pase la punta de los dedos del pie. Mantené la rodilla de apoyo alineada con el pie.', 31459),
   ('TRX - ESTOCADA CRUZADA DE EQUILIBRIO CON POTENCIA', NULL, true, 'fortalecimiento', 'Cadera y rodilla', 'Equilibrio; Cadena cerrada', 'Sostené las manijas del TRX de frente al anclaje. Parate sobre una pierna y llevá la otra hacia atrás y cruzando la línea media mientras flexionás la rodilla de apoyo, como se muestra. Al volver a la posición erguida, estirá la rodilla de apoyo mientras la otra rodilla sube hasta la altura de la cintura o más. No dejes que la rodilla de apoyo pase la punta de los dedos del pie. Mantené la rodilla de apoyo alineada con el pie.', 31490),
   ('TRX - ESTOCADA INVERSA', NULL, true, 'fortalecimiento', 'Cadera y rodilla', 'Equilibrio; Cadena cerrada', 'Sostené las manijas del TRX de frente al anclaje. Parate sobre una pierna y llevá la otra hacia atrás mientras flexionás la rodilla del lado de apoyo, como se muestra. Después, volvé a la posición erguida estirando la rodilla de apoyo. No dejes que la rodilla de apoyo pase la punta de los dedos del pie. Mantené la rodilla de apoyo alineada con el pie.', 31421)
-ON CONFLICT (source_exercise_id) DO UPDATE SET
+ON CONFLICT (source_exercise_id) WHERE source_exercise_id IS NOT NULL DO UPDATE SET
   name = EXCLUDED.name,
   exercise_type = EXCLUDED.exercise_type,
   catalog_region = EXCLUDED.catalog_region,
@@ -2547,7 +2551,7 @@ VALUES
   ('BANDA ELÁSTICA - FLEXIONES DE TOBILLO', NULL, true, 'fortalecimiento', 'Tobillo y pie', 'Banda elástica; Estabilización', 'Sentado, cruzá las piernas y apoyá un pie sobre el otro muslo. Colocá una banda elástica sobre cada pie, como se muestra. Empezá moviendo el tobillo de arriba hacia arriba. Bajá y repetí.', 169164),
   ('BANDA ELÁSTICA - CAMINATAS LATERALES EN EVERSIÓN', NULL, true, 'fortalecimiento', 'Tobillo y pie', 'Banda elástica; Estabilización', 'Colocá una banda elástica circular alrededor de la planta del antepié, como se muestra. Después, dá pasos hacia el costado manteniendo la tensión de la banda todo el tiempo, con los pies apuntando derecho hacia adelante. Después de dar pasos laterales en una dirección, invertí la dirección hasta volver a la posición inicial. Repetí.', 147447),
   ('BANDA ELÁSTICA - EVERSIÓN - SENTADO CON PIERNAS EXTENDIDAS', NULL, true, 'fortalecimiento', 'Tobillo y pie', 'Banda elástica; Estabilización', 'Sentate en el piso con las piernas extendidas, como se muestra. Colocá la punta con anilla de una banda elástica alrededor del pie que vas a trabajar. Sostené la otra punta con la mano contraria. Después, movés el tobillo de modo que los dedos y el pie vayan hacia afuera, alejándose de la línea media. Volvé a la posición inicial y repetí.', 147449)
-ON CONFLICT (source_exercise_id) DO UPDATE SET
+ON CONFLICT (source_exercise_id) WHERE source_exercise_id IS NOT NULL DO UPDATE SET
   name = EXCLUDED.name,
   exercise_type = EXCLUDED.exercise_type,
   catalog_region = EXCLUDED.catalog_region,
@@ -2985,7 +2989,7 @@ VALUES
   ('SILLA DE RUEDAS - TRASLADO LATERAL DEL PESO', NULL, true, 'sin_clasificar', 'Educación', 'Varios', 'Cuando estás sentado mucho tiempo en una silla de ruedas, hacen falta descargas de presión en la cola para evitar que se formen lesiones en la piel. La presión prolongada del peso del cuerpo sobre la piel reduce la irrigación de sangre en esa zona. Para mejorar la circulación en la cola, inclinate hacia un costado y usá los brazos para descargar parte del peso de ese lado. Mantené y después hacelo del otro lado.', 104778),
   ('SILLA DE RUEDAS - TRASLADO DEL PESO HACIA ADELANTE', NULL, true, 'sin_clasificar', 'Educación', 'Varios; Posicionamiento', 'Cuando estás sentado mucho tiempo en una silla de ruedas, hacen falta descargas de presión en la cola para evitar que se formen lesiones en la piel. La presión prolongada del peso del cuerpo sobre la piel reduce la irrigación de sangre en esa zona. Para mejorar la circulación en la cola, inclinate hacia adelante para descargar parte del peso. Mantené, relajá y repetí.', 104779),
   ('SILLA DE RUEDAS - DESPLAZARSE EN EL ASIENTO', NULL, true, 'sin_clasificar', 'Educación', 'Varios; Posicionamiento', 'Para desplazarte hacia adelante en la silla de ruedas cuando tenés poca fuerza, empezá trasladando el peso del cuerpo hacia un costado. Después, apoyate contra el respaldo y adelantá la nalga del lado contrario. Luego trasladá el peso hacia el otro costado y repetí hasta lograr avanzar en la silla. Para desplazarte hacia atrás, trasladá el peso hacia un costado mientras usás los brazos, las piernas y/o el cuerpo para retroceder. Después trasladá el peso hacia el otro costado y repetí.', 105326)
-ON CONFLICT (source_exercise_id) DO UPDATE SET
+ON CONFLICT (source_exercise_id) WHERE source_exercise_id IS NOT NULL DO UPDATE SET
   name = EXCLUDED.name,
   exercise_type = EXCLUDED.exercise_type,
   catalog_region = EXCLUDED.catalog_region,
