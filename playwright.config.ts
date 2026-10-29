@@ -33,6 +33,15 @@ export default defineConfig({
     baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    // El proyecto de Vercel tiene SSO Protection en todo excepto dominios
+    // propios (ver `ssoProtection` del proyecto) — *.vercel.app, incluido
+    // el alias fijo de staging, queda atrás de esa pantalla. Este header
+    // es el mecanismo oficial de Vercel para que un proceso automatizado
+    // (acá, Playwright en CI) la salte sin desactivarla para todo el
+    // mundo. Sin VERCEL_AUTOMATION_BYPASS_SECRET (dev local), no se manda.
+    extraHTTPHeaders: process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
+      : undefined,
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
