@@ -60,17 +60,21 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # Sin `vercel pull`/`vercel link` a propósito: eso traería las env vars
-      # que Vercel tenga guardadas en su dashboard para este proyecto, y
-      # pisarían (o se mezclarían de forma ambigua con) las VITE_* de ESTE
-      # job — las únicas que nos importan son las de acá arriba. Escribimos
-      # project.json a mano con los IDs que ya tenemos.
-      - name: Vincular con el proyecto de Vercel (sin traer sus env vars)
-        run: |
-          mkdir -p .vercel
-          cat > .vercel/project.json <<EOF
-          {"projectId": "${{ secrets.VERCEL_PROJECT_ID }}", "orgId": "${{ secrets.VERCEL_ORG_ID }}"}
-          EOF
+      # `vercel build` necesita Project Settings reales (framework, build
+      # command, etc.), no alcanza con un project.json armado a mano con
+      # solo los IDs ("[BUILD_PROJECT_SETTINGS_REQUIRED]", confirmado en la
+      # corrida real) — `vercel pull` es la única forma de conseguirlos sin
+      # interacción. Esto SÍ trae las env vars que Vercel tenga guardadas
+      # para el target "preview" a `.vercel/.env.preview.local`, pero ya no
+      # es un problema: Jose las dejó apuntando a rehabot-staging, mismo
+      # valor que las VITE_* de ESTE job — no hay ambigüedad real, process.env
+      # (seteado acá arriba) tiene precedencia sobre lo que haya en ese
+      # archivo de todos modos.
+      - name: Traer la config del proyecto de Vercel (vercel pull)
+        run: npx vercel@latest pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build (con las VITE_* de staging de este job)
         run: npx vercel@latest build --token="${{ secrets.VERCEL_TOKEN }}"
@@ -208,12 +212,11 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Vincular con el proyecto de Vercel (sin traer sus env vars)
-        run: |
-          mkdir -p .vercel
-          cat > .vercel/project.json <<EOF
-          {"projectId": "${{ secrets.VERCEL_PROJECT_ID }}", "orgId": "${{ secrets.VERCEL_ORG_ID }}"}
-          EOF
+      - name: Traer la config del proyecto de Vercel (vercel pull)
+        run: npx vercel@latest pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build de producción (con las VITE_* de prod de este job)
         run: npx vercel@latest build --prod --token="${{ secrets.VERCEL_TOKEN }}"
