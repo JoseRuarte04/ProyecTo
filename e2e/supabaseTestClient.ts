@@ -1,12 +1,20 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Mismos valores públicos por diseño que ya están en .github/workflows/ci.yml
-// y en el bundle del cliente (anon key, no es secreto). Node no procesa
-// import.meta.env acá (Playwright no pasa por Vite), así que van directo.
-const SUPABASE_URL = "https://pvuaqatdendcgumwktid.supabase.co";
-// gitleaks:allow — anon key pública (ver comentario arriba), no un secreto real.
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dWFxYXRkZW5kY2d1bXdrdGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxODI1NDksImV4cCI6MjA5MDc1ODU0OX0.lXARzBHFr25LgypLiGivFC49FO4Yy6FdZiH4JMSl9lI"; // gitleaks:allow
+// Antes hardcodeaba la URL/anon key de PRODUCCIÓN acá — cualquiera que
+// corriera `npm run test:e2e` (local o CI) escribía en la base real. Ahora
+// vienen de env (misma variable que usa la app, `VITE_SUPABASE_URL`/
+// `VITE_SUPABASE_PUBLISHABLE_KEY` — Node no procesa import.meta.env acá,
+// por eso van por process.env y no por Vite). En CI apuntan al Supabase
+// LOCAL que levanta `supabase start` en el propio job (ver ci.yml); en
+// local dev, lo que tengas en .env (ver .env.example).
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    "Faltan VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY. Localmente: agregalas a .env " +
+      "(ver .env.example). En CI: las exporta el step de `supabase status` en ci.yml.",
+  );
+}
 
 // La password es un secreto real, no va hardcodeada (ver DECISIONS.md
 // 2026-10-06) — local: agregarla a .env (ver .env.example); CI: GitHub
