@@ -14,6 +14,12 @@ import { loadEnv } from "vite";
 // de GitHub Secrets, inyectada en ci.yml.
 Object.assign(process.env, loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), ""));
 
+// E2E_BASE_URL (deploy.yml, job tests-staging): probar una deployment real ya
+// publicada en vez de levantar `npm run dev` local — lo más parecido a lo
+// que un usuario real va a tocar. Sin esta var, sigue el comportamiento de
+// siempre (dev server local en :8080).
+const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:8080";
+
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/globalSetup.ts",
@@ -24,17 +30,20 @@ export default defineConfig({
   reporter: [["list"]],
   timeout: 30_000,
   use: {
-    baseURL: "http://localhost:8080",
+    baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:8080",
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  // Con E2E_BASE_URL no hay nada que levantar: la URL ya está viva.
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: "npm run dev",
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 60_000,
+      },
 });

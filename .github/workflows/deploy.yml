@@ -1,0 +1,237 @@
+name: Deploy
+
+# Solo push a main (después de un squash merge) — nunca pull_request. Esto
+# es lo que corre DESPUÉS de que un PR ya pasó `ci` y se mergeó, no un check
+# de PR. Mismo proyecto de Vercel para staging y prod (--prod cambia el
+# target); dos proyectos de Supabase (rehabot-staging / producción real).
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ─────────────────────────── STAGING ───────────────────────────
+  # Mismo flujo que la producción de abajo, pero contra rehabot-staging
+  # (proyecto de Supabase separado, ver docs/DECISIONS.md) — automático,
+  # sin aprobación: es la QA que confirma que el commit anda ANTES de
+  # pedirle a Jose que apruebe el deploy real.
+
+  deploy-db-staging:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: latest
+
+      # --db-url conecta directo (session pooler) sin necesitar `supabase
+      # link`/access token — mismo secret que usa Jose para cargar, nada
+      # nuevo que aprender respecto a como ya funciona backup.yml.
+      - name: Aplicar migraciones a staging
+        env:
+          SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
+
+  deploy-front-staging:
+    needs: deploy-db-staging
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    # VITE_SUPABASE_URL/PUBLISHABLE_KEY de rehabot-staging — públicos por
+    # diseño (anon key), igual que los de producción más abajo. Se bakean acá
+    # porque Vite los reemplaza en el bundle AL BUILDEAR, no en runtime — ver
+    # docs/DECISIONS.md para el porqué de buildear dos veces el mismo commit
+    # en vez de promover un solo artefacto.
+    env:
+      VITE_SUPABASE_URL: https://omigkfhiszbfbymbzaxr.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9taWdrZmhpc3piZmJ5bWJ6YXhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMDA2MTksImV4cCI6MjEwODc3NjYxOX0.QNQvDZKe0KCH1rJcMVv3ijHYN54r4KwxA39CpxjvCc8 # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Sin `vercel pull`/`vercel link` a propósito: eso traería las env vars
+      # que Vercel tenga guardadas en su dashboard para este proyecto, y
+      # pisarían (o se mezclarían de forma ambigua con) las VITE_* de ESTE
+      # job — las únicas que nos importan son las de acá arriba. Escribimos
+      # project.json a mano con los IDs que ya tenemos.
+      - name: Vincular con el proyecto de Vercel (sin traer sus env vars)
+        run: |
+          mkdir -p .vercel
+          cat > .vercel/project.json <<EOF
+          {"projectId": "${{ secrets.VERCEL_PROJECT_ID }}", "orgId": "${{ secrets.VERCEL_ORG_ID }}"}
+          EOF
+
+      - name: Build (con las VITE_* de staging de este job)
+        run: npx vercel@latest build --token="${{ secrets.VERCEL_TOKEN }}"
+
+      # Deploy "suelto": crea la deployment pero no le asigna ningún dominio
+      # todavía — el output es la URL única de esta deployment puntual.
+      - name: Deploy del build a Vercel
+        id: deploy
+        run: |
+          url=$(npx vercel@latest deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # Alias fijo: así smoke-staging/tests-staging (y Jose a mano) siempre
+      # entran por la misma URL, sin tener que buscar cuál fue la última
+      # deployment. Si "proyec-to-staging.vercel.app" ya está tomado por
+      # otra cuenta de Vercel (es un namespace global de *.vercel.app),
+      # este step falla y hay que elegir otro subdominio — avisar a Jose.
+      - name: Alias a la URL fija de staging
+        run: npx vercel@latest alias set "${{ steps.deploy.outputs.url }}" proyec-to-staging.vercel.app --token="${{ secrets.VERCEL_TOKEN }}"
+
+  smoke-staging:
+    needs: deploy-front-staging
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - name: La app de staging responde
+        run: curl -fsS --max-time 15 https://proyec-to-staging.vercel.app/ > /dev/null
+
+      - name: El Supabase de staging responde
+        run: curl -fsS --max-time 15 https://omigkfhiszbfbymbzaxr.supabase.co/auth/v1/health > /dev/null
+
+  # RLS + e2e contra la staging recién deployada — a diferencia del job `e2e`
+  # de ci.yml (Supabase local efímero por PR, no bloqueante todavía), ESTE sí
+  # es bloqueante: si no pasa, deploy-db-prod no arranca. Es la última
+  # confirmación antes de pedirle la aprobación a Jose.
+  tests-staging:
+    needs: smoke-staging
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    env:
+      VITE_SUPABASE_URL: https://omigkfhiszbfbymbzaxr.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9taWdrZmhpc3piZmJ5bWJ6YXhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMDA2MTksImV4cCI6MjEwODc3NjYxOX0.QNQvDZKe0KCH1rJcMVv3ijHYN54r4KwxA39CpxjvCc8 # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
+      # Connection string de STAGING (no de prod) — el seed de más abajo
+      # hace un INSERT directo a auth.users/auth.identities (no
+      # admin.inviteUserByEmail: ver el comentario del propio script, el
+      # trigger handle_new_user no llega a ver invited_at con ese camino).
+      SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+      RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
+      RLS_TEST_USER_B_PASSWORD: ${{ secrets.RLS_TEST_USER_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Mismo script que usa ci.yml contra el Supabase local de cada PR — acá
+      # apunta a staging por las env vars de arriba, no hace falta ningún
+      # código distinto. rls-test-a/b ya existen en staging (sembrados a
+      # mano al crear el proyecto), esto solo confirma/refresca la password.
+      - name: Asegurar usuarios de prueba en staging
+        run: node scripts/ci/seed-local-test-users.mjs
+
+      - name: RLS
+        run: npm test
+
+      - name: Instalar Playwright (solo Chromium, único browser del config)
+        run: npx playwright install --with-deps chromium
+
+      # E2E_BASE_URL le dice a playwright.config.ts que pruebe la deployment
+      # real recién publicada en vez de levantar `npm run dev` local — es lo
+      # más parecido a lo que un usuario real va a tocar.
+      - name: E2E contra la staging recién deployada
+        env:
+          E2E_BASE_URL: https://proyec-to-staging.vercel.app
+        run: npm run test:e2e
+
+  # ─────────────────────────── PRODUCCIÓN ───────────────────────────
+  # Todo lo de arriba (staging) tuvo que salir bien primero. `environment:
+  # production` es el gate de aprobación manual (el revisor requerido se
+  # configura en Settings → Environments → production, no acá — ver
+  # docs/DECISIONS.md). Va SOLO en este job, no en deploy-front-prod/
+  # smoke-prod: pedirle a Jose que apruebe dos veces el mismo deploy sería
+  # fricción sin beneficio — una vez que la migración está aprobada y
+  # aplicada, el front que la acompaña sale solo.
+
+  deploy-db-prod:
+    needs: tests-staging
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: latest
+
+      - name: Aplicar migraciones a producción
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
+
+  # El `needs: deploy-db-prod` es la garantía real de orden: este job ni
+  # arranca hasta que la migración de arriba terminó (y, por lo tanto, hasta
+  # que Jose aprobó el environment `production`) — el front nuevo nunca sale
+  # antes que la migración que necesita.
+  deploy-front-prod:
+    needs: deploy-db-prod
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    env:
+      VITE_SUPABASE_URL: https://pvuaqatdendcgumwktid.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2dWFxYXRkZW5kY2d1bXdrdGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxODI1NDksImV4cCI6MjA5MDc1ODU0OX0.lXARzBHFr25LgypLiGivFC49FO4Yy6FdZiH4JMSl9lI # gitleaks:allow — anon key pública, no un secreto real (ver e2e/supabaseTestClient.ts)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Vincular con el proyecto de Vercel (sin traer sus env vars)
+        run: |
+          mkdir -p .vercel
+          cat > .vercel/project.json <<EOF
+          {"projectId": "${{ secrets.VERCEL_PROJECT_ID }}", "orgId": "${{ secrets.VERCEL_ORG_ID }}"}
+          EOF
+
+      - name: Build de producción (con las VITE_* de prod de este job)
+        run: npx vercel@latest build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+
+      # --prod acá SÍ asigna el dominio real de producción directo (a
+      # diferencia de staging, no hace falta un alias aparte).
+      - name: Deploy a producción
+        run: npx vercel@latest deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+
+  smoke-prod:
+    needs: deploy-front-prod
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    steps:
+      - name: La app de producción responde
+        run: curl -fsS --max-time 15 https://proyec-to.vercel.app/ > /dev/null
+
+      - name: El Supabase de producción responde
+        run: curl -fsS --max-time 15 https://pvuaqatdendcgumwktid.supabase.co/auth/v1/health > /dev/null
