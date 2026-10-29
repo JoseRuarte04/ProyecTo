@@ -4,7 +4,7 @@
 > Se actualiza al FINAL de cada sesión de trabajo (con Claude Code o sin él).
 > Si algo no está acá, no pasó — o no está confirmado.
 
-**Última actualización:** 2026-10-28
+**Última actualización:** 2026-10-29
 **Sprint / objetivo actual:** Dejar la app lista para la beta cerrada con pacientes reales — ver `docs/BETA_CHECKLIST.md`
 
 ---
@@ -17,7 +17,7 @@ Reordenar la vista de información del paciente (pedido directo de Jose) — tab
 ## 🟢 En progreso AHORA (máximo 1-2 ítems)
 | Tarea | Estado | Bloqueado por | Próximo paso concreto |
 |---|---|---|---|
-| Pipeline de CI/CD (staging + gate de tests + deploy con aprobación manual, pedido directo de Jose) | 4 PRs abiertos, código listo (#97, #98, #99, #100) | Jose: revisar/mergear en orden (99 antes que 98/100, ver Cerrado de hoy) + cargar secrets + 2 configs de Vercel que no se pudieron hacer desde esta sesión (403 de permisos) | Ver la lista exacta de "LO HAGO YO" en la entrada de Cerrado del 2026-10-28 |
+| (nada en progreso) | — | — | — |
 
 Regla: si hay más de 2 filas acá, es mentira — elegí una y pausá el resto explícitamente abajo.
 
@@ -31,6 +31,16 @@ Nota: el PR [#80](https://github.com/JoseRuarte04/ProyecTo/pull/80) (link de inv
 | IaC liviana: `supabase/config.toml` | El Supabase CLI instalado (v2.113.0) no tiene `config pull`, solo `config push` (local → remoto) — no se ejecutó nada contra el proyecto real para no pisar configuración de Auth en producción (2026-10-06) | Investigar la Management API de Supabase (lectura) para armar el `config.toml` a mano sin usar `push` directo |
 
 ## ✅ Cerrado esta semana
+- **[2026-10-29] Pipeline de CI/CD en producción, verde de punta a punta por primera vez (continuación directa del 2026-10-28).** Jose mergeó los 4 PRs que habían quedado abiertos (#97-#100) y autorizó operar en modo automático ("hace todo vos, todavía no la usa nadie... dejala funcionando"): ramas, pushes, PRs y merges hechos por esta sesión, salvo el único paso que seguía reservado para Jose (aprobar el gate manual de `environment: production`) y la carga de secrets nuevos (nunca generados/vistos por esta sesión). Cascada real de bugs de producción encontrados y arreglados uno por uno, cada uno con su rama/PR/merge (**PRs #108, #109, #110, #111, #112**):
+  - **Token de Vercel mal scopeado:** `VERCEL_TOKEN` apuntaba al equipo "proyec-to" en vez de la cuenta personal de Jose — fallaban `whoami`/`teams ls` (usados por el paso de alias) con "User not found" aunque `pull`/`build`/`deploy --prebuilt` funcionaban igual (esos resuelven por `VERCEL_PROJECT_ID`, no por identidad). Diagnosticado con una captura de `vercel.com/account/settings/tokens`; Jose generó un token nuevo con el scope correcto.
+  - **`/auth/v1/health` de Supabase ahora exige `apikey`:** los smoke tests de staging y prod lo llamaban sin header — 401 en ambos. Arreglado agregando la anon key pública (ya expuesta en el bundle del front, `gitleaks:allow`) como header (PR #108).
+  - **YAML roto dos veces por el mismo patrón:** un `run: <algo con "clave: valor">` en una sola línea es ambiguo para YAML (`mapping values are not allowed here`) — tira todo el workflow sin correr ningún job. Pasó la primera vez al agregar el header `apikey` (PR #109) y **otra vez** cuando un `git cherry-pick` revirtió en silencio ese fix al traer contenido nuevo (PR #110) — ambas detectadas localmente antes de pushear con `python3 -c "import yaml; yaml.safe_load(...)"`, que desde entonces se corre antes de cada push a este archivo.
+  - **Vercel SSO Protection bloqueaba el alias de staging:** `proyec-to-staging.vercel.app` (alias ad-hoc, no dominio propio del proyecto) quedaba atrás de la pantalla de SSO de Vercel — Playwright nunca llegaba a la app real, solo al redirect (`302` a `vercel.com/sso-api`), y el curl de smoke-staging lo daba por bueno igual (`curl -f` no trata un 302 como error — queda anotado como hueco conocido, no arreglado). Fix: header `x-vercel-protection-bypass` (mecanismo oficial de Vercel para automatización) en el curl de smoke-staging y en `playwright.config.ts` (`extraHTTPHeaders` condicional). El secret (`VERCEL_AUTOMATION_BYPASS_SECRET`) lo generó y cargó Jose a mano — nunca se pidió ni se generó desde esta sesión (PR #110).
+  - **`SUPABASE_DB_URL` de producción con conexión directa:** mismo síntoma que ya se había resuelto en staging (`ECONNREFUSED`, GitHub Actions no tiene salida IPv6) — Jose actualizó el secret del Environment `Production` al Session Pooler.
+  - **Deuda de migraciones pendiente desde el baseline (#88) por fin reparada contra producción real:** `supabase db push` rechazaba cualquier migración nueva porque el historial de tracking de prod (`supabase_migrations.schema_migrations`) todavía tenía ~102 versiones viejas que el baseline ya había sacado del repo. Jose autorizó explícitamente el comando (mostrado completo antes de correr, igual que pedía el plan original) — `supabase migration repair --status reverted <~102 versiones>`, un paso temporal en `deploy-db-prod` (PR #111), sacado en el PR de limpieza inmediato siguiente (**PR #112**) una vez confirmado que corrió bien.
+  - **Gate de aprobación manual de producción: funcionó como estaba pensado.** El job `deploy-db-prod` (`environment: production`, revisor requerido = Jose) se quedó esperando cada vez que llegó ahí; Jose lo aprobó él mismo desde GitHub sin que esta sesión tocara ese botón.
+  - **Resultado final confirmado:** corrida completa de `deploy.yml` en `main` con los 7 jobs en verde (`deploy-db-staging` → `deploy-front-staging` → `smoke-staging` → `tests-staging` → `deploy-db-prod` → `deploy-front-prod` → `smoke-prod`) — primera vez que el pipeline completo, incluida producción real, corre de punta a punta sin intervención manual más allá de la aprobación del gate y la carga de secrets.
+  - **Huecos conocidos, no arreglados, anotados en `TASKS.md`:** el check de "La app de staging responde" en `smoke-staging` usa `curl -fsS`, que no distingue un `200` real de un `302` de SSO silenciosamente bypaseado mal — si el bypass alguna vez se rompe (secret rotado/revocado), ese check seguiría pasando en falso.
 - **[2026-10-28] Pipeline de CI/CD (pedido directo de Jose: llevar RehabOT a un nivel parecido al de su TP de Ingeniería de Software 3, `ingsoft3-tp01`) — diagnóstico + plan aprobado + 4 PRs + 1 acción directa de infra, código completo, falta la config externa.**
   - **Fase 1 (diagnóstico):** cobertura real medida en 0.14% líneas (nadie la había medido nunca); confirmado que `rls.test.ts`/`e2e` pegaban contra producción real; confirmado el drift de migraciones ya conocido; corregido un dato del pedido (e2e son 2 tests, no 3).
   - **Paso 2 — hecho directo, sin PR (único permitido contra producción):** `supabase migration repair 20261011210000 --status applied --linked` — la metadata de producción ya coincide con el baseline del PR #88 (antes/después confirmado con `migration list`).
