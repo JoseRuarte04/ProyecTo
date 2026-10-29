@@ -41,6 +41,33 @@ producto sobre HEP2go, no algo para resolver en este fix.
 
 ---
 
+## [2026-10-28] Pipeline de deploy: dos builds del mismo commit, no un artefacto promovido
+
+**Contexto:** `ingsoft3-tp01` (el TP de referencia para este pipeline) buildea la
+imagen Docker UNA vez en `build-api`/`build-client`, la verifica en QA, y
+`deploy-prod` promueve **esa misma imagen** a producción — "se promueve lo que
+se verificó" es el principio. `deploy.yml` acá hace lo contrario a propósito:
+`deploy-front-staging` y `deploy-front-prod` corren `vercel build` dos veces
+sobre el mismo commit, una por entorno.
+
+**Decisión:** mantener dos builds separados, cada uno con las `VITE_SUPABASE_*`
+de su propio entorno (staging/prod) seteadas como env del job antes de buildear.
+
+**Por qué:** Vite resuelve `import.meta.env.VITE_*` en **build time** —
+reemplaza el texto literal en el bundle, no lo lee de ningún lado en runtime
+(a diferencia de una imagen Docker con un backend que sí puede leer variables
+de entorno al arrancar). El JS que sale de `deploy-front-staging` tiene la URL
+de `rehabot-staging` horneada adentro; no hay forma de agarrar ESE bundle y
+"apuntarlo" a producción después sin volver a compilarlo. Promover el mismo
+artefacto (como el TP) exigiría que el build fuera agnóstico del backend y
+leyera la URL en runtime — eso es un cambio de arquitectura de la app (un
+`config.json` servido aparte, o variables inyectadas en `index.html` al
+deployar), no algo para colar en este pipeline. Dos builds del mismo commit
+es más caro (two `vercel build`) pero cero riesgo de que el bundle de
+staging termine sirviendo en producción por error.
+
+---
+
 ## [2026-10-28] Tests de PR contra Supabase local, no contra producción
 
 **Contexto:** `src/test/rls.test.ts` y `e2e/*.spec.ts` pegaban contra el proyecto
@@ -52,25 +79,31 @@ CI/CD acordado con Jose para llevar el pipeline a un nivel parecido al de
 
 **Decisión:** cada job de `ci.yml` (`ci` y `e2e`) levanta su propio Supabase local
 (`supabase start`, mismo baseline que ya se confirmó que levanta limpio desde cero
-el 2026-10-11) y le pega a eso, no a producción. `supabase status --override-name
-... --env` exporta la URL/keys de ESE stack local (son efímeras, cambian en cada
-corrida) a `$GITHUB_ENV`, con los mismos nombres de variable que ya usa el resto
-del repo (`VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY`) — así ni
-`rls.test.ts` ni el dev server que levanta Playwright necesitan saber que están
+el 2026-10-11) y le pega a eso, no a producción. `supabase status -o env` imprime
+las credenciales de ESE stack local (son efímeras, cambian en cada corrida) en
+formato dotenv — se sourcean tal cual (`API_URL`/`ANON_KEY`/`DB_URL`, confirmados
+contra una corrida real; `--override-name` quedó descartado, espera el nombre de
+origen en un formato tipo `api.url` según su propio `--help`, no vale la pena
+depender de adivinarlo bien) y se reexportan con los nombres que usa el resto del
+repo (`VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY`/`SUPABASE_DB_URL`) — así
+ni `rls.test.ts` ni el dev server que levanta Playwright necesitan saber que están
 hablando con algo distinto de siempre. `e2e/supabaseTestClient.ts` dejó de
 hardcodear la URL/anon key de producción — ahora lee las mismas env vars.
 
 Las cuentas fijas `rls-test-a/b@example.com` no existen en una base recién
-creada, así que `scripts/ci/seed-local-test-users.mjs` las crea en cada corrida
-vía `supabase.auth.admin.inviteUserByEmail` (no `signUp` ni `admin.createUser`):
-el trigger `handle_new_user` (gate de "registro solo por invitación", 2026-07-16)
-rechaza cualquier alta salvo que `invited_at` esté seteado o haya una fila
-pendiente en `team_invitations` — `inviteUserByEmail` es el único camino de la
-Admin API que deja `invited_at` seteado sin inventar una invitación de equipo
-falsa. Después de invitar, `admin.updateUserById` fija la password conocida
-(mismas `RLS_TEST_USER_A/B_PASSWORD` de siempre, GitHub Secrets — ya no
-identifican cuentas que preexisten en ningún lado, son la password con la que
-cada corrida las crea).
+creada, así que `scripts/ci/seed-local-test-users.mjs` las crea en cada corrida —
+**INSERT directo a `auth.users`/`auth.identities`** (paquete `pg`, contra
+`SUPABASE_DB_URL`), no `admin.inviteUserByEmail`. Se probó primero con
+`inviteUserByEmail` (deja `invited_at` seteado, que es lo que pide el trigger
+`handle_new_user` para no exigir una invitación de equipo) pero falló en la
+corrida real: GoTrue v2.197.0 (la versión que levanta `supabase start` acá) hace
+el INSERT con `invited_at` NULL y lo completa con un UPDATE aparte — el trigger,
+que corre AL INSERT, nunca llega a ver `invited_at` seteado, así que sigue
+rechazando el alta (`signup_not_allowed`, confirmado en los logs reales del
+contenedor de auth). Insertando la fila nosotros mismos en un solo INSERT no hay
+esa carrera. Mismas `RLS_TEST_USER_A/B_PASSWORD` de siempre (GitHub Secrets) — ya
+no identifican cuentas que preexisten en ningún lado, son la password con la que
+cada corrida las crea.
 
 Efecto colateral: el `concurrency` group de `e2e` (serializaba corridas para no
 pisar el paciente DNI fijo de producción entre dos PRs activos) se sacó — ya no
@@ -82,7 +115,8 @@ entrada de 2026-10-06). El job tarda más (Docker + Postgres+Auth+Storage locale
 ~1-2 min extra), pero corre aislado y en paralelo a cualquier otro PR sin
 pisarse. `e2e` sigue no bloqueante: el cambio de entorno es nuevo, conviene verlo
 estable unas corridas antes de sumarle la presión de ser requerido para mergear
-(ver `docs/TASKS.md`).
+(ver `docs/TASKS.md`). **Confirmado en verde contra un runner real de GitHub
+Actions** (no solo en teoría): `ci` y `e2e` ambos pasaron con este flujo.
 
 ---
 

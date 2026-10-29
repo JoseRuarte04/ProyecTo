@@ -108,6 +108,12 @@ no se pierda en una sesión apurada).
 - [ ] **Upgrade mayor de `react-router-dom` (6.x → 7.18+)** — encontrado al correr `npm audit fix` el 2026-10-02 (`docs/AUDIT_2026-10-02.md`): la vulnerabilidad moderada de open-redirect/deserialización en React Router no tiene fix dentro del rango `^6.30.1` actual, requiere el bump mayor (`npm audit fix --force`). No se aplicó en el fix de rutina por el riesgo de romper rutas/navegación en toda la app — amerita una tarea dedicada con pruebas de los flujos principales de navegación antes de subir la versión. De paso, `vitest`/`@vitest/mocker` y `vite`/`esbuild` (herramientas de dev, no van a producción) también tienen vulnerabilidades moderadas que solo se arreglan con `--force` y un bump mayor — menor prioridad por ser solo de desarrollo, pero quedan anotadas acá para no perderlas.
 
 ## 🔧 Infraestructura / DevOps
+- [~] **Pipeline de CD (`deploy.yml`, PR del 2026-10-28) — código listo, pendiente de que Jose complete la config externa antes de que corra de verdad.** Staging (`rehabot-staging`) + QA automático + gate de aprobación manual para producción, mismo criterio que `ingsoft3-tp01`. Falta (ninguno se puede hacer desde acá, ver el cierre de sesión del 2026-10-28 en `PROJECT_STATE.md` para la lista exacta con nombres):
+  1. Cargar los secrets nuevos en GitHub (staging + el nuevo environment `production`, distinto de `production-backup`).
+  2. Configurar el revisor requerido del environment `production`.
+  3. Desactivar el auto-deploy de Vercel por push a main (`Ignored Build Step`) — no se pudo hacer vía API (403, sin permiso de escritura sobre el proyecto de Vercel desde esta sesión).
+  4. Apuntar el entorno Preview de Vercel a `rehabot-staging` (tampoco se pudo por el mismo motivo).
+  5. Confirmar que el alias `proyec-to-staging.vercel.app` no esté tomado por otra cuenta (namespace global de `*.vercel.app`) — si lo está, elegir otro subdominio y ajustar `deploy.yml`.
 - [x] CI con GitHub Actions (lint con techo de warnings + typecheck + tests + build) — hecho 2026-07-16.
 - [x] Tests de RLS (pacientes, sesiones, fichas clínicas, perfiles, anon) — hecho 2026-07-16, corren en CI.
 - [x] Monitoreo de errores en producción (Sentry) — hecho 2026-07-16. Init opt-in por `VITE_SENTRY_DSN` (solo builds de producción), captura global + ErrorBoundary, sin PII/replay/tracing. DSN cargado en Vercel, verificado en el bundle de producción y con evento de prueba ingresado.
