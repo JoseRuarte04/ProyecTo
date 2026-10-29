@@ -9,6 +9,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-28] Pipeline de CI/CD: staging, gate de tests, deploy con aprobación manual
+
+Diagnóstico + plan aprobado + ejecución, inspirado en el TP de IS3 de Jose. 4 PRs abiertos sin mergear (#97 cobertura real en CI, #98 RLS/e2e contra Supabase local en vez de producción, #99 fix real del baseline — no se podía aplicar contra ningún proyecto real, #100 workflow `deploy.yml`) + 1 acción directa contra producción (metadata del `migration repair` ya acordado) + proyecto nuevo `rehabot-staging` creado y poblado con datos ficticios. Falta la config externa (secrets, revisor del environment, 2 ajustes de Vercel sin permiso de API) para que el pipeline corra de verdad — ver `docs/TASKS.md`/`docs/PROJECT_STATE.md`.
+
 ## [2026-10-11] Auditoría de integridad de todos los PRs/merges + mergeados #82 y #88
 
 Repaso completo del historial de PRs/merges a pedido de Jose. Local estaba 26 commits atrás de `origin/main` (sincronizado sin riesgo, repo limpio). CI/typecheck/build/tests (40/40, incluida RLS real) en verde sobre `main` actualizado. PR #82 (panel admin) mergeado tal cual tras rebase. PR #88 (baseline de esquema) tenía un bug real: el dump estaba desactualizado y recreaba `exercise_plans`/`_items`/`_tokens` — tablas que el PR #84 (mergeado la misma tarde) ya había decidido borrar — porque el DROP de #84 nunca se aplicó contra producción. Corregido antes de mergear: baseline regenerado fresco, 4 migraciones redundantes archivadas, el DROP reordenado para correr después del baseline (no antes) y completado (le faltaba dropear uno de los 2 overloads de `add_routine_to_exercise_plan`). Ningún cambio llegó a aplicarse contra producción real — todo quedó resuelto a nivel de archivos antes de que importara. No quedan PRs abiertos.
