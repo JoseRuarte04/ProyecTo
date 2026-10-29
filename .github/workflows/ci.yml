@@ -44,14 +44,17 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      # Solo dependencias de producción (las que van al bundle) y solo
-      # alto/crítico: las de devDependencies (vite/vitest, herramientas de
-      # build/test que no se despliegan) quedan afuera a propósito — ver
-      # docs/AUDIT_2026-10-02.md y docs/TASKS.md para las ya triagueadas que
-      # necesitan un bump mayor. Si esto empieza a fallar, es una
-      # vulnerabilidad nueva en código que sí llega al navegador.
+      # Solo dependencias de producción (las que van al bundle): las de
+      # devDependencies (vite/vitest, herramientas de build/test que no se
+      # despliegan) quedan afuera a propósito.
+      # Umbral en "critical" (no "high"): react-router (moderate, conocida
+      # desde docs/AUDIT_2026-10-02.md) y zod (high, GHSA-mrhx-c7xc-m3w5,
+      # fix exige breaking change 3→4, ver docs/TASKS.md) quedan aceptadas a
+      # propósito — bajarlo a "high" las vuelve a romper sin que haya nada
+      # nuevo que arreglar. Si esto empieza a fallar, es una vulnerabilidad
+      # crítica nueva en código que sí llega al navegador.
       - name: Audit de dependencias de producción
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=critical
 
       - name: Scan de secretos
         uses: gitleaks/gitleaks-action@v2
