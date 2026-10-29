@@ -95,13 +95,24 @@ jobs:
         run: supabase start
 
       # `supabase status -o env` imprime las credenciales de ESTE stack local
-      # (URL/keys cambian en cada corrida) en formato dotenv — `--override-name`
-      # las renombra a como las espera el resto del repo (mismas variables
-      # que usa la app real vía Vite) y las deja disponibles para los steps
-      # siguientes de este job.
+      # (URL/keys cambian en cada corrida) en formato dotenv — API_URL,
+      # ANON_KEY, SERVICE_ROLE_KEY (nombres confirmados contra la corrida
+      # real, no `--override-name`: esa flag espera un nombre de origen tipo
+      # "api.url" según su propio --help, no "API_URL" como muestran algunos
+      # ejemplos de la doc — para no depender de adivinar bien ese formato,
+      # el archivo se sourcea tal cual y se reexporta con los nombres que
+      # espera el resto del repo).
       - name: Exportar credenciales del Supabase local
         run: |
-          supabase status --override-name API_URL=VITE_SUPABASE_URL,ANON_KEY=VITE_SUPABASE_PUBLISHABLE_KEY,SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY -o env >> "$GITHUB_ENV"
+          supabase status -o env > /tmp/supabase-status.env
+          set -a
+          source /tmp/supabase-status.env
+          set +a
+          {
+            echo "VITE_SUPABASE_URL=$API_URL"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
 
       # Crea rls-test-a/b@example.com en ESTE Supabase local (no existen de
       # antemano en una base recién levantada) — ver el comentario del
@@ -145,7 +156,15 @@ jobs:
 
       - name: Exportar credenciales del Supabase local
         run: |
-          supabase status --override-name API_URL=VITE_SUPABASE_URL,ANON_KEY=VITE_SUPABASE_PUBLISHABLE_KEY,SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY -o env >> "$GITHUB_ENV"
+          supabase status -o env > /tmp/supabase-status.env
+          set -a
+          source /tmp/supabase-status.env
+          set +a
+          {
+            echo "VITE_SUPABASE_URL=$API_URL"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
 
       # Solo rls-test-a (ver e2e/supabaseTestClient.ts) — ningún spec usa B.
       - name: Seed de usuarios de prueba (Supabase local)
