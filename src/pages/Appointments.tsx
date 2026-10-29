@@ -67,6 +67,20 @@ const CANCELLATION_REASONS = [
 
 const HOUR_START = 7;
 const HOUR_END = 21;
+const DEFAULT_SESSION_MINUTES = 45;
+
+/** Suma minutos a un "HH:mm" sin pasar de las 23:59 (no cruza de día). */
+function addMinutesToTime(time: string, minutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return "";
+  const total = Math.min(h * 60 + m + minutes, 23 * 60 + 59);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/** true si ambos horarios están completos y el fin no es posterior al inicio. */
+function isEndNotAfterStart(start: string, end: string): boolean {
+  return !!start && !!end && end <= start; // "HH:mm" compara bien como string
+}
 const SLOT_H = 56; // px por hora
 
 // Paciente resumido que devuelve la búsqueda del dialog de turno nuevo
@@ -288,6 +302,7 @@ export default function Appointments() {
 
   // Reprogramar arrastrando un turno a otro horario/día en la vista Semana.
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [pendingDrop, setPendingDrop] = useState<{ id: string; start: Date; end: Date; conflictWith: string } | null>(null);
   const timeToMinOfDay = (iso: string) => { const d = parseISO(iso); return d.getHours() * 60 + d.getMinutes(); };
 
   const handleDayDrop = (e: React.DragEvent<HTMLDivElement>, day: Date) => {
@@ -319,22 +334,25 @@ export default function Appointments() {
         return newStartMin < aEnd && newEndMin > aStart;
       })()
     );
-    if (conflict) {
-      toast.error("Ese horario ya está ocupado", {
-        description: `Se superpone con el turno de ${conflict.patients?.last_name}, ${conflict.patients?.first_name}. Si querés agendar un sobreturno, usá "Reprogramar".`,
-      });
-      return;
-    }
-
     const dateStr = format(day, "yyyy-MM-dd");
     const newStart = new Date(`${dateStr}T${timeStr}:00`);
     const newEnd = new Date(newStart.getTime() + durationMin * 60000);
+    const move = { id, start: newStart, end: newEnd };
+    if (conflict) {
+      setPendingDrop({ ...move, conflictWith: `${conflict.patients?.last_name}, ${conflict.patients?.first_name}` });
+      return;
+    }
+    applyDrop(move, false);
+  };
+
+  const applyDrop = (move: { id: string; start: Date; end: Date }, isOvertime: boolean) => {
     supabase.from("appointments").update({
-      appointment_date: newStart.toISOString(),
-      appointment_end: newEnd.toISOString(),
-    }).eq("id", id).then(({ error }) => {
+      appointment_date: move.start.toISOString(),
+      appointment_end: move.end.toISOString(),
+      is_overtime: isOvertime,
+    }).eq("id", move.id).then(({ error }) => {
       if (error) { toast.error("No se pudo reprogramar el turno"); return; }
-      toast.success("Turno reprogramado");
+      toast.success(isOvertime ? "Turno reprogramado como sobreturno" : "Turno reprogramado");
       refreshAppointments();
     });
   };
@@ -784,6 +802,28 @@ export default function Appointments() {
         <RescheduleDialog appt={rescheduleAppt} onClose={() => setRescheduleAppt(null)} onSaved={refreshAppointments} />
       )}
 
+      <AlertDialog open={!!pendingDrop} onOpenChange={(v) => { if (!v) setPendingDrop(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-orange-500" /> ¿Reprogramar como sobreturno?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              El nuevo horario se superpone con el turno de <strong>{pendingDrop?.conflictWith}</strong>. Podés reprogramarlo igual como sobreturno.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+              onClick={() => { if (pendingDrop) applyDrop(pendingDrop, true); setPendingDrop(null); }}
+            >
+              <Zap className="h-3.5 w-3.5 mr-1.5" /> Reprogramar como sobreturno
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <RemindersPanel open={remindersOpen} onOpenChange={setRemindersOpen} />
     </div>
   );
@@ -1053,8 +1093,9 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
   const { guard, confirmOpen, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(isDirty);
   const closeGuarded = () => guard(onClose);
 
-  const handleSave = async () => {
-    if (!date || !startTime) { toast.error("Completá la fecha y hora"); return; }
+  const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
+
+  const doSave = async (isOvertime: boolean) => {
     setSaving(true);
     const appointmentDate = new Date(`${date}T${startTime}:00`).toISOString();
     const appointmentEnd = endTime ? new Date(`${date}T${endTime}:00`).toISOString() : null;
@@ -1062,13 +1103,46 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
       appointment_date: appointmentDate,
       appointment_end: appointmentEnd,
       notes: notes || null,
+      is_overtime: isOvertime,
     }).eq("id", appt.id);
     setSaving(false);
     if (error) { toast.error("Error al reprogramar turno"); return; }
-    toast.success("Turno reprogramado");
+    toast.success(isOvertime ? "Turno reprogramado como sobreturno" : "Turno reprogramado");
     resetDirty();
     onSaved();
     onClose();
+  };
+
+  const handleSave = async () => {
+    if (!date || !startTime) { toast.error("Completá la fecha y hora"); return; }
+    if (isEndNotAfterStart(startTime, endTime)) {
+      toast.error("La hora de fin debe ser posterior a la de inicio");
+      return;
+    }
+    // Choque con otro turno abierto del mismo día (aunque el horario no coincida exacto).
+    // Se avisa siempre, aunque este turno ya fuera sobreturno antes de reprogramarlo.
+    setSaving(true);
+    const newStart = new Date(`${date}T${startTime}:00`);
+    const newEnd = endTime ? new Date(`${date}T${endTime}:00`) : new Date(newStart.getTime() + 30 * 60000);
+    const { data: dayAppts, error: fetchError } = await supabase
+      .from("appointments")
+      .select("id, appointment_date, appointment_end, patients(first_name, last_name)")
+      .in("status", OCCUPYING_STATUSES)
+      .neq("id", appt.id)
+      .gte("appointment_date", `${date}T00:00:00`)
+      .lt("appointment_date", `${date}T23:59:59`);
+    setSaving(false);
+    if (fetchError) { toast.error("No se pudieron validar los horarios existentes"); return; }
+    const conflict = (dayAppts || []).find(a => {
+      const aStart = parseISO(a.appointment_date);
+      const aEnd = a.appointment_end ? parseISO(a.appointment_end) : new Date(aStart.getTime() + 30 * 60000);
+      return newStart < aEnd && newEnd > aStart;
+    });
+    if (conflict) {
+      setOvertimeConflict(`${conflict.patients?.last_name}, ${conflict.patients?.first_name}`);
+      return;
+    }
+    await doSave(false);
   };
 
   return (
@@ -1079,19 +1153,43 @@ function RescheduleDialog({ appt, onClose, onSaved }: { appt: AppointmentWithPat
         <div className="space-y-4">
           <div className="space-y-1.5"><Label>Fecha</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Hora inicio</Label><Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Hora fin</Label><Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>Hora inicio</Label><Input type="time" value={startTime} onChange={e => { setStartTime(e.target.value); if (e.target.value) setEndTime(addMinutesToTime(e.target.value, DEFAULT_SESSION_MINUTES)); }} /></div>
+            <div className="space-y-1.5"><Label>Hora fin</Label><Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} aria-invalid={isEndNotAfterStart(startTime, endTime)} /></div>
           </div>
+          {isEndNotAfterStart(startTime, endTime) && (
+            <p className="text-xs text-destructive -mt-2">La hora de fin debe ser posterior a la de inicio.</p>
+          )}
           <div className="space-y-1.5"><Label>Notas</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} /></div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={closeGuarded}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSave} disabled={saving || isEndNotAfterStart(startTime, endTime)}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
             </Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
+    <AlertDialog open={!!overtimeConflict} onOpenChange={(v) => { if (!v) setOvertimeConflict(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-orange-500" /> ¿Reprogramar como sobreturno?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            El nuevo horario se superpone con el turno de <strong>{overtimeConflict}</strong>. Podés reprogramarlo igual como sobreturno.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            onClick={async () => { setOvertimeConflict(null); await doSave(true); }}
+          >
+            <Zap className="h-3.5 w-3.5 mr-1.5" /> Reprogramar como sobreturno
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <UnsavedChangesDialog open={confirmOpen} onConfirm={confirmDiscard} onCancel={cancelDiscard} />
     </>
   );
@@ -1124,6 +1222,7 @@ function NewAppointmentDialog({
   const [repeat, setRepeat] = useState<{ enabled: boolean; frequency: "weekly" | "biweekly"; count: number }>({ enabled: false, frequency: "weekly", count: 4 });
   const [overtimeConflict, setOvertimeConflict] = useState<string | null>(null);
   const [showOvertimeConfirm, setShowOvertimeConfirm] = useState(false);
+  const [seriesConflicts, setSeriesConflicts] = useState<string[] | null>(null);
   const { maxAbsences } = useAppointmentSettings();
   const priorities = usePatientPriorities([...patients.map(p => p.id), ...(selectedPatient ? [selectedPatient.id] : [])]);
   const [absenceCount, setAbsenceCount] = useState(0);
@@ -1137,7 +1236,10 @@ function NewAppointmentDialog({
   useEffect(() => {
     if (open) {
       if (prefilledDate) setSelectedDate(prefilledDate);
-      if (prefilledTime) setStartTime(prefilledTime);
+      if (prefilledTime) {
+        setStartTime(prefilledTime);
+        setEndTime(addMinutesToTime(prefilledTime, DEFAULT_SESSION_MINUTES));
+      }
       resetDirty();
     } else {
       // Reset al cerrar
@@ -1270,10 +1372,10 @@ function NewAppointmentDialog({
 
   // Serie de turnos recurrentes: cada ocurrencia es su propia fila (mismo
   // recurrence_id), gobernada por las mismas RLS de appointments de siempre
-  // — no hace falta tabla ni policies nuevas. Las ocurrencias que chocan con
-  // un turno existente se saltean y se reportan al final (no se arma la
-  // confirmación de sobreturno fila por fila, para no interrumpir la carga).
-  const doSaveRecurring = async () => {
+  // — no hace falta tabla ni policies nuevas. Si alguna ocurrencia choca con
+  // un turno existente, se pregunta UNA vez para toda la serie (no fila por
+  // fila): agendar las que chocan como sobreturno, o saltearlas.
+  const doSaveRecurring = async (onConflict?: "overtime" | "skip") => {
     setSaving(true);
     const stepDays = repeat.frequency === "weekly" ? 7 : 14;
     const baseStart = new Date(`${selectedDate}T${startTime}:00`);
@@ -1296,17 +1398,31 @@ function NewAppointmentDialog({
       return;
     }
 
+    const findConflict = (occ: { start: Date; end: Date }) => (existing || []).find(a => {
+      const aStart = parseISO(a.appointment_date);
+      const aEnd = a.appointment_end ? parseISO(a.appointment_end) : new Date(aStart.getTime() + 30 * 60000);
+      return occ.start < aEnd && occ.end > aStart;
+    });
+
+    if (!onConflict) {
+      const conflicts = occurrences.flatMap(occ => {
+        const c = findConflict(occ);
+        return c ? [`${format(occ.start, "d/MM", { locale: es })} (${c.patients?.last_name}, ${c.patients?.first_name})`] : [];
+      });
+      if (conflicts.length > 0) {
+        setSaving(false);
+        setSeriesConflicts(conflicts);
+        return;
+      }
+    }
+
     const recurrenceId = crypto.randomUUID();
     const toInsert: Database["public"]["Tables"]["appointments"]["Insert"][] = [];
     const skipped: string[] = [];
 
     for (const occ of occurrences) {
-      const conflict = (existing || []).find(a => {
-        const aStart = parseISO(a.appointment_date);
-        const aEnd = a.appointment_end ? parseISO(a.appointment_end) : new Date(aStart.getTime() + 30 * 60000);
-        return occ.start < aEnd && occ.end > aStart;
-      });
-      if (conflict) {
+      const conflict = findConflict(occ);
+      if (conflict && onConflict === "skip") {
         skipped.push(`${format(occ.start, "d/MM", { locale: es })} (choca con ${conflict.patients?.last_name}, ${conflict.patients?.first_name})`);
         continue;
       }
@@ -1318,7 +1434,7 @@ function NewAppointmentDialog({
         type: form.type as Database["public"]["Enums"]["appointment_type"],
         status: "scheduled",
         notes: form.notes || null,
-        is_overtime: false,
+        is_overtime: !!conflict,
         modality: form.modality,
         video_link: form.modality === "virtual" ? createVideoRoom() : null,
         recurrence_id: recurrenceId,
@@ -1337,6 +1453,8 @@ function NewAppointmentDialog({
 
     if (skipped.length > 0) {
       toast.success(`Se agendaron ${toInsert.length} de ${repeat.count} turnos`, { description: `No se pudo: ${skipped.join("; ")}` });
+    } else if (toInsert.some(t => t.is_overtime)) {
+      toast.success(`Se agendaron los ${toInsert.length} turnos de la serie`, { description: `${toInsert.filter(t => t.is_overtime).length} como sobreturno` });
     } else {
       toast.success(`Se agendaron los ${toInsert.length} turnos de la serie`);
     }
@@ -1367,7 +1485,7 @@ function NewAppointmentDialog({
     await doSave(false);
   };
 
-  const canSave = !!selectedPatient && !!selectedDate && !!startTime && !!endTime;
+  const canSave = !!selectedPatient && !!selectedDate && !!startTime && !!endTime && !isEndNotAfterStart(startTime, endTime);
   const hoursInRange = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) =>
     String(HOUR_START + i).padStart(2, "0")
   );
@@ -1452,13 +1570,16 @@ function NewAppointmentDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Hora inicio *</Label>
-                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} min="07:00" max="21:00" />
+                <Input type="time" value={startTime} onChange={e => { setStartTime(e.target.value); if (e.target.value) setEndTime(addMinutesToTime(e.target.value, DEFAULT_SESSION_MINUTES)); }} min="07:00" max="21:00" />
               </div>
               <div className="space-y-1.5">
                 <Label>Hora fin *</Label>
-                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} min="07:00" max="21:00" />
+                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} min="07:00" max="21:00" aria-invalid={isEndNotAfterStart(startTime, endTime)} />
               </div>
             </div>
+            {isEndNotAfterStart(startTime, endTime) && (
+              <p className="text-xs text-destructive -mt-2">La hora de fin debe ser posterior a la de inicio.</p>
+            )}
 
             {/* Mini timeline */}
             {selectedDate && (
@@ -1649,6 +1770,32 @@ function NewAppointmentDialog({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Serie con choques */}
+      <AlertDialog open={!!seriesConflicts} onOpenChange={(v) => { if (!v) setSeriesConflicts(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-orange-500" /> Hay turnos de la serie que se superponen
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {seriesConflicts?.length} de {repeat.count} turnos chocan con otros ya agendados: {seriesConflicts?.join("; ")}. Podés agendarlos igual como sobreturno u omitir esas fechas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <Button variant="outline" onClick={async () => { setSeriesConflicts(null); await doSaveRecurring("skip"); }}>
+              Omitir esas fechas
+            </Button>
+            <AlertDialogAction
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+              onClick={async () => { setSeriesConflicts(null); await doSaveRecurring("overtime"); }}
+            >
+              <Zap className="h-3.5 w-3.5 mr-1.5" /> Agendar como sobreturno
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmar sobreturno */}
       <AlertDialog open={showOvertimeConfirm} onOpenChange={setShowOvertimeConfirm}>
