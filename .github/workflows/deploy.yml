@@ -106,9 +106,16 @@ jobs:
       # Diagnóstico temporal: "Error: User not found" en el step de abajo no
       # trae más detalle — esto confirma a qué cuenta/team resuelve
       # realmente el token antes de intentar el alias.
-      - name: Debug — quién es este token
+      # "Not able to load user... User not found (404)" pasaba incluso en
+      # whoami con --scope — probando sin scope para aislar si el token
+      # solo no resuelve, o si es específico de VERCEL_ORG_ID.
+      - name: Debug — quién es este token (sin scope)
         if: always()
-        run: npx vercel@latest whoami --token="${{ secrets.VERCEL_TOKEN }}" --scope "${{ secrets.VERCEL_ORG_ID }}" || true
+        run: npx vercel@latest whoami --token="${{ secrets.VERCEL_TOKEN }}" || true
+
+      - name: Debug — equipos a los que pertenece este token
+        if: always()
+        run: npx vercel@latest teams ls --token="${{ secrets.VERCEL_TOKEN }}" || true
 
       - name: Alias a la URL fija de staging
         run: |
