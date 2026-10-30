@@ -9,6 +9,47 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-29] BUG CRÍTICO REAL encontrado al escribir el e2e de archivos clínicos: borrar un archivo está roto para cualquier usuario
+
+**Contexto:** al escribir `e2e/clinical-files.spec.ts` (ítem 9 del plan de
+tests/cobertura), el paso de "eliminar archivo" falló contra Supabase
+local. Reproducido también directo con `@supabase/supabase-js` logueado
+como `rls-test-a`:
+`supabase.from("clinical_files").update({is_deleted:true}).eq("id", ...)`
+devuelve `{ code: '42501', message: 'permission denied for function
+insert_audit_log' }`.
+
+**Causa raíz** (confirmada en `supabase/migrations/20261011210000_baseline_schema.sql`):
+el trigger `trg_clinical_files_soft_delete` (~línea 4146) ejecuta
+`handle_file_soft_delete()` (~línea 1364) antes de cada UPDATE de
+`is_deleted` en `clinical_files`. Esa función llama a `insert_audit_log(...)`
+pero **no está declarada `SECURITY DEFINER`** — corre con los permisos del
+usuario autenticado, no de `postgres`. `insert_audit_log` tiene `REVOKE ALL
+FROM PUBLIC` + `GRANT ALL TO service_role` únicamente (~línea 5495) —
+ningún usuario autenticado real tiene permiso para ejecutarla. Por
+contraste, `admin_deactivate_therapist` (~línea 324) SÍ es `SECURITY
+DEFINER` y llama a `insert_audit_log()` sin problema — es el patrón que
+`handle_file_soft_delete()` debería seguir y no sigue.
+
+**Impacto:** cualquier profesional que intente borrar (o restaurar) un
+archivo clínico desde la UI ve "Error al eliminar el archivo" siempre, sin
+excepción — no es un caso borde, es el 100% de los intentos. No se pudo
+confirmar si esto también afecta producción real (no se corrió contra
+producción, el baseline SQL es el mismo) — alta probabilidad de que sí,
+dado que el bug está en la migración baseline, no en algo específico del
+entorno local.
+
+**Decisión:** NO corregido en el PR del ítem 9 — agregar `SECURITY
+DEFINER` a una función que hoy no lo tiene es un cambio de superficie de
+seguridad/confianza que le toca decidir y aplicar a Jose explícitamente,
+no a un plan de testing. El escenario quedó documentado como `test.skip`
+en `e2e/clinical-files.spec.ts` con la causa raíz completa, listo para
+sacarle el `.skip` en cuanto se aplique el fix.
+
+**Siguiente paso sugerido:** nueva migración que agregue `SECURITY
+DEFINER` a `handle_file_soft_delete()` (mismo patrón que las funciones
+`admin_*`), aplicarla contra producción, y sacar el `.skip` del test.
+
 ## [2026-10-29] Bypass de Vercel SSO Protection vía header oficial, no desactivando la protección
 
 **Contexto:** el alias fijo de staging (`proyec-to-staging.vercel.app`) quedó
