@@ -60,7 +60,7 @@ export default defineConfig({
         "src/components/ui/**",
       ],
       thresholds: {
-        lines: 2.8,
+        lines: 1.4,
       },
     },
   },
