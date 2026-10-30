@@ -24,8 +24,21 @@ if (!DB_URL) {
 }
 
 const USERS = [
-  { email: "rls-test-a@example.com", password: process.env.RLS_TEST_USER_A_PASSWORD, name: "RLS Test A" },
-  { email: "rls-test-b@example.com", password: process.env.RLS_TEST_USER_B_PASSWORD, name: "RLS Test B" },
+  { email: "rls-test-a@example.com", password: process.env.RLS_TEST_USER_A_PASSWORD, name: "RLS Test A", envVar: "RLS_TEST_USER_A_PASSWORD" },
+  { email: "rls-test-b@example.com", password: process.env.RLS_TEST_USER_B_PASSWORD, name: "RLS Test B", envVar: "RLS_TEST_USER_B_PASSWORD" },
+  // Super-admin de prueba, solo para testear is_super_admin()/admin_* contra
+  // Supabase LOCAL (nunca existió ni debe existir en producción). A
+  // diferencia de A/B, además de la fila en auth.users necesita una fila en
+  // admin_users (ver más abajo) — es lo único que hace a una cuenta
+  // super-admin, profiles.role nunca cambia de 'professional' (confirmado
+  // en handle_new_user, no hay escalada de privilegios por ahí).
+  {
+    email: "rls-test-admin@example.com",
+    password: process.env.RLS_TEST_USER_ADMIN_PASSWORD,
+    name: "RLS Test Admin",
+    envVar: "RLS_TEST_USER_ADMIN_PASSWORD",
+    isSuperAdmin: true,
+  },
 ];
 
 const client = new pg.Client({ connectionString: DB_URL });
@@ -37,9 +50,8 @@ try {
   // rompe nada si ya estaba.
   await client.query("CREATE EXTENSION IF NOT EXISTS pgcrypto;");
 
-  for (const [i, user] of USERS.entries()) {
-    const varName = i === 0 ? "A" : "B";
-    if (!user.password) throw new Error(`Falta RLS_TEST_USER_${varName}_PASSWORD`);
+  for (const user of USERS) {
+    if (!user.password) throw new Error(`Falta ${user.envVar}`);
 
     const { rows: existing } = await client.query("SELECT id FROM auth.users WHERE email = $1", [user.email]);
 
@@ -48,6 +60,9 @@ try {
         user.password,
         existing[0].id,
       ]);
+      if (user.isSuperAdmin) {
+        await client.query("INSERT INTO admin_users (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [existing[0].id]);
+      }
       console.log(`✓ ${user.email} ya existía, password actualizada (${existing[0].id})`);
       continue;
     }
@@ -83,6 +98,10 @@ try {
        VALUES ($1, $2, $3::jsonb, 'email', now(), now(), now())`,
       [userId, userId, JSON.stringify({ sub: userId, email: user.email, email_verified: true, phone_verified: false })],
     );
+
+    if (user.isSuperAdmin) {
+      await client.query("INSERT INTO admin_users (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [userId]);
+    }
 
     console.log(`✓ ${user.email} creado en Supabase local (${userId})`);
   }

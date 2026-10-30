@@ -13,12 +13,16 @@ env:
   # solo lo empaqueta (un string vacío compila igual). El build real para
   # Vercel usa las env vars que Vercel tiene configuradas, no las de acá.
   #
-  # Passwords de los usuarios de prueba de RLS (rls-test-a/b@example.com) —
+  # Passwords de los usuarios de prueba de RLS (rls-test-a/b/admin@example.com) —
   # siguen siendo secretas: ya no identifican cuentas que existen de
   # antemano en ningún lado, son la password con la que cada job CREA esas
   # cuentas en su propio Supabase local (ver scripts/ci/seed-local-test-users.mjs).
+  # RLS_TEST_USER_ADMIN_PASSWORD es nueva (src/test/adminRpc.test.ts, 2026-10-29)
+  # — hace falta cargar este secret en GitHub antes de mergear ese PR, mismo
+  # procedimiento que las otras dos.
   RLS_TEST_USER_A_PASSWORD: ${{ secrets.RLS_TEST_USER_A_PASSWORD }}
   RLS_TEST_USER_B_PASSWORD: ${{ secrets.RLS_TEST_USER_B_PASSWORD }}
+  RLS_TEST_USER_ADMIN_PASSWORD: ${{ secrets.RLS_TEST_USER_ADMIN_PASSWORD }}
 
 jobs:
   ci:
