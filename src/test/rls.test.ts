@@ -460,3 +460,140 @@ describe("RLS: sin sesión (anon)", () => {
     expect(data.user).toBeNull();
   });
 });
+
+describe("RLS: teams/team_members/team_invitations", () => {
+  // Drift conocido (ver docs/PROJECT_STATE.md, 2026-10-11): el rollout de
+  // equipos del 2026-05-19 no tuvo migración en el repo durante meses — el
+  // baseline del PR #88 ya captura el esquema y las policies, pero hasta
+  // ahora ningún test cubría el contrato de seguridad de estas 3 tablas.
+  //
+  // clientA queda como ADMIN de "team1" y clientB como ADMIN de "team2"
+  // (equipos separados, fijos, reusados entre corridas con el mismo
+  // criterio idempotente que el resto del archivo) — así se puede probar
+  // tanto "un team admin puede gestionar SU equipo" como "un team admin NO
+  // puede tocar un equipo ajeno", sin necesitar una 4ta cuenta de prueba.
+  const clientAdmin = makeClient();
+  let team1Id: string;
+  let team2Id: string;
+  let invitationId: string;
+
+  beforeAll(async () => {
+    const RLS_TEST_USER_ADMIN_PASSWORD = process.env.RLS_TEST_USER_ADMIN_PASSWORD;
+    if (!RLS_TEST_USER_ADMIN_PASSWORD) {
+      throw new Error(
+        "Falta RLS_TEST_USER_ADMIN_PASSWORD (la usa también src/test/adminRpc.test.ts). " +
+          "Localmente: agregala a .env y corré scripts/ci/seed-local-test-users.mjs. En CI: GitHub Secrets.",
+      );
+    }
+    await signInOrSignUp(clientAdmin, {
+      email: "rls-test-admin@example.com",
+      password: RLS_TEST_USER_ADMIN_PASSWORD,
+      name: "RLS Test Admin",
+    });
+
+    async function findOrCreateTeam(name: string, adminUserId: string): Promise<string> {
+      // admin client: is_super_admin() le deja ver TODOS los equipos (policy
+      // "teams: ver"), por eso puede buscar por nombre sin ser miembro.
+      const { data: existing, error: findErr } = await clientAdmin.from("teams").select("id").eq("name", name).limit(1);
+      if (findErr) throw findErr;
+      if (existing.length > 0) return existing[0].id;
+
+      const { data: teamId, error } = await clientAdmin.rpc("admin_create_team", {
+        p_name: name,
+        p_admin_user_id: adminUserId,
+      });
+      if (error) throw error;
+      return teamId as string;
+    }
+
+    team1Id = await findOrCreateTeam("RLS Test Team 1", userAId);
+    team2Id = await findOrCreateTeam("RLS Test Team 2", userBId);
+
+    const { data: existingInv, error: invFindErr } = await clientAdmin
+      .from("team_invitations")
+      .select("id")
+      .eq("team_id", team1Id)
+      .eq("email", "rls-test-invite-target@example.com")
+      .limit(1);
+    if (invFindErr) throw invFindErr;
+    if (existingInv.length > 0) {
+      invitationId = existingInv[0].id;
+    } else {
+      const { data, error } = await clientA
+        .from("team_invitations")
+        .insert({ team_id: team1Id, email: "rls-test-invite-target@example.com", invited_by: userAId })
+        .select("id")
+        .single();
+      if (error) throw error;
+      invitationId = data.id;
+    }
+  });
+
+  it("A (admin de team1) ve los miembros de su equipo", async () => {
+    const { data, error } = await clientA.from("team_members").select("user_id").eq("team_id", team1Id);
+    expect(error).toBeNull();
+    expect(data!.map((r) => r.user_id)).toContain(userAId);
+  });
+
+  it("A NO ve los miembros de team2 (equipo ajeno)", async () => {
+    const { data, error } = await clientA.from("team_members").select("user_id").eq("team_id", team2Id);
+    // Denegado = lista vacía (no error) bajo RLS de SELECT, mismo criterio
+    // que el resto del archivo para policies USING sin excepción explícita.
+    expect(error).toBeNull();
+    expect(data).toHaveLength(0);
+  });
+
+  it("A, admin de team1, puede agregar y quitar un miembro de su equipo", async () => {
+    const { error: insErr } = await clientA
+      .from("team_members")
+      .insert({ team_id: team1Id, user_id: userBId, role: "member", invited_by: userAId });
+    expect(insErr).toBeNull();
+
+    const { data: members, error: selErr } = await clientA.from("team_members").select("user_id").eq("team_id", team1Id);
+    expect(selErr).toBeNull();
+    expect(members!.map((r) => r.user_id)).toContain(userBId);
+
+    // Deja el estado como estaba antes del test (idempotencia entre corridas).
+    const { error: delErr } = await clientA.from("team_members").delete().eq("team_id", team1Id).eq("user_id", userBId);
+    expect(delErr).toBeNull();
+  });
+
+  it("B NO puede agregarse a sí mismo a team1 (no es admin de ese equipo)", async () => {
+    const { data, error } = await clientB
+      .from("team_members")
+      .insert({ team_id: team1Id, user_id: userBId, role: "member", invited_by: userBId })
+      .select("team_id");
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it("A (admin de team1) ve la invitación pendiente que creó", async () => {
+    const { data, error } = await clientA.from("team_invitations").select("id, status").eq("id", invitationId).single();
+    expect(error).toBeNull();
+    expect(data!.status).toBe("pending");
+  });
+
+  it("B NO ve la invitación de team1 (ni es admin de ese equipo ni la envió)", async () => {
+    const { data, error } = await clientB.from("team_invitations").select("id").eq("id", invitationId);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(0);
+  });
+
+  it("B NO puede crear una invitación para team1 (no es admin de ese equipo)", async () => {
+    const { data, error } = await clientB
+      .from("team_invitations")
+      .insert({ team_id: team1Id, email: "rls-test-otro-intruso@example.com", invited_by: userBId })
+      .select("id");
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+
+  it("ni siquiera un team admin puede insertar un equipo directo en la tabla (solo super-admin, vía admin_create_team)", async () => {
+    const { data, error } = await clientA
+      .from("teams")
+      .insert({ name: "Equipo creado sin permiso", created_by: userAId })
+      .select("id");
+    expect(error).not.toBeNull();
+    expect(data).toBeNull();
+  });
+});
