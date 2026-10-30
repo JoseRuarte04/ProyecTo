@@ -20,6 +20,7 @@ import { useDirtyDeps } from "@/hooks/useDirtyDeps";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 import { DOCUMENT_TYPE_OPTIONS, DEFAULT_DOCUMENT_TYPE, documentTypeLabel } from "@/components/patients/documentTypes";
+import { fieldError, STEP1_FIELDS, STEP3_FIELDS } from "@/lib/newPatientValidation";
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -120,46 +121,6 @@ export default function NewPatientForm() {
 
   const or = (v: string) => v.trim() || null;
 
-  // ── Validation helpers ──
-  const isValidDni    = (v: string) => /^\d{7,8}$/.test(v.trim());
-  const isValidName   = (v: string) => !v.trim() || /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s'-]+$/.test(v.trim());
-  const isValidPhone  = (v: string) => !v.trim() || /^[+\d][\d\s\-()+]*$/.test(v.trim());
-  const isValidEmail  = (v: string) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-
-  const REQUIRED_MSG = "Este campo es obligatorio";
-  const PHONE_MSG = "El teléfono solo puede contener números y el signo + (ej: +54 11 1234-5678)";
-  const EMAIL_MSG = "Ingresá un email válido (ej: nombre@dominio.com)";
-
-  // Mensaje de error de un campo para un valor dado ("" = válido). Lo usan la validación al salir del
-  // campo y "Siguiente"/"Confirmar y guardar", así los mensajes son siempre los mismos.
-  const fieldError = (field: string, v: string): string => {
-    switch (field) {
-      case "lastName":
-        if (!v.trim()) return REQUIRED_MSG;
-        return isValidName(v) ? "" : "El apellido solo puede contener letras";
-      case "firstName":
-        if (!v.trim()) return REQUIRED_MSG;
-        return isValidName(v) ? "" : "El nombre solo puede contener letras";
-      case "dni":
-        if (!v.trim()) return REQUIRED_MSG;
-        return documentType === "dni" && !isValidDni(v) ? "El DNI debe tener 7 u 8 números, sin letras ni símbolos" : "";
-      case "birthDate":
-      case "admissionDate":
-        return v ? "" : REQUIRED_MSG;
-      case "nationality":
-        return v.trim() ? "" : REQUIRED_MSG;
-      case "phone":
-      case "emergencyPhone":
-        return !v || isValidPhone(v) ? "" : PHONE_MSG;
-      case "email":
-        return !v || isValidEmail(v) ? "" : EMAIL_MSG;
-      default:
-        return "";
-    }
-  };
-
-  const STEP1_FIELDS = ["lastName", "firstName", "dni", "birthDate", "nationality", "admissionDate"];
-  const STEP3_FIELDS = ["phone", "email", "emergencyPhone"];
   const fieldValues: Record<string, string> = {
     lastName, firstName, dni, birthDate, nationality, admissionDate, phone, email, emergencyPhone,
   };
@@ -167,7 +128,7 @@ export default function NewPatientForm() {
   const validateFields = (fields: string[]) => {
     const errs: Record<string, string> = {};
     for (const f of fields) {
-      const msg = fieldError(f, fieldValues[f]);
+      const msg = fieldError(f, fieldValues[f], documentType);
       if (msg) errs[f] = msg;
     }
     setErrors(errs);
@@ -180,7 +141,7 @@ export default function NewPatientForm() {
   // Al salir del campo: muestra (o limpia) el error de ese campo en el momento, sin esperar a "Siguiente".
   const checkField = (field: string, v: string = fieldValues[field]) =>
     setErrors((prev) => {
-      const msg = fieldError(field, v);
+      const msg = fieldError(field, v, documentType);
       if (msg) return { ...prev, [field]: msg };
       if (!(field in prev)) return prev;
       const next = { ...prev };
