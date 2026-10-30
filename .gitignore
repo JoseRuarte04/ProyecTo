@@ -42,3 +42,6 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+
+# Vitest coverage (reporte local, no se commitea)
+coverage/

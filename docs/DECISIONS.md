@@ -9,6 +9,57 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-29] Denominador de coverage: qué queda afuera y por qué
+
+**Contexto:** pedido directo de Jose de subir la cobertura de tests de forma
+útil, no inflada — con la regla explícita de no excluir código propio para
+inflar el número, y de justificar cada exclusión acá. Antes de escribir un
+solo test nuevo, `vitest.config.ts` necesitaba un `coverage.include`/`exclude`
+honesto: sin esto, el ~0.1-0.2% de hoy incluye en el denominador archivos que
+nunca se van a (ni se deberían) testear con este runner.
+
+**Decisión:** `coverage.include` se restringe a `src/**/*.{ts,tsx}` (antes
+no estaba seteado, así que v8 contaba todo el proyecto: `e2e/`, `scripts/`,
+`playwright.config.ts`, `tailwind.config.ts`, etc.). Dentro de `src/`, se
+excluyen solo 4 categorías, cada una justificada:
+- `src/components/ui/**` — componentes de shadcn/ui, generados por su CLI y
+  vendorizados tal cual; no son código que el equipo escriba ni edite a mano.
+- `src/integrations/supabase/types.ts` — autogenerado por
+  `supabase gen types typescript`, se regenera entero cada vez.
+- `src/main.tsx` — bootstrap de React, sin lógica propia (monta `<App />`).
+- `src/vite-env.d.ts` — declaración de tipos, no código ejecutable.
+
+**Por qué no se excluye nada más:** `e2e/`, `scripts/*.mjs` y
+`supabase/functions/**` (edge functions) no están excluidos "a mano" —
+quedan afuera del denominador simplemente porque `coverage.include` apunta
+solo a `src/`, no porque se los considere código a ignorar. `e2e/` corre con
+Playwright, no con Vitest; `supabase/functions/**` corre en el runtime de
+Deno (imports y globals que no existen bajo jsdom/Node) — ninguno de los dos
+es alcanzable por este test runner sin un setup aparte. Si en el futuro se
+agrega cobertura real de esas áreas (con sus propias herramientas), merece
+su propia medición, no sumarse a este número.
+
+**Medido antes/después de este cambio** (sin tocar ningún test, con
+`src/test/rls.test.ts` excluido de la corrida local por pegarle a Supabase
+real — ver nota en el propio archivo):
+| | Antes (todo el repo) | Después (solo `src/`, sin UI/generado) |
+|---|---|---|
+| Statements | 0.14% | 0.19% |
+| Branches | 8.97% | 12.42% |
+| Functions | 2.31% | 3.31% |
+| Lines | 0.14% | 0.19% |
+
+El salto es solo el denominador encogiéndose a código propio real — ningún
+test nuevo todavía (eso es el paso 3 en adelante).
+
+**Consecuencias / trade-offs aceptados:** si algún día se decide testear
+`supabase/functions/**` (Deno) o `e2e/` de otra forma, va a necesitar su
+propio comando/reporte de coverage, separado de este.
+
+**Quién lo decidió:** Jose (pedido explícito, vía Claude Code).
+
+---
+
 ## [2026-10-11] Baseline de esquema: cuando un dump congelado contradice un DROP ya mergeado, reordenar las migraciones en vez de editar el dump a mano
 
 **Contexto:** al revisar el PR #88 antes de mergearlo (auditoría de integridad
