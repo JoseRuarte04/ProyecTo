@@ -9,6 +9,33 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-29] `rls.test.ts` pasa de "pega a prod salvo que pises el .env" a "aborta salvo que sea local"
+
+**Contexto:** hasta ahora, si alguien corría `npm test` en su máquina sin
+pisar `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` con las de un
+Supabase local, la suite de RLS (`src/test/rls.test.ts`) ejecutaba sus
+sign-in/lecturas/escrituras de prueba contra el proyecto real
+(`pvuaqatdendcgumwktid.supabase.co`) sin ningún aviso — documentado así en
+`.env.example` ("si dejás las de arriba sin pisar, los tests siguen
+pegándole a producción como hasta ahora"). CI ya estaba a salvo desde el
+2026-10-28 (pisa esas vars con un Supabase local efímero antes de correr
+los tests), pero local quedaba con el riesgo de siempre.
+
+**Decisión:** flip de default — allowlist en vez de denylist. El archivo
+ahora aborta con un error explícito salvo que `VITE_SUPABASE_URL` matchee
+`^https?://(127\.0\.0\.1|localhost)(:\d+)?/` (el patrón real de
+`supabase start`/`supabase status`). Sin ninguna variable de escape: no
+existe forma de pisar este chequeo para apuntar la suite a producción (ni
+siquiera a propósito) — si alguna vez hiciera falta, es una decisión que
+amerita editar el archivo a mano, no una env var que alguien puede dejar
+puesta por error. Pedido directo de Jose al revisar el plan de testing del
+2026-10-29.
+
+**Alternativa descartada:** denylist (bloquear solo si la URL es la de
+producción conocida) — Jose la rechazó explícitamente porque deja pasar
+cualquier URL que no sea esa, incluido un typo o un proyecto Supabase
+distinto que alguien tenga configurado.
+
 ## [2026-10-29] Bypass de Vercel SSO Protection vía header oficial, no desactivando la protección
 
 **Contexto:** el alias fijo de staging (`proyec-to-staging.vercel.app`) quedó
