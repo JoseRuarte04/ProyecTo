@@ -26,25 +26,11 @@ export const QUICKDASH_QUESTIONS: Array<{ q: string; scale: string[] }> = [
   { q: "¿Cuánta dificultad ha tenido para dormir debido a dolor en brazo, hombro o mano?", scale: QD_SCALE_11 },
 ];
 
-export function calcQuickDashScore(items: (number | null)[]): number | null {
-  const answered = items.filter((v): v is number => v !== null && v !== undefined);
-  if (answered.length < items.length) return null;
-  const sum = answered.reduce((a, b) => a + b, 0);
-  const score = ((sum / 11) - 1) * 25;
-  return Math.round(score * 10) / 10;
-}
-
-export function calcQuickDashPartial(items: (number | null)[]): number | null {
-  const answered = items.filter((v): v is number => v !== null && v !== undefined);
-  if (answered.length === 0) return null;
-  const sum = answered.reduce((a, b) => a + b, 0);
-  const score = ((sum / answered.length) - 1) * 25;
-  return Math.round(score * 10) / 10;
-}
-
-export function emptyQuickDash(): (number | null)[] {
-  return Array(11).fill(null);
-}
+// Lógica de puntuación extraída a src/lib/functionalScales.ts (testeable sin
+// renderizar nada) — re-exportada acá para no romper a los 4 archivos que
+// importan estos símbolos desde este módulo.
+export { calcQuickDashScore, calcQuickDashPartial, emptyQuickDash } from "@/lib/functionalScales";
+import { calcQuickDashPartial } from "@/lib/functionalScales";
 
 export function QuickDashSection({
   items,
@@ -126,85 +112,26 @@ const FIM_LABELS: Record<number, string> = {
   7: "Independencia total",
 };
 
-export const FIM_GROUPS = [
-  {
-    name: "AUTOCUIDADO",
-    max: 42,
-    items: [
-      { key: "alimentacion", label: "Alimentación" },
-      { key: "aseo_personal", label: "Aseo personal" },
-      { key: "bano", label: "Baño" },
-      { key: "vestido_tren_superior", label: "Vestido tren superior" },
-      { key: "vestido_tren_inferior", label: "Vestido tren inferior" },
-      { key: "uso_del_bano", label: "Uso del baño" },
-    ],
-  },
-  {
-    name: "CONTROL DE ESFÍNTERES",
-    max: 14,
-    items: [
-      { key: "control_de_intestino", label: "Control de intestino" },
-      { key: "control_de_vejiga", label: "Control de vejiga" },
-    ],
-  },
-  {
-    name: "TRANSFERENCIAS",
-    max: 21,
-    items: [
-      { key: "transferencia_cama_silla", label: "Transferencia cama-silla" },
-      { key: "transferencia_al_bano", label: "Transferencia al baño" },
-      { key: "transferencia_ducha_banera", label: "Transferencia ducha-bañera" },
-    ],
-  },
-  {
-    name: "LOCOMOCIÓN",
-    max: 14,
-    items: [
-      { key: "marcha_o_silla_de_ruedas", label: "Marcha o silla de ruedas" },
-      { key: "escaleras", label: "Escaleras" },
-    ],
-  },
-];
-
-export const FIM_COGNITIVE_GROUPS = [
-  {
-    name: "COMUNICACIÓN",
-    max: 14,
-    items: [
-      { key: "comprension", label: "Comprensión" },
-      { key: "expresion", label: "Expresión" },
-    ],
-  },
-  {
-    name: "CONEXIÓN",
-    max: 21,
-    items: [
-      { key: "interaccion_social", label: "Interacción social" },
-      { key: "resolucion_de_problemas", label: "Resolución de problemas" },
-      { key: "memoria", label: "Memoria" },
-    ],
-  },
-];
-
-export const FIM_MOTOR: Array<{ key: string; label: string }> = FIM_GROUPS.flatMap(g => g.items);
-export const FIM_COGNITIVE: Array<{ key: string; label: string }> = FIM_COGNITIVE_GROUPS.flatMap(g => g.items);
-export const FIM_ALL = [...FIM_MOTOR, ...FIM_COGNITIVE];
-
-export function emptyFim(): Record<string, number | null> {
-  return Object.fromEntries(FIM_ALL.map((i) => [i.key, null]));
-}
-
-export function calcFimTotal(items: Record<string, number | null>): number | null {
-  const vals = FIM_ALL.map((i) => items[i.key]).filter((v): v is number => v !== null && v !== undefined);
-  if (vals.length === 0) return null;
-  return vals.reduce((a, b) => a + b, 0);
-}
-
-function calcGroupSubtotal(items: Record<string, number | null>, group: { items: Array<{ key: string }> }): number | null {
-  const vals = group.items.map(i => items[i.key]).filter((v): v is number => v !== null && v !== undefined);
-  if (vals.length === 0) return null;
-  return vals.reduce((a, b) => a + b, 0);
-}
+// Grupos/ítems y lógica de puntuación extraídos a src/lib/functionalScales.ts
+// (mismo criterio que QuickDASH arriba) — re-exportados para no romper a
+// los importadores existentes de este módulo.
+export {
+  FIM_GROUPS,
+  FIM_COGNITIVE_GROUPS,
+  FIM_MOTOR,
+  FIM_COGNITIVE,
+  FIM_ALL,
+  emptyFim,
+  calcFimTotal,
+} from "@/lib/functionalScales";
+import {
+  FIM_GROUPS,
+  FIM_COGNITIVE_GROUPS,
+  FIM_MOTOR,
+  FIM_COGNITIVE,
+  calcFimTotal,
+  calcGroupSubtotal,
+} from "@/lib/functionalScales";
 
 const selectClass = "h-8 w-full text-xs rounded-md border border-gray-200 bg-white px-2 py-1 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent";
 
