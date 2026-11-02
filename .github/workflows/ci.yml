@@ -178,7 +178,10 @@ jobs:
   # — ver docs/TASKS.md para el criterio exacto de cuándo promoverlo.
   e2e:
     needs: ci
-    runs-on: ubuntu-latest
+    # Fijo a 24.04 (no ubuntu-latest): GitHub pasó el "latest" a 26.04 y
+    # Playwright 1.57 todavía no lo soporta oficialmente ("Playwright does
+    # not support chromium on ubuntu26.04-x64") — ver DECISIONS.md.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 

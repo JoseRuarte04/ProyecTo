@@ -152,7 +152,11 @@ jobs:
   # confirmación antes de pedirle la aprobación a Jose.
   tests-staging:
     needs: smoke-staging
-    runs-on: ubuntu-latest
+    # Fijo a 24.04 (no ubuntu-latest): mismo motivo que el job "e2e" de
+    # ci.yml — Playwright 1.57 todavía no soporta el 26.04 al que pasó
+    # "latest" (ver DECISIONS.md). Este job SÍ es bloqueante para producción,
+    # así que no puede quedar roto por esto.
+    runs-on: ubuntu-24.04
     concurrency:
       group: deploy-staging
       cancel-in-progress: false
