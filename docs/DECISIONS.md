@@ -9,6 +9,39 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-11-02] Allowlist de `rls.test.ts`: agregado el proyecto de staging + runner fijo a `ubuntu-24.04` para Playwright
+
+**Contexto:** al mergear el cambio del 2026-10-29 de abajo (allowlist "solo
+local" para `rls.test.ts`), se rompió el job `tests-staging` de
+`deploy.yml` — ese job corre la misma suite contra un proyecto Supabase de
+staging dedicado (`omigkfhiszbfbymbzaxr.supabase.co`, no local, no
+producción) como gate obligatorio antes de pedir la aprobación manual de
+`deploy-db-prod`. El allowlist no conocía esa URL y abortaba igual que si
+fuera producción. Confirmado roto en la corrida real de `main` tras ese
+merge.
+
+Al arreglarlo y re-correr el pipeline completo contra `main`, apareció un
+segundo bloqueo sin relación: GitHub movió `ubuntu-latest` a Ubuntu 26.04,
+y la versión instalada de Playwright (`^1.57.0` → resuelve a 1.60.0) todavía
+no lo soporta oficialmente (`Playwright does not support chromium on
+ubuntu26.04-x64`) — rompe la instalación de Chromium en cualquier job que
+corra Playwright, incluido `tests-staging` (bloqueante para producción) y
+`e2e` de `ci.yml` (informativo).
+
+**Decisión:** (1) el allowlist de `rls.test.ts` ahora permite dos URLs
+explícitas — local y ese proyecto de staging fijo — en vez de solo local;
+sigue bloqueando producción y cualquier otra cosa, sin variable de escape,
+mismo criterio que el 2026-10-29. (2) los 2 jobs que instalan Playwright
+(`e2e` en `ci.yml`, `tests-staging` en `deploy.yml`) quedan fijados a
+`runs-on: ubuntu-24.04` en vez de `ubuntu-latest`, para no depender de que
+Playwright se pusiera al día con el runner de GitHub. El resto de los jobs
+(que no tocan Playwright) sigue en `ubuntu-latest`.
+
+**Qué falta:** cuando se actualice `@playwright/test` a una versión que sí
+soporte 26.04 (o cuando GitHub estabilice el runner), se puede volver a
+`ubuntu-latest` en esos 2 jobs — no se hizo ahora para no mezclar un bump de
+dependencia con este fix puntual.
+
 ## [2026-10-29] Discrepancias QuickDASH/FIM contra la fuente oficial: documentadas, no corregidas
 
 **Contexto:** al extraer `calcQuickDashScore`/`calcQuickDashPartial`/`calcFimTotal`
@@ -41,6 +74,33 @@ descartada porque cambiar silenciosamente qué score ve un profesional en
 una app clínica con pacientes reales, sin que medie una decisión explícita,
 es exactamente el tipo de cambio que este plan de testing tenía prohibido
 hacer por su cuenta.
+
+## [2026-10-29] `rls.test.ts` pasa de "pega a prod salvo que pises el .env" a "aborta salvo que sea local"
+
+**Contexto:** hasta ahora, si alguien corría `npm test` en su máquina sin
+pisar `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` con las de un
+Supabase local, la suite de RLS (`src/test/rls.test.ts`) ejecutaba sus
+sign-in/lecturas/escrituras de prueba contra el proyecto real
+(`pvuaqatdendcgumwktid.supabase.co`) sin ningún aviso — documentado así en
+`.env.example` ("si dejás las de arriba sin pisar, los tests siguen
+pegándole a producción como hasta ahora"). CI ya estaba a salvo desde el
+2026-10-28 (pisa esas vars con un Supabase local efímero antes de correr
+los tests), pero local quedaba con el riesgo de siempre.
+
+**Decisión:** flip de default — allowlist en vez de denylist. El archivo
+ahora aborta con un error explícito salvo que `VITE_SUPABASE_URL` matchee
+`^https?://(127\.0\.0\.1|localhost)(:\d+)?/` (el patrón real de
+`supabase start`/`supabase status`). Sin ninguna variable de escape: no
+existe forma de pisar este chequeo para apuntar la suite a producción (ni
+siquiera a propósito) — si alguna vez hiciera falta, es una decisión que
+amerita editar el archivo a mano, no una env var que alguien puede dejar
+puesta por error. Pedido directo de Jose al revisar el plan de testing del
+2026-10-29.
+
+**Alternativa descartada:** denylist (bloquear solo si la URL es la de
+producción conocida) — Jose la rechazó explícitamente porque deja pasar
+cualquier URL que no sea esa, incluido un typo o un proyecto Supabase
+distinto que alguien tenga configurado.
 
 ## [2026-10-29] Bypass de Vercel SSO Protection vía header oficial, no desactivando la protección
 
