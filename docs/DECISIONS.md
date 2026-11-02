@@ -44,6 +44,140 @@ un threshold bajo igual — descartada porque el ruido de archivos que
 nunca van a tener test (configs de root, `e2e/`, `scripts/`) sigue
 diluyendo cualquier threshold futuro sin aportar nada.
 
+## [2026-10-29] BUG CRÍTICO REAL encontrado al escribir el e2e de archivos clínicos: borrar un archivo está roto para cualquier usuario
+
+**Contexto:** al escribir `e2e/clinical-files.spec.ts` (ítem 9 del plan de
+tests/cobertura), el paso de "eliminar archivo" falló contra Supabase
+local. Reproducido también directo con `@supabase/supabase-js` logueado
+como `rls-test-a`:
+`supabase.from("clinical_files").update({is_deleted:true}).eq("id", ...)`
+devuelve `{ code: '42501', message: 'permission denied for function
+insert_audit_log' }`.
+
+**Causa raíz** (confirmada en `supabase/migrations/20261011210000_baseline_schema.sql`):
+el trigger `trg_clinical_files_soft_delete` (~línea 4146) ejecuta
+`handle_file_soft_delete()` (~línea 1364) antes de cada UPDATE de
+`is_deleted` en `clinical_files`. Esa función llama a `insert_audit_log(...)`
+pero **no está declarada `SECURITY DEFINER`** — corre con los permisos del
+usuario autenticado, no de `postgres`. `insert_audit_log` tiene `REVOKE ALL
+FROM PUBLIC` + `GRANT ALL TO service_role` únicamente (~línea 5495) —
+ningún usuario autenticado real tiene permiso para ejecutarla. Por
+contraste, `admin_deactivate_therapist` (~línea 324) SÍ es `SECURITY
+DEFINER` y llama a `insert_audit_log()` sin problema — es el patrón que
+`handle_file_soft_delete()` debería seguir y no sigue.
+
+**Impacto:** cualquier profesional que intente borrar (o restaurar) un
+archivo clínico desde la UI ve "Error al eliminar el archivo" siempre, sin
+excepción — no es un caso borde, es el 100% de los intentos. No se pudo
+confirmar si esto también afecta producción real (no se corrió contra
+producción, el baseline SQL es el mismo) — alta probabilidad de que sí,
+dado que el bug está en la migración baseline, no en algo específico del
+entorno local.
+
+**Decisión:** NO corregido en el PR del ítem 9 — agregar `SECURITY
+DEFINER` a una función que hoy no lo tiene es un cambio de superficie de
+seguridad/confianza que le toca decidir y aplicar a Jose explícitamente,
+no a un plan de testing. El escenario quedó documentado como `test.skip`
+en `e2e/clinical-files.spec.ts` con la causa raíz completa, listo para
+sacarle el `.skip` en cuanto se aplique el fix.
+
+**Siguiente paso sugerido:** nueva migración que agregue `SECURITY
+DEFINER` a `handle_file_soft_delete()` (mismo patrón que las funciones
+`admin_*`), aplicarla contra producción, y sacar el `.skip` del test.
+
+## [2026-11-02] Allowlist de `rls.test.ts`: agregado el proyecto de staging + runner fijo a `ubuntu-24.04` para Playwright
+
+**Contexto:** al mergear el cambio del 2026-10-29 de abajo (allowlist "solo
+local" para `rls.test.ts`), se rompió el job `tests-staging` de
+`deploy.yml` — ese job corre la misma suite contra un proyecto Supabase de
+staging dedicado (`omigkfhiszbfbymbzaxr.supabase.co`, no local, no
+producción) como gate obligatorio antes de pedir la aprobación manual de
+`deploy-db-prod`. El allowlist no conocía esa URL y abortaba igual que si
+fuera producción. Confirmado roto en la corrida real de `main` tras ese
+merge.
+
+Al arreglarlo y re-correr el pipeline completo contra `main`, apareció un
+segundo bloqueo sin relación: GitHub movió `ubuntu-latest` a Ubuntu 26.04,
+y la versión instalada de Playwright (`^1.57.0` → resuelve a 1.60.0) todavía
+no lo soporta oficialmente (`Playwright does not support chromium on
+ubuntu26.04-x64`) — rompe la instalación de Chromium en cualquier job que
+corra Playwright, incluido `tests-staging` (bloqueante para producción) y
+`e2e` de `ci.yml` (informativo).
+
+**Decisión:** (1) el allowlist de `rls.test.ts` ahora permite dos URLs
+explícitas — local y ese proyecto de staging fijo — en vez de solo local;
+sigue bloqueando producción y cualquier otra cosa, sin variable de escape,
+mismo criterio que el 2026-10-29. (2) los 2 jobs que instalan Playwright
+(`e2e` en `ci.yml`, `tests-staging` en `deploy.yml`) quedan fijados a
+`runs-on: ubuntu-24.04` en vez de `ubuntu-latest`, para no depender de que
+Playwright se pusiera al día con el runner de GitHub. El resto de los jobs
+(que no tocan Playwright) sigue en `ubuntu-latest`.
+
+**Qué falta:** cuando se actualice `@playwright/test` a una versión que sí
+soporte 26.04 (o cuando GitHub estabilice el runner), se puede volver a
+`ubuntu-latest` en esos 2 jobs — no se hizo ahora para no mezclar un bump de
+dependencia con este fix puntual.
+
+## [2026-10-29] Discrepancias QuickDASH/FIM contra la fuente oficial: documentadas, no corregidas
+
+**Contexto:** al extraer `calcQuickDashScore`/`calcQuickDashPartial`/`calcFimTotal`
+de `FunctionalScales.tsx` a `src/lib/functionalScales.ts` para poder
+testearlos, Jose pidió validar los tests contra la definición OFICIAL de
+cada escala (IWH para QuickDASH, UDSMR/CMS para FIM — ver fuentes en
+`src/lib/functionalScales.test.ts`), no solo capturar el comportamiento
+actual. Aparecieron 3 discrepancias reales:
+
+1. `calcQuickDashScore` exige los 11 ítems completos — la regla oficial
+   permite calcular el score con hasta 1 ítem faltante (mínimo 10/11).
+2. `calcQuickDashPartial` calcula un score con tan solo 1 de 11 ítems
+   respondidos — la regla oficial no permite calcular ningún score con más
+   de 1 ítem faltante.
+3. `calcFimTotal` suma lo que esté respondido sin distinguir un total de
+   18/18 de uno parcial, y la UI (`FimSection`) lo muestra igual que un
+   total completo (sin el "(parcial)" que sí tiene el badge de QuickDASH).
+   El protocolo oficial de FIM no contempla ítems faltantes (todo ítem no
+   testeable se registra como 1, nunca se omite).
+
+**Decisión:** no corregir ninguna de las tres en este PR. Son cambios de
+comportamiento clínico real (qué score ve el profesional, cuándo se le
+muestra o no un número) — le toca decidirlos a Jose, no a un plan de
+testing. Quedaron documentadas como tests `.skip` en
+`src/lib/functionalScales.test.ts` con la fuente citada y el resultado
+esperado si algún día se corrigen.
+
+**Alternativa descartada:** corregir directamente ya que "está mal" —
+descartada porque cambiar silenciosamente qué score ve un profesional en
+una app clínica con pacientes reales, sin que medie una decisión explícita,
+es exactamente el tipo de cambio que este plan de testing tenía prohibido
+hacer por su cuenta.
+
+## [2026-10-29] `rls.test.ts` pasa de "pega a prod salvo que pises el .env" a "aborta salvo que sea local"
+
+**Contexto:** hasta ahora, si alguien corría `npm test` en su máquina sin
+pisar `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` con las de un
+Supabase local, la suite de RLS (`src/test/rls.test.ts`) ejecutaba sus
+sign-in/lecturas/escrituras de prueba contra el proyecto real
+(`pvuaqatdendcgumwktid.supabase.co`) sin ningún aviso — documentado así en
+`.env.example` ("si dejás las de arriba sin pisar, los tests siguen
+pegándole a producción como hasta ahora"). CI ya estaba a salvo desde el
+2026-10-28 (pisa esas vars con un Supabase local efímero antes de correr
+los tests), pero local quedaba con el riesgo de siempre.
+
+**Decisión:** flip de default — allowlist en vez de denylist. El archivo
+ahora aborta con un error explícito salvo que `VITE_SUPABASE_URL` matchee
+`^https?://(127\.0\.0\.1|localhost)(:\d+)?/` (el patrón real de
+`supabase start`/`supabase status`). Sin ninguna variable de escape: no
+existe forma de pisar este chequeo para apuntar la suite a producción (ni
+siquiera a propósito) — si alguna vez hiciera falta, es una decisión que
+amerita editar el archivo a mano, no una env var que alguien puede dejar
+puesta por error. Pedido directo de Jose al revisar el plan de testing del
+2026-10-29.
+
+**Alternativa descartada:** denylist (bloquear solo si la URL es la de
+producción conocida) — Jose la rechazó explícitamente porque deja pasar
+cualquier URL que no sea esa, incluido un typo o un proyecto Supabase
+distinto que alguien tenga configurado.
+
 ## [2026-10-29] Bypass de Vercel SSO Protection vía header oficial, no desactivando la protección
 
 **Contexto:** el alias fijo de staging (`proyec-to-staging.vercel.app`) quedó
