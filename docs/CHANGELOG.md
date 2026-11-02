@@ -9,6 +9,23 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-10-29] Plan de tests/cobertura ejecutado: 11 ítems, 11 PRs (#114-#124)
+
+Pedido directo de Jose tras ver la cobertura de CI en lines 0.23%: diagnóstico (no era problema de medición, solo 2 archivos tenían test), plan priorizado, y los 11 ítems ejecutados en modo automático. Un PR por ítem, ninguno mergeado (los revisa Jose):
+- **#115** — `rls.test.ts` ahora aborta si no apunta a un Supabase local (antes pegaba a producción por default).
+- **#116** — tests de las 17 RPCs `admin_*`/`is_super_admin()` + 3ra cuenta de prueba (super-admin) en el seed local.
+- **#117** — mensaje claro cuando el step de cobertura de CI no genera el summary.
+- **#118** — `calcQuickDashScore`/`calcQuickDashPartial`/`calcFimTotal` extraídos a `src/lib` + tests validados contra la fuente oficial de cada escala (3 discrepancias reales encontradas y documentadas, no corregidas).
+- **#119** — validaciones de alta de pacientes extraídas a `src/lib` + 24 tests.
+- **#120** — `useUnsavedChangesGuard` (10 tests, incluido el escenario exacto del bug real del PR #79).
+- **#121** — `usePriorityRules` con Supabase mockeado (11 tests).
+- **#122** — e2e de archivos clínicos: subida/validación de tipo cubiertas; **bug real encontrado y documentado** (no corregido) — borrar un archivo clínico está roto para cualquier usuario por un permiso faltante en un trigger.
+- **#123** — `rls.test.ts` extendido a `teams`/`team_members`/`team_invitations` (8 tests).
+- **#124** — `AuthContext` (12 tests): reconciliación de email, eventos de sesión.
+- **#125** — cobertura acotada a `src/**` (antes medía configs/e2e/scripts que nunca van a tener test) + threshold de `lines` en 1.4% (medido combinando las 8 ramas de tests, queda documentado que hay que remedir si se mergea un subconjunto distinto).
+
+Detalle completo (diferencias contra fórmulas oficiales, bug de borrado de archivos, orden de merge recomendado) en el informe que Jose tiene del agente.
+
 ## [2026-10-29] Pipeline de CI/CD en verde de punta a punta por primera vez (producción real)
 
 Continuación del 2026-10-28: Jose mergeó los 4 PRs pendientes y autorizó modo automático. Cascada de 5 bugs reales de producción encontrados y arreglados uno por uno (token de Vercel con scope equivocado, `apikey` faltante en el health check de Supabase, YAML roto dos veces por un `run:` de una sola línea, Vercel SSO Protection bloqueando el alias de staging, conexión directa en vez de Session Pooler en `SUPABASE_DB_URL` de prod) + la deuda de `migration repair` del baseline #88 finalmente reparada contra producción (comando mostrado y autorizado por Jose antes de correr). Gate de aprobación manual de `deploy-db-prod` funcionó como estaba pensado — lo aprobó Jose. 5 PRs nuevos (#108-#112). Pipeline completo (7 jobs) confirmado en verde.

@@ -9,6 +9,47 @@ Formato: copiar el bloque de abajo por cada decisión. 5 minutos, no más.
 
 ---
 
+## [2026-10-29] Cobertura: acotada a `src/**` + threshold de `lines` apenas por debajo de lo medido
+
+**Contexto:** la cobertura de CI medía TODO lo que Vite llega a
+transformar desde la raíz del repo (sin `include` propio en
+`vitest.config.ts`) — `playwright.config.ts`, `tailwind.config.ts`,
+`e2e/*`, `scripts/*` entraban al cálculo pese a que ninguno va a tener
+nunca un test de vitest, diluyendo el número sin aportar señal real sobre
+`src/`. Tampoco había ningún `thresholds` — nada fallaba por cobertura
+baja, por diseño (PR del 2026-10-28: "el objetivo es visibilidad, no
+bloquear merges con un número que todavía no se ganó").
+
+**Decisión:** `coverage.include: ["src/**"]` + `exclude` de 3 categorías
+sin lógica propia testeable (`main.tsx` bootstrap, `integrations/supabase/types.ts`
+generado, `components/ui/**` boilerplate de shadcn/radix — 51 archivos).
+Con el plan de tests/cobertura del 2026-10-29 (PRs #114-#124) ya escrito,
+se midió la cobertura real combinada (fusión local de las 8 ramas que
+suman tests, sin pushear esa fusión) sobre ese `src/**` acotado: **lines
+1.52% (380/24842), branches 48.53% (149/307), functions 16.09%
+(28/174)**. Se fijó `thresholds.lines: 1.4` — apenas por debajo de lo
+medido, solo para que el número pueda subir de ahora en más, no bajar sin
+que CI lo note. Por ahora solo `lines`: es la métrica más estable;
+`branches`/`functions` quedan para sumarles umbral una vez que haya más
+corridas reales confirmando que no dan falsos positivos en archivos con
+pocas ramas/funciones.
+
+**Ojo (actualizado 2026-11-02, verificado contra `main` real):** al mergear
+#114, #115, #117, #118, #119, #120, #121, #122 y #124 (quedaron pendientes
+#116 y #123 por falta del secret `RLS_TEST_USER_ADMIN_PASSWORD`), volví a
+medir `npx vitest run --coverage` directamente sobre `main` actualizado y
+dio **el mismo número exacto** que la simulación de arriba: lines 1.52%
+(380/24842). Esto es porque #116 y #123 son tests de integración puros
+contra RLS (como `src/test/rls.test.ts`, al que extienden) — no importan
+ningún módulo de `src/`, así que no suman ni restan nada a esta métrica
+estén o no mergeados. El threshold de 1.4 queda confirmado como correcto
+con el subconjunto real que terminó mergeado, sin necesidad de ajustarlo.
+
+**Alternativa descartada:** dejar el `include` tal cual (medir todo) con
+un threshold bajo igual — descartada porque el ruido de archivos que
+nunca van a tener test (configs de root, `e2e/`, `scripts/`) sigue
+diluyendo cualquier threshold futuro sin aportar nada.
+
 ## [2026-10-29] BUG CRÍTICO REAL encontrado al escribir el e2e de archivos clínicos: borrar un archivo está roto para cualquier usuario
 
 **Contexto:** al escribir `e2e/clinical-files.spec.ts` (ítem 9 del plan de
