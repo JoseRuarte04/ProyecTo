@@ -42,6 +42,39 @@ soporte 26.04 (o cuando GitHub estabilice el runner), se puede volver a
 `ubuntu-latest` en esos 2 jobs — no se hizo ahora para no mezclar un bump de
 dependencia con este fix puntual.
 
+## [2026-10-29] Discrepancias QuickDASH/FIM contra la fuente oficial: documentadas, no corregidas
+
+**Contexto:** al extraer `calcQuickDashScore`/`calcQuickDashPartial`/`calcFimTotal`
+de `FunctionalScales.tsx` a `src/lib/functionalScales.ts` para poder
+testearlos, Jose pidió validar los tests contra la definición OFICIAL de
+cada escala (IWH para QuickDASH, UDSMR/CMS para FIM — ver fuentes en
+`src/lib/functionalScales.test.ts`), no solo capturar el comportamiento
+actual. Aparecieron 3 discrepancias reales:
+
+1. `calcQuickDashScore` exige los 11 ítems completos — la regla oficial
+   permite calcular el score con hasta 1 ítem faltante (mínimo 10/11).
+2. `calcQuickDashPartial` calcula un score con tan solo 1 de 11 ítems
+   respondidos — la regla oficial no permite calcular ningún score con más
+   de 1 ítem faltante.
+3. `calcFimTotal` suma lo que esté respondido sin distinguir un total de
+   18/18 de uno parcial, y la UI (`FimSection`) lo muestra igual que un
+   total completo (sin el "(parcial)" que sí tiene el badge de QuickDASH).
+   El protocolo oficial de FIM no contempla ítems faltantes (todo ítem no
+   testeable se registra como 1, nunca se omite).
+
+**Decisión:** no corregir ninguna de las tres en este PR. Son cambios de
+comportamiento clínico real (qué score ve el profesional, cuándo se le
+muestra o no un número) — le toca decidirlos a Jose, no a un plan de
+testing. Quedaron documentadas como tests `.skip` en
+`src/lib/functionalScales.test.ts` con la fuente citada y el resultado
+esperado si algún día se corrigen.
+
+**Alternativa descartada:** corregir directamente ya que "está mal" —
+descartada porque cambiar silenciosamente qué score ve un profesional en
+una app clínica con pacientes reales, sin que medie una decisión explícita,
+es exactamente el tipo de cambio que este plan de testing tenía prohibido
+hacer por su cuenta.
+
 ## [2026-10-29] `rls.test.ts` pasa de "pega a prod salvo que pises el .env" a "aborta salvo que sea local"
 
 **Contexto:** hasta ahora, si alguien corría `npm test` en su máquina sin
