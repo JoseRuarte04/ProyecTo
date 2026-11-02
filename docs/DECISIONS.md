@@ -34,10 +34,16 @@ que CI lo note. Por ahora solo `lines`: es la métrica más estable;
 corridas reales confirmando que no dan falsos positivos en archivos con
 pocas ramas/funciones.
 
-**Ojo:** el 1.4% asume que las 8 ramas de tests (#115, #116, #118, #119,
-#120, #121, #123, #124) se mergean antes o junto con esta — si se mergea
-un subconjunto distinto, hay que remedir y ajustar el threshold (sea para
-subirlo o para bajarlo si por lo que sea queda por encima de lo real).
+**Ojo (actualizado 2026-11-02, verificado contra `main` real):** al mergear
+#114, #115, #117, #118, #119, #120, #121, #122 y #124 (quedaron pendientes
+#116 y #123 por falta del secret `RLS_TEST_USER_ADMIN_PASSWORD`), volví a
+medir `npx vitest run --coverage` directamente sobre `main` actualizado y
+dio **el mismo número exacto** que la simulación de arriba: lines 1.52%
+(380/24842). Esto es porque #116 y #123 son tests de integración puros
+contra RLS (como `src/test/rls.test.ts`, al que extienden) — no importan
+ningún módulo de `src/`, así que no suman ni restan nada a esta métrica
+estén o no mergeados. El threshold de 1.4 queda confirmado como correcto
+con el subconjunto real que terminó mergeado, sin necesidad de ajustarlo.
 
 **Alternativa descartada:** dejar el `include` tal cual (medir todo) con
 un threshold bajo igual — descartada porque el ruido de archivos que
