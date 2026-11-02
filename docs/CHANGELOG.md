@@ -9,6 +9,10 @@ Formato: `## [YYYY-MM-DD] Título corto`
 
 ---
 
+## [2026-11-02] Plan de tests/cobertura mergeado a `main`: 9/11 ítems, 2 regresiones propias encontradas y arregladas
+
+Jose autorizó mergear los 11 PRs del 2026-10-29 (abajo). Mergeados 9: #114, #115, #117, #118, #119, #120, #121, #122, #124 — quedan #116 y #123 abiertos sin mergear (falta cargar el secret `RLS_TEST_USER_ADMIN_PASSWORD` en GitHub, bloqueado para Claude Code por el clasificador de permisos). Dos regresiones reales encontradas y arregladas en el camino, ambas con PR propio: el allowlist de `rls.test.ts` (#115) bloqueaba también al proyecto de staging real que usa `deploy.yml` para gatear producción — arreglado en **#126**; después de eso, el pipeline de deploy seguía roto por algo sin relación (GitHub pasó `ubuntu-latest` a 26.04, Playwright todavía no lo soporta) — arreglado fijando el runner a `ubuntu-24.04` en **#127**. Confirmado contra el pipeline real: `tests-staging` pasa de punta a punta y `deploy-db-prod` queda esperando aprobación manual, como corresponde. Cobertura real sobre `src/` medida en `main` ya actualizado: lines 1.52% (antes 0.15%), branches 48.53%, functions 16.09%. Bug crítico de borrado de archivos clínicos (del #122) sigue sin corregir, documentado, decisión pendiente de Jose.
+
 ## [2026-10-29] Plan de tests/cobertura ejecutado: 11 ítems, 11 PRs (#114-#124)
 
 Pedido directo de Jose tras ver la cobertura de CI en lines 0.23%: diagnóstico (no era problema de medición, solo 2 archivos tenían test), plan priorizado, y los 11 ítems ejecutados en modo automático. Un PR por ítem, ninguno mergeado (los revisa Jose):
