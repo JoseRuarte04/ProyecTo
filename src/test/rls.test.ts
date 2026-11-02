@@ -15,8 +15,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * Esta suite ya pegó contra producción real hasta el 2026-10-29 (al no pisar
  * VITE_SUPABASE_URL con un Supabase local, corría contra el proyecto real
  * por default — ver DECISIONS.md 2026-10-29). Ahora aborta si la URL no es
- * local, sin ninguna variable de override: no hay forma de que esta suite
- * toque producción por accidente.
+ * una de las dos que están explícitamente permitidas (local, o el proyecto
+ * de staging del pipeline de CD), sin ninguna variable de override: no hay
+ * forma de que esta suite toque producción por accidente.
  *
  * Las passwords NO van hardcodeadas (estuvieron en texto plano en este
  * archivo desde 2026-07-16, en un repo público — rotadas y movidas a env en
@@ -28,17 +29,23 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Allowlist, no denylist: solo se permite seguir si la URL es inequívocamente
-// un Supabase local (lo que imprime `supabase start`/`supabase status`,
-// siempre 127.0.0.1 o localhost). Cualquier otra cosa — incluida la URL real
-// de producción, o un typo, o un .env mal pisado — aborta antes de loguear
-// ningún usuario ni tocar ninguna tabla. A propósito sin variable de escape:
-// si alguna vez hace falta correr esto contra otro Supabase real, es una
-// decisión que amerita editar este archivo explícitamente, no dejar puesta
-// una env var que alguien olvida.
-const LOCAL_SUPABASE_URL_PATTERN = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/;
-if (!SUPABASE_URL || !LOCAL_SUPABASE_URL_PATTERN.test(SUPABASE_URL)) {
+// una de dos cosas conocidas — un Supabase local (lo que imprime
+// `supabase start`/`supabase status`, siempre 127.0.0.1 o localhost), o el
+// proyecto de staging fijo que usa el job "tests-staging" de deploy.yml
+// (`omigkfhiszbfbymbzaxr.supabase.co` — no es producción, es un proyecto
+// Supabase aparte creado para este pipeline, ver DECISIONS.md 2026-10-29
+// "Pipeline de CD"). Cualquier otra cosa — incluida la URL real de
+// producción (`pvuaqatdendcgumwktid.supabase.co`), o un typo, o un .env mal
+// pisado — aborta antes de loguear ningún usuario ni tocar ninguna tabla. A
+// propósito sin variable de escape: si alguna vez hace falta correr esto
+// contra otro Supabase real, es una decisión que amerita editar este
+// archivo explícitamente, no dejar puesta una env var que alguien olvida.
+const ALLOWED_SUPABASE_URL_PATTERN =
+  /^https:\/\/omigkfhiszbfbymbzaxr\.supabase\.co\/?$|^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/;
+if (!SUPABASE_URL || !ALLOWED_SUPABASE_URL_PATTERN.test(SUPABASE_URL)) {
   throw new Error(
-    `rls.test.ts solo puede correr contra un Supabase LOCAL (URL tipo "http://127.0.0.1:<puerto>/"). ` +
+    `rls.test.ts solo puede correr contra un Supabase LOCAL ("http://127.0.0.1:<puerto>/") o contra el ` +
+      `proyecto de staging del pipeline de CD ("https://omigkfhiszbfbymbzaxr.supabase.co"). ` +
       `VITE_SUPABASE_URL actual: "${SUPABASE_URL ?? "(vacío)"}". ` +
       `Corré "supabase start" y pisá VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY en tu .env con las ` +
       `credenciales que imprime (ver .env.example) — nunca con las de producción. Sin esto, esta suite ` +
